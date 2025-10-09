@@ -2,22 +2,21 @@
 from .session import Base
 from ..models.user import User, UserRole
 from ..models.device import Device
-from ..models.attendance_session import AttendanceSession
 from ..models.course import Course
+from ..models.attendance_session import AttendanceSession
 from ..models.attendance_record import AttendanceRecord, AttendanceStatus
 from ..models.verification_log import VerificationLog
+from ..models.audit_log import AuditLog
 
 __all__ = [
     "Base",
     "User",
     "UserRole",
     "Device",
-    "AttendanceSession",
     "Course",
+    "AttendanceSession",
     "AttendanceRecord",
     "AttendanceStatus",
     "VerificationLog",
+    "AuditLog",
 ]
-
-from ..models.audit_log import AuditLog
-__all__.append("AuditLog")

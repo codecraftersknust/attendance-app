@@ -1,7 +1,7 @@
-# SMAVS Backend - Implementation Summary
+# Absense Backend - Implementation Summary
 
 ## Overview
-Complete backend implementation for the Smart Multi-Layered Attendance Verification System (SMAVS). The system provides a robust REST API for mobile attendance tracking with biometric verification, geolocation, device binding, and role-based access control.
+Complete backend implementation for Absense - Smart Multi-Layered Attendance Verification System. The system provides a robust REST API for mobile attendance tracking with biometric verification, geolocation, device binding, and role-based access control.
 
 ## Architecture
 
@@ -87,39 +87,59 @@ backend/
   - `GET /api/v1/auth/me` - Get current user profile
 
 ### 2. Student Features
-- **Attendance Submission** with multiple verification layers:
-  - Session code validation
+- **QR-Only Attendance Submission** with streamlined verification:
+  - QR code scanning (no manual code entry needed)
+  - Rotating QR nonce validation (expires every 60 seconds)
   - Device (IMEI) binding check
-  - Geolocation verification
-  - Selfie upload (liveness detection stub)
-  - Classroom presence image (face matching stub)
+  - Geolocation verification (geofencing)
+  - Selfie upload for face verification
+  - **Simplified Flow**: No classroom photo required - GPS + QR is sufficient
 - **Device Binding**: Register/update IMEI
 - **Face Enrollment**: Upload reference photo for biometric matching
 - **Endpoints**:
-  - `POST /api/v1/students/attendance` - Submit attendance
-  - `POST /api/v1/students/device/bind` - Bind/update device
-  - `POST /api/v1/students/enroll-face` - Enroll face reference
+  - `POST /api/v1/student/attendance` - Submit attendance (QR-only)
+  - `POST /api/v1/student/device/bind` - Bind/update device
+  - `POST /api/v1/student/enroll-face` - Enroll face reference
+  - `POST /api/v1/student/verify-face` - Standalone face verification
 
 ### 3. Lecturer Features
 - **Session Management**:
   - Create sessions with duration, geofence, and code
   - Close sessions manually
   - View all sessions
+- **QR Code Management**:
+  - Generate rotating QR codes for sessions
+  - Automatic QR rotation every 60 seconds (background service)
+  - QR status monitoring and manual rotation
+  - Rich QR payload with session context
 - **Attendance Tracking**:
   - View attendance records for sessions
   - Export attendance to CSV
-  - Dashboard with summary statistics (total sessions, avg attendance rate)
+  - Dashboard with summary statistics
+  - Manage flagged attendance records
 - **Endpoints**:
-  - `POST /api/v1/lecturers/sessions` - Create session
-  - `POST /api/v1/lecturers/sessions/{id}/close` - Close session
-  - `GET /api/v1/lecturers/sessions` - List all sessions
-  - `GET /api/v1/lecturers/sessions/{id}/attendance` - View attendance
-  - `GET /api/v1/lecturers/sessions/{id}/export` - Export CSV
-  - `GET /api/v1/lecturers/dashboard` - Get statistics
+  - `POST /api/v1/lecturer/sessions` - Create session
+  - `POST /api/v1/lecturer/sessions/{id}/close` - Close session
+  - `GET /api/v1/lecturer/sessions` - List all sessions
+  - `GET /api/v1/lecturer/sessions/{id}/attendance` - View attendance
+  - `GET /api/v1/lecturer/sessions/{id}/export` - Export CSV
+  - `GET /api/v1/lecturer/dashboard` - Get statistics
+  - `POST /api/v1/lecturer/sessions/{id}/qr/rotate` - Generate/rotate QR
+  - `GET /api/v1/lecturer/sessions/{id}/qr` - Get current QR payload
+  - `GET /api/v1/lecturer/sessions/{id}/qr/status` - Get QR status
+  - `GET /api/v1/lecturer/sessions/{id}/flagged` - List flagged attendance
+  - `POST /api/v1/lecturer/attendance/{id}/confirm` - Confirm flagged attendance
 
 ### 4. Admin Features
+- **Flagged Attendance Management**: Review and manage suspicious attendance records
+- **System Analytics**: View system-wide metrics and statistics
 - **IMEI Reset Approval**: Approve device change requests
+- **Force Verification**: Admin can verify any attendance record
 - **Endpoints**:
+  - `GET /api/v1/admin/flagged` - List all flagged attendance
+  - `POST /api/v1/admin/attendance/{id}/set-status` - Change attendance status
+  - `GET /api/v1/admin/analytics` - Get system analytics
+  - `POST /api/v1/admin/attendance/{id}/verify` - Force verify attendance
   - `POST /api/v1/admin/approve-imei-reset` - Approve IMEI reset
 
 ### 5. Security & Middleware
@@ -135,12 +155,22 @@ backend/
   - **Amazon S3** with pre-signed URLs for production
 - Configurable via `STORAGE_BACKEND` environment variable
 
-### 7. Biometric Pipeline (Stubs)
-- **Liveness Detection**: Stub function ready for ML integration
-- **Face Matching**: Stub function for comparing selfies with reference photos
-- Infrastructure in place for actual implementation
+### 7. QR Code Rotation System
+- **Automatic Background Service**: QR codes rotate every 60 seconds automatically
+- **Smart Rotation**: Rotates 10 seconds before expiry to prevent gaps
+- **Session Lifecycle Management**: Sessions automatically added/removed from rotation
+- **Rich QR Payload**: Contains session context, lecturer info, course details
+- **Real-time Status**: Check QR expiration and rotation timing
+- **Security Benefits**: Prevents QR sharing between students
 
-### 8. Audit Logging
+### 8. Biometric Pipeline
+- **DeepFace Integration**: Server-side face matching using DeepFace library
+- **Face Verification Service**: Compare selfies with enrolled reference photos
+- **Verification Logging**: Track all biometric verification attempts
+- **Configurable**: Can be enabled/disabled via settings
+- **Graceful Fallback**: Works even if DeepFace is not available
+
+### 9. Audit Logging
 - **Automatic audit trail** for critical actions:
   - User registration
   - Session creation/closure
@@ -149,12 +179,14 @@ backend/
   - IMEI reset approval
 - Stored in `audit_logs` table with user, action, entity, timestamp
 
-### 9. Database
+### 10. Database
 - **Models**:
-  - `User` - Users with roles (student, lecturer, admin)
+  - `User` - Users with roles (student, lecturer, admin) + face reference path
   - `Device` - Device bindings (IMEI)
-  - `AttendanceSession` - Class sessions
-  - `AttendanceRecord` - Individual attendance entries
+  - `Course` - Course management
+  - `AttendanceSession` - Class sessions with QR rotation and geofencing
+  - `AttendanceRecord` - Individual attendance entries (simplified - no classroom photo)
+  - `VerificationLog` - Biometric verification attempts
   - `AuditLog` - Audit trail
 - **Migrations**: Alembic for schema versioning
 - **Seed Data**: Admin, lecturer, and student test accounts
@@ -184,13 +216,13 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ./.venv/bin/pytest -q
 
 ### Seed Database
 ```bash
-DATABASE_URL="sqlite:///./smavs_dev.db" python scripts/seed.py
+DATABASE_URL="sqlite:///./absense_dev.db" python scripts/seed.py
 ```
 
 **Default Users**:
-- Admin: `admin@smavs.com` / `admin123`
-- Lecturer: `lecturer@smavs.com` / `lecturer123`
-- Student: `student@smavs.com` / `student123`
+- Admin: `admin@absense.com` / `admin123`
+- Lecturer: `lecturer@absense.com` / `lecturer123`
+- Student: `student@absense.com` / `student123`
 
 ### Database Migrations
 ```bash
@@ -214,10 +246,10 @@ cp .env.production .env
 docker-compose -f docker-compose.prod.yml up -d
 
 # Run migrations
-docker exec smavs-backend-prod python -m alembic upgrade head
+docker exec absense-backend-prod python -m alembic upgrade head
 
 # Seed initial data
-docker exec smavs-backend-prod python scripts/seed.py
+docker exec absense-backend-prod python scripts/seed.py
 ```
 
 ### Manual Deployment
@@ -274,16 +306,16 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 # Returns: {"access_token": "eyJ...", "token_type": "bearer"}
 ```
 
-#### 3. Submit Attendance
+#### 3. Submit Attendance (QR-Only)
 ```bash
-curl -X POST http://localhost:8000/api/v1/students/attendance \
+curl -X POST http://localhost:8000/api/v1/student/attendance \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  -F "session_code=ABC123" \
-  -F "imei=123456789012345" \
+  -F "qr_session_id=1" \
+  -F "qr_nonce=ABC123XYZ" \
   -F "latitude=40.7128" \
   -F "longitude=-74.0060" \
-  -F "selfie=@selfie.jpg" \
-  -F "presence_image=@classroom.jpg"
+  -F "imei=123456789012345" \
+  -F "selfie=@selfie.jpg"
 ```
 
 ## Testing
@@ -367,15 +399,24 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ./.venv/bin/pytest -v
 
 ## Recent Updates (Latest)
 
+### QR-Only Attendance System
+- **Simplified Student Flow**: Students only need to scan QR code and take selfie
+- **No Manual Code Entry**: QR scanning extracts all session data automatically
+- **No Classroom Photo**: Removed classroom photo requirement - GPS + QR is sufficient
+- **Enhanced QR Payload**: Rich session context including lecturer name, course info, location
+- **Automatic QR Rotation**: Background service rotates QR codes every 60 seconds
+- **Real-time QR Status**: Lecturers can monitor QR expiration and rotation timing
+
 ### Enhanced Features Added
 - **JWT Refresh Token Support**: Added `/api/v1/auth/refresh` and `/api/v1/auth/logout` endpoints for secure token management
-- **Session Code Management**: Lecturers can regenerate session codes and expire sessions manually via `/api/v1/lecturers/sessions/{id}/regenerate` and `/api/v1/lecturers/sessions/{id}/expire`
+- **Session Code Management**: Lecturers can regenerate session codes and expire sessions manually via `/api/v1/lecturer/sessions/{id}/regenerate` and `/api/v1/lecturer/sessions/{id}/close`
 - **Flagged Attendance Management**: System now flags suspicious attendance for manual review
-  - Lecturers can view flagged records: `/api/v1/lecturers/sessions/{id}/flagged`
-  - Lecturers can confirm flagged attendance: `/api/v1/lecturers/attendance/{id}/confirm`
+  - Lecturers can view flagged records: `/api/v1/lecturer/sessions/{id}/flagged`
+  - Lecturers can confirm flagged attendance: `/api/v1/lecturer/attendance/{id}/confirm`
   - Admins can manage all flagged records: `/api/v1/admin/flagged` and `/api/v1/admin/attendance/{id}/set-status`
 - **Admin Analytics**: Added `/api/v1/admin/analytics` for system-wide metrics
 - **DeepFace Integration**: Implemented server-side face matching using DeepFace library for biometric verification
+- **QR Code Rotation Service**: Background service for automatic QR rotation every 60 seconds
 - **Comprehensive Test Suite**: Added 8 test files covering all endpoints and features:
   - `test_auth_refresh.py` - JWT refresh token flow
   - `test_lecturer_code.py` - Session code regeneration and expiration
@@ -387,16 +428,20 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ./.venv/bin/pytest -v
 - **Course Management**: Added `Course` model and `course_id` to attendance sessions
 - **Verification Logging**: Added `VerificationLog` model to track biometric verification attempts
 - **Face Reference Storage**: Added `face_reference_path` to User model for biometric enrollment
+- **QR Rotation Fields**: Added `qr_nonce` and `qr_expires_at` to attendance sessions
+- **Geofencing Support**: Added `latitude`, `longitude`, `geofence_radius_m` to sessions
 
 ### Security Improvements
 - **Password Hashing**: Switched from bcrypt to pbkdf2_sha256 to handle longer passwords
 - **Enhanced Middleware**: Improved error handling in logging middleware
 - **File Validation**: Added comprehensive file type and size validation for uploads
+- **QR Security**: Rotating QR codes prevent sharing between students
+- **Enhanced Error Messages**: Clear, user-friendly error messages for QR validation
 
 ### Testing Coverage
 - ✅ **Authentication**: register, login, refresh, logout (`test_auth.py`, `test_auth_refresh.py`)
-- ✅ **Student endpoints**: attendance, device binding, face enrollment (`test_student_face_routes.py`)
-- ✅ **Lecturer endpoints**: sessions, attendance, exports, dashboard, code management (`test_lecturer.py`, `test_lecturer_code.py`)
+- ✅ **Student endpoints**: QR-only attendance, device binding, face enrollment (`test_student_face_routes.py`)
+- ✅ **Lecturer endpoints**: sessions, QR management, attendance, exports, dashboard (`test_lecturer.py`, `test_lecturer_code.py`)
 - ✅ **Admin endpoints**: flagged management, analytics, IMEI reset (`test_admin_endpoints.py`)
 - ✅ **Face verification service**: DeepFace integration (`test_face_verification.py`)
 - ✅ **Health checks**: API availability (`test_health.py`)
@@ -405,4 +450,4 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 ./.venv/bin/pytest -v
 ## Status
 ✅ **Backend Development: COMPLETE & ENHANCED**
 
-All core features implemented, tested, and documented. The backend now includes advanced features like refresh tokens, flagged attendance management, DeepFace integration, and comprehensive admin tools. Production-ready with proper security, error handling, and deployment configurations. Ready for mobile app integration.
+All core features implemented, tested, and documented. The backend now includes advanced features like QR-only attendance, automatic QR rotation, refresh tokens, flagged attendance management, DeepFace integration, and comprehensive admin tools. Production-ready with proper security, error handling, and deployment configurations. Ready for mobile app integration.

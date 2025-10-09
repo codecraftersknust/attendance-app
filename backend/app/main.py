@@ -1,13 +1,24 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from .api.v1.routers import api_router
 from .core.logging_middleware import RequestIDLoggingMiddleware
 from .core.security_headers_middleware import SecurityHeadersMiddleware
 from .core.config import Settings
-#from app.api.v1.routers import students
+from .services.qr_rotation import start_qr_rotation, stop_qr_rotation
 
-app = FastAPI(title="attendance-app-backend", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await start_qr_rotation()
+    yield
+    # Shutdown
+    await stop_qr_rotation()
+
+
+app = FastAPI(title="absense-backend", version="0.1.0", lifespan=lifespan)
 
 app.include_router(api_router, prefix="/api/v1")
 

@@ -1,4 +1,4 @@
-## SMAVS Backend (FastAPI)
+## Absense Backend (FastAPI)
 
 ### Quickstart
 1. Create and activate venv
@@ -25,9 +25,9 @@ python3 -m venv .venv
 SECRET_KEY=change-me
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/smavs
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/absense
 ```
-- Dev script overrides `DATABASE_URL` to `sqlite:///./smavs_dev.db`
+- Dev script overrides `DATABASE_URL` to `sqlite:///./absense_dev.db`
 
 ### Main Endpoints
 - Auth:
@@ -89,10 +89,10 @@ docker compose -f docker-compose.prod.yml up -d
 3. **Run migrations and seed data:**
 ```bash
 # Migrations
-docker exec smavs-backend-prod python -m alembic upgrade head
+docker exec absense-backend-prod python -m alembic upgrade head
 
 # Seed initial data
-docker exec smavs-backend-prod python scripts/seed.py
+docker exec absense-backend-prod python scripts/seed.py
 ```
 
 ### Manual Deployment
@@ -141,8 +141,8 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 
 ### Default Users (after seeding)
 
-- Admin: `admin@smavs.com` / `admin123`
-- Lecturer: `lecturer@smavs.com` / `lecturer123`  
-- Student: `student@smavs.com` / `student123`
+- Admin: `admin@absense.com` / `admin123`
+- Lecturer: `lecturer@absense.com` / `lecturer123`  
+- Student: `student@absense.com` / `student123`
 
 **⚠️ Change default passwords in production!**

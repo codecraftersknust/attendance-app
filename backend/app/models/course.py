@@ -12,6 +12,6 @@ class Course(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
-    sessions: Mapped[list["AttendanceSession"]] = relationship(back_populates="course")
+    # sessions: Mapped[list["AttendanceSession"]] = relationship(back_populates="course")
 
 

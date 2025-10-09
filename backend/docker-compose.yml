@@ -2,15 +2,15 @@ version: "3.9"
 services:
   db:
     image: postgres:16-alpine
-    container_name: smavs-postgres
+    container_name: absense-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: smavs
+      POSTGRES_DB: absense
     ports:
       - "5432:5432"
     volumes:
-      - smavs_pg_data:/var/lib/postgresql/data
+      - absense_pg_data:/var/lib/postgresql/data
 volumes:
-  smavs_pg_data:
+  absense_pg_data:

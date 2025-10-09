@@ -8,6 +8,7 @@ from ....models.attendance_session import AttendanceSession
 from ....models.verification_log import VerificationLog
 from ....services.audit import write_audit
 from ....api.deps.auth import role_required
+from ....services.face_verification import FaceVerificationService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -84,4 +85,63 @@ def analytics(db: Session = Depends(get_db), current: User = Depends(get_current
         "total_sessions": total_sessions,
         "total_attendance_records": total_records,
         "flagged_records": flagged_records,
+    }
+
+
+@router.post("/attendance/{record_id}/verify", response_model=dict)
+def admin_verify_attendance(record_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_admin)):
+    """Allow admin to force-verify an attendance record by running face match if possible
+    and setting the status accordingly.
+    """
+    record = db.get(AttendanceRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+    session = db.get(AttendanceSession, record.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Attempt face verification if presence or selfie available
+    face_service = FaceVerificationService()
+    verified = None
+    distance = threshold = None
+    model = None
+    from ....models.user import User as DbUser
+    user = db.get(DbUser, record.student_id)
+    if user and (record.presence_image_path or record.selfie_image_path):
+        # presence_image_path/selfie_image_path is a URL; the service handles local paths if configured
+        # If local storage, we may not have the filesystem path; service will no-op if disabled
+        try:
+            image_path = record.presence_image_path or record.selfie_image_path
+            res = face_service.verify_face(user.id, image_path)
+            verified = bool(res.get("verified"))
+            distance = res.get("distance")
+            threshold = res.get("threshold")
+            model = res.get("model")
+            db.add(VerificationLog(
+                user_id=user.id,
+                session_id=session.id,
+                verified=verified,
+                distance=distance,
+                threshold=threshold,
+                model=model,
+            ))
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    # If verification ran and passed, confirm; otherwise set flagged
+    if verified is True:
+        record.status = AttendanceStatus.confirmed
+    else:
+        record.status = AttendanceStatus.flagged
+    db.commit()
+
+    write_audit(db, "admin.verify_attendance", current.id, f"record_id={record_id}, verified={verified}")
+    return {
+        "record_id": record.id,
+        "status": record.status.value,
+        "face_verified": verified,
+        "face_distance": distance,
+        "face_threshold": threshold,
+        "face_model": model,
     }

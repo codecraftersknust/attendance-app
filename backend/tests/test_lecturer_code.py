@@ -26,8 +26,8 @@ def test_regenerate_and_expire(client):
     new_code = r.json()["code"]
     assert new_code != first_code
 
-    # Expire
-    r = client.post(f"/api/v1/lecturer/sessions/{sid}/expire", headers=headers)
+    # Close session (not expire)
+    r = client.post(f"/api/v1/lecturer/sessions/{sid}/close", headers=headers)
     assert r.status_code == 200
     assert r.json()["is_active"] is False
 

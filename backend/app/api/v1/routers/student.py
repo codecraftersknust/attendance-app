@@ -16,6 +16,7 @@ from ....models.verification_log import VerificationLog
 from ....services.audit import write_audit
 from ....storage.base import get_storage
 from ....core.config import Settings
+from math import radians, cos, sin, asin, sqrt
 
 
 face_service = FaceVerificationService()
@@ -29,20 +30,46 @@ def get_current_student(current: User = Depends(role_required(UserRole.student))
 
 @router.post("/attendance")
 async def submit_attendance(
-    code: str = Form(...),
+    qr_session_id: int = Form(...),
+    qr_nonce: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
     imei: str = Form(...),
     selfie: UploadFile = File(None),
-    presence: UploadFile = File(None),
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
 ):
-    session = (
-        db.query(AttendanceSession)
-        .filter(AttendanceSession.code == code, AttendanceSession.is_active == True)
-        .first()
-    )
-    if not session:
-        raise HTTPException(status_code=404, detail="Invalid or inactive code")
+    # Get session directly from QR session ID (no manual code needed)
+    session = db.get(AttendanceSession, qr_session_id)
+    if not session or not session.is_active:
+        raise HTTPException(status_code=404, detail="Invalid or inactive session")
+
+    # Validate rotating QR nonce window
+    from datetime import datetime
+    if not session.qr_nonce or not session.qr_expires_at:
+        raise HTTPException(status_code=400, detail="QR code not generated for this session")
+    
+    if session.qr_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
+    
+    if qr_nonce != session.qr_nonce:
+        raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
+
+    # Optional geofence check if session has location configured
+    if session.latitude is not None and session.longitude is not None and session.geofence_radius_m:
+        def haversine(lat1, lon1, lat2, lon2):
+            # Earth radius in meters
+            R = 6371000.0
+            dlat = radians(lat2 - lat1)
+            dlon = radians(lon2 - lon1)
+            a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            return R * c
+
+        distance_m = haversine(latitude, longitude, session.latitude, session.longitude)
+        if distance_m > session.geofence_radius_m:
+            # Do not reject outright; flag instead
+            pass
 
     cfg = Settings()
     max_size_bytes = cfg.upload_max_image_mb * 1024 * 1024
@@ -53,9 +80,7 @@ async def submit_attendance(
 
     # Store URLs for DB and filesystem paths for verification
     selfie_url = None
-    presence_url = None
     selfie_fs_path = None
-    presence_fs_path = None
 
     if selfie is not None:
         if selfie.content_type not in allowed_types:
@@ -67,16 +92,6 @@ async def submit_attendance(
         selfie_fs_path = storage.save_bytes(data, selfie_rel)
         selfie_url = storage.url_for(selfie_rel)
 
-    if presence is not None:
-        if presence.content_type not in allowed_types:
-            raise HTTPException(status_code=400, detail="Invalid presence type")
-        pdata = await presence.read()
-        if len(pdata) > max_size_bytes:
-            raise HTTPException(status_code=400, detail="Presence image too large")
-        presence_rel = f"presence/{current.id}_{session.id}_{presence.filename}"
-        presence_fs_path = storage.save_bytes(pdata, presence_rel)
-        presence_url = storage.url_for(presence_rel)
-
     device = (
         db.query(Device)
         .filter(Device.user_id == current.id, Device.imei == imei, Device.is_active == True)
@@ -84,12 +99,11 @@ async def submit_attendance(
     )
     status = AttendanceStatus.confirmed if device else AttendanceStatus.flagged
 
-    # If we have an image and a reference, perform face verification (guarded by settings inside service)
+    # If we have a selfie and a reference, perform face verification (guarded by settings inside service)
     verification = None
-    image_to_check = presence_fs_path or selfie_fs_path
     ref_path = current.face_reference_path or face_service.get_reference_path(current.id)
-    if image_to_check and os.path.exists(ref_path):
-        verification = face_service.verify_face(current.id, image_to_check)
+    if selfie_fs_path and os.path.exists(ref_path):
+        verification = face_service.verify_face(current.id, selfie_fs_path)
         if not verification.get("verified"):
             # Flag but do not reject to avoid blocking legitimate attendance
             status = AttendanceStatus.flagged
@@ -112,7 +126,7 @@ async def submit_attendance(
         student_id=current.id,
         imei=imei,
         selfie_image_path=selfie_url,
-        presence_image_path=presence_url,
+        presence_image_path=None,  # No longer required - GPS + QR is sufficient
         status=status,
     )
     db.add(record)

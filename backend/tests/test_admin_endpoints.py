@@ -24,6 +24,13 @@ def test_admin_flagged_list_set_status_and_analytics(client):
     r = client.post("/api/v1/lecturer/sessions", headers=lect_headers, json={"duration_minutes": 5})
     sid = r.json()["id"]
     code = r.json()["code"]
+    
+    # Generate QR for the session
+    r = client.post(f"/api/v1/lecturer/sessions/{sid}/qr/rotate", headers=lect_headers, json={"ttl_seconds": 60})
+    assert r.status_code == 200
+    qr_data = r.json()
+    qr_session_id = qr_data["session_id"]
+    qr_nonce = qr_data["nonce"]
 
     # Create student and submit attendance without binding device => flagged
     r = client.post("/api/v1/auth/register", json={
@@ -37,7 +44,13 @@ def test_admin_flagged_list_set_status_and_analytics(client):
     r = client.post(
         "/api/v1/student/attendance",
         headers=stu_headers,
-        data={"code": code, "imei": "123456789012345"},
+        data={
+            "qr_session_id": qr_session_id,
+            "qr_nonce": qr_nonce,
+            "latitude": "40.7128",
+            "longitude": "-74.0060",
+            "imei": "123456789012345"
+        },
     )
     assert r.status_code == 200
     body = r.json()

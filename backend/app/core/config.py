@@ -1,11 +1,11 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    app_name: str = "SMAVS Backend"
+    app_name: str = "Absense Backend"
     secret_key: str = "change-me"
     access_token_expire_minutes: int = 60
     algorithm: str = "HS256"
-    database_url: str = "sqlite:///./smavs_dev.db"
+    database_url: str = "sqlite:///./absense_dev.db"
     storage_backend: str = "local"  # local or s3
     s3_bucket: str | None = None
     s3_region: str | None = None

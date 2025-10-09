@@ -16,10 +16,10 @@ def seed_data():
     db = SessionLocal()
     try:
         # Create admin user
-        admin = db.query(User).filter(User.email == "admin@smavs.com").first()
+        admin = db.query(User).filter(User.email == "admin@absense.com").first()
         if not admin:
             admin = User(
-                email="admin@smavs.com",
+                email="admin@absense.com",
                 hashed_password=get_password_hash("admin123"),
                 full_name="System Administrator",
                 role=UserRole.admin,
@@ -29,10 +29,10 @@ def seed_data():
             print("Created admin user")
 
         # Create sample lecturer
-        lecturer = db.query(User).filter(User.email == "lecturer@smavs.com").first()
+        lecturer = db.query(User).filter(User.email == "lecturer@absense.com").first()
         if not lecturer:
             lecturer = User(
-                email="lecturer@smavs.com",
+                email="lecturer@absense.com",
                 hashed_password=get_password_hash("lecturer123"),
                 full_name="Sample Lecturer",
                 role=UserRole.lecturer,
@@ -42,10 +42,10 @@ def seed_data():
             print("Created lecturer user")
 
         # Create sample student
-        student = db.query(User).filter(User.email == "student@smavs.com").first()
+        student = db.query(User).filter(User.email == "student@absense.com").first()
         if not student:
             student = User(
-                email="student@smavs.com",
+                email="student@absense.com",
                 hashed_password=get_password_hash("student123"),
                 full_name="Sample Student",
                 role=UserRole.student,
