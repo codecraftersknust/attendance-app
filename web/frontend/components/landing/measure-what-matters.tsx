@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 
 export function MeasureWhatMatters() {
     return (
-        <div className="relative bg-[url(/measure.jpg)] bg-cover bg-center bg-no-repeat h-[70vh] flex justify-center items-center py-20 border-b-4 border-white">
+        <div className="relative bg-[url(/measure.jpg)] bg-cover bg-center bg-no-repeat h-[70vh] flex justify-center items-center py-20 drop-shadow-xl/50">
             <div className="absolute inset-0 bg-black/50" />
             <div className="z-10 max-w-7xl mx-auto text-white text-center gap-4 flex flex-col">
                 <h1 className="text-4xl font-bold">Measure What Matters</h1>
