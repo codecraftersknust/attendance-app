@@ -3,11 +3,15 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
+import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "@/contexts/AuthContext";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Absence",
   description: "Attendance Management System",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
 };
 
 export default function RootLayout({
@@ -20,7 +24,10 @@ export default function RootLayout({
       <body
         className={cn("min-h-screen bg-gray-50 text-gray-900", inter.className)}
       >
-        {children}
+        <AuthProvider>
+          {children}
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,7 +1,11 @@
-export default function Register() {
+import { SignupForm } from "@/components/signup-form"
+
+export default function SignupPage() {
     return (
-        <div>
-            <h1>Register</h1>
+        <div className="bg-linear-to-t from-emerald-900 to-emerald-700 flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+            <div className="w-full max-w-sm md:max-w-4xl">
+                <SignupForm />
+            </div>
         </div>
-    );
+    )
 }
