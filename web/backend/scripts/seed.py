@@ -46,6 +46,7 @@ def seed_data():
         if not student:
             student = User(
                 email="student@absense.com",
+                student_id="STU001",
                 hashed_password=get_password_hash("student123"),
                 full_name="Sample Student",
                 role=UserRole.student,
