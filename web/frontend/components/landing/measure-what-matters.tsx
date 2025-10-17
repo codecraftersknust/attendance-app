@@ -14,7 +14,7 @@ export function MeasureWhatMatters() {
                     <div className="text-left max-w-md lg:flex-1">
                         <p className="text-base sm:text-lg">
                             The dashboard provides actionable insights, simplifying the process of identifying improvement areas, pinpointing
-                            students in need of extra support, and enabling informed decisions to ensure every learner's success.
+                            students in need of extra support, and enabling informed decisions to ensure every learner&apos;s success.
                         </p>
                         <Button className="mt-4 bg-emerald-900 hover:bg-emerald-900/90 w-full sm:w-auto" size="lg">Learn More</Button>
                     </div>

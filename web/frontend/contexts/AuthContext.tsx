@@ -107,9 +107,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             toast.success('Login successful!');
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Login failed. Please check your credentials.';
             console.error('Login failed:', error);
-            toast.error(error.message || 'Login failed. Please check your credentials.');
+            toast.error(message);
             throw error;
         } finally {
             setLoading(false);
@@ -125,9 +126,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await login(data.email, data.password);
 
             toast.success('Account created successfully!');
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Registration failed. Please try again.';
             console.error('Registration failed:', error);
-            toast.error(error.message || 'Registration failed. Please try again.');
+            toast.error(message);
             throw error;
         } finally {
             setLoading(false);

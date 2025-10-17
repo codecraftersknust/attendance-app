@@ -8,7 +8,7 @@ export function WhatWeDo() {
             <div className="z-10 max-w-7xl mx-auto text-white text-center gap-4 flex flex-col px-4 sm:px-6 lg:px-8">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Absence is more than just an attendance tracking tool</h1>
                 <p className="text-lg sm:text-xl font-medium">
-                    It's a platform that helps you manage your attendance and track your progress.
+                    It&apos;s a platform that helps you manage your attendance and track your progress.
                 </p>
                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-8 mt-4 lg:mt-10">
                     <div className="text-left lg:flex-1">
