@@ -1,148 +1,138 @@
-## Absense Backend (FastAPI)
+# Absense Backend (FastAPI)
 
-### Quickstart
-1. Create and activate venv
+A comprehensive attendance management system with multi-layered verification including QR codes, GPS geofencing, IMEI device binding, and facial recognition.
+
+## 🚀 Quick Start
+
 ```bash
-cd backend
+# 1. Setup environment
+cd web/backend
 python3 -m venv .venv
 ./.venv/bin/pip install --upgrade pip
 ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/pip install "pydantic[email]==2.8.2"
-```
 
-2. Run dev server (uses SQLite by default)
-```bash
+# 2. Run development server
 ./scripts/dev.sh
+
+# 3. Access API docs
+# Swagger UI: http://localhost:8000/docs
+# Health: GET /api/v1/health
 ```
 
-3. API Docs
-- Swagger UI: http://localhost:8000/docs
-- Health: GET /api/v1/health
+## 🏗️ Core Features
 
-### Environment
-- `.env` (optional):
-```
-SECRET_KEY=change-me
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+### Multi-Layered Verification
+- **QR Code Rotation**: Auto-rotating QR codes every 60 seconds
+- **GPS Geofencing**: Location-based attendance verification
+- **IMEI Device Binding**: One device per student policy
+- **Facial Recognition**: DeepFace integration for biometric verification
+
+### Role-Based Access
+- **Student**: Submit attendance, enroll face, bind device
+- **Lecturer**: Create sessions, manage QR codes, view reports
+- **Admin**: Approve device resets, force verify attendance
+
+## 📡 Key API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register` - Register user
+- `POST /api/v1/auth/login` - Login (OAuth2 compatible)
+- `GET /api/v1/auth/me` - Get current user
+
+### Student
+- `POST /api/v1/student/attendance` - Submit attendance (QR-only)
+- `POST /api/v1/student/enroll-face` - Enroll reference face
+- `POST /api/v1/student/device/bind` - Bind device IMEI
+
+### Lecturer
+- `POST /api/v1/lecturer/sessions` - Create session
+- `GET /api/v1/lecturer/sessions/{id}/qr/status` - Get QR status
+- `POST /api/v1/lecturer/sessions/{id}/qr/rotate` - Rotate QR code
+- `GET /api/v1/lecturer/sessions/{id}/attendance` - View attendance
+
+### Admin
+- `GET /api/v1/admin/flagged` - List flagged attendance
+- `POST /api/v1/admin/imei/approve-reset` - Approve IMEI reset
+- `POST /api/v1/admin/attendance/{id}/verify` - Force verify
+
+## 🗄️ Database
+
+- **SQLite** for development (`absense_dev.db`)
+- **PostgreSQL** for production
+- **Alembic** migrations included
+- Auto-creates tables in dev mode
+
+### Core Models
+- `User` - User accounts with roles
+- `AttendanceSession` - Class sessions with QR/geofence data
+- `AttendanceRecord` - Individual attendance submissions
+- `Device` - IMEI device binding
+- `VerificationLog` - Audit trail
+
+## 🔧 Environment
+
+Create `.env` (optional):
+```env
+SECRET_KEY=change-me-in-production
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/absense
-```
-- Dev script overrides `DATABASE_URL` to `sqlite:///./absense_dev.db`
-
-### Main Endpoints
-- Auth:
-  - POST `/api/v1/auth/register`
-  - POST `/api/v1/auth/login`
-  - GET `/api/v1/auth/me`
-- Lecturer:
-  - POST `/api/v1/lecturer/sessions`
-  - GET `/api/v1/lecturer/sessions`
-  - GET `/api/v1/lecturer/sessions/{session_id}/attendance`
-- Student:
-  - POST `/api/v1/student/attendance` (multipart: code, imei, selfie?, presence?)
-- Admin:
-  - POST `/api/v1/admin/imei/approve-reset`
-
-### Notes
-- Simple mock current users are used for dev for lecturer/student/admin.
-- File uploads are stored under `backend/uploads/`.
-- Tables auto-create on startup in dev.
-
-### Migrations (Alembic)
-
-
-### Mobile Client Notes
-- CORS is enabled for all origins for development.
-- Use the base URL of your machine (e.g., http://<LAN-IP>:8000) in the mobile app.
-- Auth uses OAuth2 password flow-compatible endpoints.
-
-### Storage
-- Default: Local, served at `/static` in dev.
-- To use S3, set in `.env`:
-```
-STORAGE_BACKEND=s3
-S3_BUCKET=your-bucket
-S3_REGION=your-region
-S3_ACCESS_KEY=...
-S3_SECRET_KEY=...
+CORS_ALLOW_ORIGINS=*
+STORAGE_BACKEND=local
 ```
 
+## 🧪 Testing
 
-## Deployment
+```bash
+pytest tests/
+```
+
+**Test Coverage**: Auth, lecturer, student, admin, face verification, health checks
+
+## 🚀 Deployment
 
 ### Docker (Recommended)
-
-1. **Development with Docker Compose:**
 ```bash
-cd backend
+# Development
 docker compose up -d
-```
 
-2. **Production with Docker Compose:**
-```bash
-cd backend
-cp .env.production .env
-# Edit .env with your production values
+# Production
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-3. **Run migrations and seed data:**
+### Manual
 ```bash
 # Migrations
-docker exec absense-backend-prod python -m alembic upgrade head
+alembic upgrade head
 
-# Seed initial data
-docker exec absense-backend-prod python scripts/seed.py
-```
-
-### Manual Deployment
-
-1. **Setup PostgreSQL and Redis**
-2. **Install dependencies:**
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-3. **Configure environment:**
-```bash
-cp .env.production .env
-# Edit .env with your values
-```
-
-4. **Run migrations:**
-```bash
-./scripts/migrate.sh
-```
-
-5. **Seed initial data:**
-```bash
+# Seed data
 python scripts/seed.py
-```
 
-6. **Start the application:**
-```bash
-# Development
-./scripts/dev.sh
-
-# Production
+# Start server
 gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
-### Environment Variables
+## 👥 Default Users (after seeding)
 
-- `DATABASE_URL`: PostgreSQL connection string
-- `SECRET_KEY`: JWT secret key (change in production!)
-- `STORAGE_BACKEND`: "local" or "s3"
-- `S3_*`: S3 configuration for file storage
-- `CORS_*`: CORS configuration
+- **Admin**: `admin@absense.com` / `admin123`
+- **Lecturer**: `lecturer@absense.com` / `lecturer123`
+- **Student**: `student@absense.com` / `student123`
 
-### Default Users (after seeding)
+**⚠️ Change passwords in production!**
 
-- Admin: `admin@absense.com` / `admin123`
-- Lecturer: `lecturer@absense.com` / `lecturer123`  
-- Student: `student@absense.com` / `student123`
+## 📱 Mobile Integration
 
-**⚠️ Change default passwords in production!**
+- CORS enabled for all origins in dev
+- Use LAN IP for mobile testing: `http://<LAN-IP>:8000`
+- OAuth2 password flow compatible
+- QR codes auto-rotate every 60 seconds
+
+## 🔒 Security
+
+- JWT authentication with refresh tokens
+- Role-based access control
+- Comprehensive audit logging
+- Security headers middleware
+- File upload validation
+
+---
+
+**Built with FastAPI, SQLAlchemy, DeepFace, and PostgreSQL**
