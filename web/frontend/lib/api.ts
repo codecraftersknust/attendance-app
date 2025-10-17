@@ -18,6 +18,7 @@ export interface RegisterRequest {
     password: string;
     full_name?: string;
     role: 'student' | 'lecturer';
+    student_id?: string;
 }
 
 export interface LoginRequest {
@@ -46,9 +47,13 @@ class ApiClient {
             ...options,
         };
 
-        // Add auth token if available
+        // Add auth token if available (localStorage first, then cookie fallback)
         if (typeof window !== 'undefined') {
-            const token = localStorage.getItem('access_token');
+            let token = localStorage.getItem('access_token');
+            if (!token && typeof document !== 'undefined') {
+                const match = document.cookie.match(/(?:^|; )access_token=([^;]+)/);
+                token = match ? decodeURIComponent(match[1]) : null;
+            }
             if (token) {
                 config.headers = {
                     ...config.headers,

@@ -1,17 +1,38 @@
-import { Button } from "@/components/ui/button";
+'use client';
 
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
-export function Navbar({ role }: { role: "student" | "lecturer" }) {
+export function Navbar() {
+    const { user, logout } = useAuth();
+    const router = useRouter();
+
+    const handleLogout = () => {
+        logout();
+        router.push('/');
+    };
+
+    const handleGoToHome = () => {
+        router.push('/');
+    };
+
     return (
-        <header className="w-full bg-gray-100 border-b flex items-center justify-between px-4 sm:px-6 py-3">
-            <h1 className="font-semibold text-base sm:text-lg truncate">
-                {role === "student" ? "Student Dashboard" : role === "lecturer" ? "Lecturer Dashboard" : ""}
-            </h1>
-            <div className="flex items-center space-x-2 sm:space-x-4">
-                <p className="text-gray-600 text-sm sm:text-base hidden sm:block">Logged in as {role}</p>
-                <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                    Logout
-                </Button>
+        <header className="bg-emerald-900 shadow-sm border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between items-center h-14 sm:h-16">
+                    <div className="flex items-center">
+                        <h1 className="text-sm sm:text-base text-white hidden sm:block font-bold">Absense</h1>
+                    </div>
+                    <div className="flex items-center space-x-2 sm:space-x-4">
+                        <Button onClick={handleGoToHome} variant="outline" size="sm" className="text-xs sm:text-sm">
+                            Go to Home
+                        </Button>
+                        <Button onClick={handleLogout} variant="outline" size="sm" className="text-xs sm:text-sm">
+                            Logout
+                        </Button>
+                    </div>
+                </div>
             </div>
         </header>
     );

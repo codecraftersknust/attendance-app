@@ -1,5 +1,6 @@
 import { Card, CardTitle, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function Hero() {
     return (
@@ -19,9 +20,11 @@ export function Hero() {
                         </p>
                     </CardContent>
                     <CardFooter className="flex flex-col sm:flex-row gap-2 sm:gap-4 px-0">
-                        <Button className="bg-emerald-900 hover:bg-emerald-900/90 w-full sm:w-auto" size="lg">
-                            Create an Account
-                        </Button>
+                        <Link href="/auth/register">
+                            <Button className="bg-emerald-900 hover:bg-emerald-900/90 w-full sm:w-auto" size="lg">
+                                Create an Account
+                            </Button>
+                        </Link>
                         <Button variant="outline" size="lg" className="w-full sm:w-auto">
                             Learn More
                         </Button>

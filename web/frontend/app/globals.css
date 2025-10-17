@@ -138,9 +138,4 @@
       min-height: 44px;
     }
   }
-
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
 }
