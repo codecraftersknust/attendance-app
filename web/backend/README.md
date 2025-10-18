@@ -53,7 +53,12 @@ python3 -m venv .venv
 ### Admin
 - `GET /api/v1/admin/flagged` - List flagged attendance
 - `POST /api/v1/admin/imei/approve-reset` - Approve IMEI reset
-- `POST /api/v1/admin/attendance/{id}/verify` - Force verify
+- `GET /api/v1/admin/sessions` - View all sessions
+- `GET /api/v1/admin/sessions/{id}/attendance` - View session attendance
+- `GET /api/v1/admin/users` - View all users
+- `POST /api/v1/admin/attendance/manual-mark` - Manual attendance
+- `GET /api/v1/admin/activity` - System activity
+- `GET /api/v1/admin/dashboard` - Admin dashboard
 
 ## 🗄️ Database
 
