@@ -256,3 +256,102 @@ def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current
         "flagged_records": flagged_records,
     }
 
+
+@router.get("/sessions/{session_id}/analytics", response_model=dict)
+def get_session_analytics(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    """Get detailed analytics for a specific session - web-friendly endpoint"""
+    session = db.get(AttendanceSession, session_id)
+    if not session or session.lecturer_id != current.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Get attendance records for this session
+    records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
+    
+    # Calculate analytics
+    total_students = len(records)
+    present_count = len([r for r in records if r.status == AttendanceStatus.present])
+    absent_count = len([r for r in records if r.status == AttendanceStatus.absent])
+    flagged_count = len([r for r in records if r.status == AttendanceStatus.flagged])
+    
+    # Attendance rate
+    attendance_rate = (present_count / total_students * 100) if total_students > 0 else 0
+    
+    # Recent attendance (last 10 records)
+    recent_records = sorted(records, key=lambda x: x.created_at, reverse=True)[:10]
+    
+    write_audit(db, "lecturer.session_analytics", current.id, f"session_id={session_id}")
+    return {
+        "session": {
+            "id": session.id,
+            "code": session.code,
+            "is_active": session.is_active,
+            "starts_at": session.starts_at.isoformat(),
+            "ends_at": session.ends_at.isoformat(),
+        },
+        "analytics": {
+            "total_students": total_students,
+            "present_count": present_count,
+            "absent_count": absent_count,
+            "flagged_count": flagged_count,
+            "attendance_rate": round(attendance_rate, 2)
+        },
+        "recent_attendance": [
+            {
+                "student_id": r.student_id,
+                "status": r.status.value,
+                "timestamp": r.created_at.isoformat(),
+                "verification_methods": {
+                    "qr_valid": r.qr_valid,
+                    "location_valid": r.location_valid,
+                    "imei_valid": r.imei_valid,
+                    "face_valid": r.face_valid
+                }
+            }
+            for r in recent_records
+        ]
+    }
+
+
+@router.get("/qr/{session_id}/display", response_model=dict)
+def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    """Get QR code data formatted for web display - includes QR image generation info"""
+    from datetime import datetime
+    
+    session = db.get(AttendanceSession, session_id)
+    if not session or session.lecturer_id != current.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not session.qr_nonce or not session.qr_expires_at or session.qr_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="QR not generated or expired")
+    
+    # Calculate time remaining
+    time_remaining = int((session.qr_expires_at - datetime.utcnow()).total_seconds())
+    
+    # QR payload for encoding
+    qr_payload = {
+        "session_id": session.id,
+        "nonce": session.qr_nonce,
+        "expires_at": session.qr_expires_at.isoformat(),
+        "lecturer_name": current.full_name or current.email,
+        "course_code": None,
+        "course_name": "General Session",
+        "location": {
+            "latitude": session.latitude,
+            "longitude": session.longitude,
+            "radius_m": session.geofence_radius_m
+        } if session.latitude else None,
+        "session_code": session.code
+    }
+    
+    write_audit(db, "lecturer.qr_display", current.id, f"session_id={session_id}")
+    return {
+        "session_id": session.id,
+        "session_code": session.code,
+        "qr_payload": qr_payload,
+        "qr_data": f"ABSENSE:{session.id}:{session.qr_nonce}",  # Simple format for QR generation
+        "expires_at": session.qr_expires_at.isoformat(),
+        "time_remaining_seconds": time_remaining,
+        "is_expired": time_remaining <= 0,
+        "lecturer_name": current.full_name or current.email
+    }
+

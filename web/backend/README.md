@@ -44,11 +44,16 @@ python3 -m venv .venv
 - `POST /api/v1/student/enroll-face` - Enroll reference face
 - `POST /api/v1/student/device/bind` - Bind device IMEI
 
-### Lecturer
+### Lecturer (Web & Mobile Compatible)
 - `POST /api/v1/lecturer/sessions` - Create session
+- `GET /api/v1/lecturer/sessions` - List sessions
 - `GET /api/v1/lecturer/sessions/{id}/qr/status` - Get QR status
 - `POST /api/v1/lecturer/sessions/{id}/qr/rotate` - Rotate QR code
+- `GET /api/v1/lecturer/sessions/{id}/qr` - Get QR payload
+- `GET /api/v1/lecturer/qr/{id}/display` - Get QR display data (web-optimized)
 - `GET /api/v1/lecturer/sessions/{id}/attendance` - View attendance
+- `GET /api/v1/lecturer/sessions/{id}/analytics` - Session analytics (web-optimized)
+- `GET /api/v1/lecturer/dashboard` - Lecturer dashboard stats
 
 ### Admin
 - `GET /api/v1/admin/flagged` - List flagged attendance
@@ -123,12 +128,19 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 
 **⚠️ Change passwords in production!**
 
-## 📱 Mobile Integration
+## 🌐 Web & Mobile Integration
 
-- CORS enabled for all origins in dev
-- Use LAN IP for mobile testing: `http://<LAN-IP>:8000`
-- OAuth2 password flow compatible
-- QR codes auto-rotate every 60 seconds
+### Web Frontend Support
+- **Lecturer Web Dashboard**: Full web interface for lecturers
+- **Admin Web Dashboard**: Complete admin management interface
+- **CORS Enabled**: All origins allowed in development
+- **RESTful APIs**: JSON responses for web frontend consumption
+
+### Mobile App Support
+- **Student Mobile App**: QR scanning and attendance submission
+- **OAuth2 Compatible**: Password flow for mobile authentication
+- **QR Auto-Rotation**: Codes change every 60 seconds
+- **LAN Testing**: Use `http://<LAN-IP>:8000` for mobile testing
 
 ## 🔒 Security
 

@@ -117,7 +117,7 @@ def get_session_attendance(
     session = db.get(AttendanceSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
     
     result = []
@@ -255,7 +255,7 @@ def manual_mark_attendance(
     
     db.add(verification_log)
     db.commit()
-    
+
     write_audit(
         db, 
         "admin.manual_mark_attendance", 
