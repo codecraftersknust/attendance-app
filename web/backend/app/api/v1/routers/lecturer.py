@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from ....db.deps import get_db
 from ....models.user import UserRole, User
+from ....models.course import Course
 from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.verification_log import VerificationLog
@@ -19,12 +20,188 @@ def get_current_lecturer(current: User = Depends(role_required(UserRole.lecturer
     return current
 
 
+# Course Management Endpoints
+@router.get("/courses", response_model=List[dict])
+def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    """Get all courses taught by the current lecturer"""
+    courses = db.query(Course).filter(
+        Course.lecturer_id == current.id,
+        Course.is_active == True
+    ).order_by(Course.code).all()
+    
+    write_audit(db, "lecturer.get_courses", current.id)
+    return [
+        {
+            "id": course.id,
+            "code": course.code,
+            "name": course.name,
+            "description": course.description,
+            "semester": course.semester,
+            "is_active": course.is_active,
+            "created_at": course.created_at.isoformat(),
+            "session_count": len(course.sessions)
+        }
+        for course in courses
+    ]
+
+
+@router.post("/courses", response_model=dict)
+def create_course(
+    code: str,
+    name: str,
+    description: str = None,
+    semester: str = "Fall 2024",
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer)
+):
+    """Create a new course"""
+    # Check if course code already exists
+    existing_course = db.query(Course).filter(Course.code == code).first()
+    if existing_course:
+        raise HTTPException(status_code=400, detail="Course code already exists")
+    
+    course = Course(
+        code=code,
+        name=name,
+        description=description,
+        semester=semester,
+        lecturer_id=current.id
+    )
+    db.add(course)
+    db.commit()
+    db.refresh(course)
+    
+    write_audit(db, "lecturer.create_course", current.id, f"course_id={course.id}")
+    return {
+        "id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "description": course.description,
+        "semester": course.semester,
+        "is_active": course.is_active
+    }
+
+
+@router.get("/courses/{course_id}", response_model=dict)
+def get_course_details(course_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    """Get detailed information about a specific course"""
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.lecturer_id == current.id
+    ).first()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Get recent sessions for this course
+    recent_sessions = db.query(AttendanceSession).filter(
+        AttendanceSession.course_id == course_id
+    ).order_by(AttendanceSession.created_at.desc()).limit(5).all()
+    
+    write_audit(db, "lecturer.get_course_details", current.id, f"course_id={course_id}")
+    return {
+        "id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "description": course.description,
+        "semester": course.semester,
+        "is_active": course.is_active,
+        "created_at": course.created_at.isoformat(),
+        "recent_sessions": [
+            {
+                "id": session.id,
+                "code": session.code,
+                "is_active": session.is_active,
+                "starts_at": session.starts_at.isoformat() if session.starts_at else None,
+                "ends_at": session.ends_at.isoformat() if session.ends_at else None,
+                "attendance_count": len(session.records)
+            }
+            for session in recent_sessions
+        ]
+    }
+
+
+@router.put("/courses/{course_id}", response_model=dict)
+def update_course(
+    course_id: int,
+    code: str = None,
+    name: str = None,
+    description: str = None,
+    semester: str = None,
+    is_active: bool = None,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer)
+):
+    """Update course information"""
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.lecturer_id == current.id
+    ).first()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Check if new code conflicts with existing courses
+    if code and code != course.code:
+        existing_course = db.query(Course).filter(Course.code == code).first()
+        if existing_course:
+            raise HTTPException(status_code=400, detail="Course code already exists")
+    
+    # Update fields
+    if code is not None:
+        course.code = code
+    if name is not None:
+        course.name = name
+    if description is not None:
+        course.description = description
+    if semester is not None:
+        course.semester = semester
+    if is_active is not None:
+        course.is_active = is_active
+    
+    db.commit()
+    db.refresh(course)
+    
+    write_audit(db, "lecturer.update_course", current.id, f"course_id={course_id}")
+    return {
+        "id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "description": course.description,
+        "semester": course.semester,
+        "is_active": course.is_active
+    }
+
+
 @router.post("/sessions", response_model=dict)
-def create_session(duration_minutes: int = 15, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+def create_session(
+    course_id: int,
+    duration_minutes: int = 15,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer)
+):
+    """Create a new attendance session for a specific course"""
+    # Verify the course belongs to the lecturer
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.lecturer_id == current.id,
+        Course.is_active == True
+    ).first()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found or not accessible")
+    
     code = generate_session_code()
     from datetime import datetime, timedelta
     now = datetime.utcnow()
-    session = AttendanceSession(lecturer_id=current.id, code=code, starts_at=now, ends_at=now + timedelta(minutes=duration_minutes), is_active=True)
+    session = AttendanceSession(
+        lecturer_id=current.id,
+        course_id=course_id,
+        code=code,
+        starts_at=now,
+        ends_at=now + timedelta(minutes=duration_minutes),
+        is_active=True
+    )
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -32,8 +209,18 @@ def create_session(duration_minutes: int = 15, db: Session = Depends(get_db), cu
     # Add session to automatic QR rotation
     add_session_to_rotation(session.id)
     
-    write_audit(db, "lecturer.create_session", current.id, f"session_id={session.id}")
-    return {"id": session.id, "code": session.code}
+    write_audit(db, "lecturer.create_session", current.id, f"session_id={session.id},course_id={course_id}")
+    return {
+        "id": session.id,
+        "code": session.code,
+        "course": {
+            "id": course.id,
+            "code": course.code,
+            "name": course.name
+        },
+        "starts_at": session.starts_at.isoformat(),
+        "ends_at": session.ends_at.isoformat()
+    }
 
 
 @router.post("/sessions/{session_id}/qr/rotate", response_model=dict)
@@ -56,8 +243,8 @@ def rotate_qr(session_id: int, ttl_seconds: int = 60, db: Session = Depends(get_
         "nonce": session.qr_nonce,
         "expires_at": session.qr_expires_at.isoformat(),
         "lecturer_name": current.full_name or current.email,
-        "course_code": None,  # session.course.code if session.course else None,
-        "course_name": "General Session",  # session.course.name if session.course else "General Session",
+        "course_code": session.course.code if session.course else None,
+        "course_name": session.course.name if session.course else "General Session",
         "location": {
             "latitude": session.latitude,
             "longitude": session.longitude,
@@ -117,8 +304,8 @@ def get_qr_payload(session_id: int, db: Session = Depends(get_db), current: User
         "nonce": session.qr_nonce,
         "expires_at": session.qr_expires_at.isoformat(),
         "lecturer_name": current.full_name or current.email,
-        "course_code": None,  # session.course.code if session.course else None,
-        "course_name": "General Session",  # session.course.name if session.course else "General Session",
+        "course_code": session.course.code if session.course else None,
+        "course_name": session.course.name if session.course else "General Session",
         "location": {
             "latitude": session.latitude,
             "longitude": session.longitude,
@@ -333,8 +520,8 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
         "nonce": session.qr_nonce,
         "expires_at": session.qr_expires_at.isoformat(),
         "lecturer_name": current.full_name or current.email,
-        "course_code": None,
-        "course_name": "General Session",
+        "course_code": session.course.code if session.course else None,
+        "course_name": session.course.name if session.course else "General Session",
         "location": {
             "latitude": session.latitude,
             "longitude": session.longitude,

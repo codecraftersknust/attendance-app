@@ -10,6 +10,7 @@ sys.path.insert(0, str(backend_dir))
 
 from app.db.session import SessionLocal
 from app.models.user import User, UserRole
+from app.models.course import Course
 from app.services.security import get_password_hash
 
 def seed_data():
@@ -55,6 +56,52 @@ def seed_data():
             db.add(student)
             print("Created student user")
 
+        db.commit()
+        
+        # Create sample courses for the lecturer
+        if lecturer:
+            # Check if courses already exist
+            existing_courses = db.query(Course).filter(Course.lecturer_id == lecturer.id).count()
+            if existing_courses == 0:
+                courses = [
+                    Course(
+                        code="CS101",
+                        name="Introduction to Computer Science",
+                        description="Fundamental concepts of computer science and programming",
+                        semester="Fall 2024",
+                        lecturer_id=lecturer.id,
+                        is_active=True
+                    ),
+                    Course(
+                        code="MATH201",
+                        name="Calculus I",
+                        description="Differential and integral calculus",
+                        semester="Fall 2024",
+                        lecturer_id=lecturer.id,
+                        is_active=True
+                    ),
+                    Course(
+                        code="PHYS101",
+                        name="General Physics",
+                        description="Mechanics, thermodynamics, and waves",
+                        semester="Fall 2024",
+                        lecturer_id=lecturer.id,
+                        is_active=True
+                    ),
+                    Course(
+                        code="ENG101",
+                        name="English Composition",
+                        description="Academic writing and communication skills",
+                        semester="Fall 2024",
+                        lecturer_id=lecturer.id,
+                        is_active=True
+                    )
+                ]
+                
+                for course in courses:
+                    db.add(course)
+                print("Created sample courses")
+        
         db.commit()
         print("Database seeded successfully!")
     except Exception as e:

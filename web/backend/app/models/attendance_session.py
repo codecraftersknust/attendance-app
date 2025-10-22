@@ -23,5 +23,5 @@ class AttendanceSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     lecturer: Mapped["User"] = relationship(back_populates="lecturer_sessions")
-    # course: Mapped[Optional["Course"]] = relationship("Course", back_populates="sessions", lazy="select")
+    course: Mapped[Optional["Course"]] = relationship("Course", back_populates="sessions")
     records: Mapped[list["AttendanceRecord"]] = relationship(back_populates="session", cascade="all, delete-orphan")

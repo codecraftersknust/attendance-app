@@ -45,7 +45,11 @@ python3 -m venv .venv
 - `POST /api/v1/student/device/bind` - Bind device IMEI
 
 ### Lecturer (Web & Mobile Compatible)
-- `POST /api/v1/lecturer/sessions` - Create session
+- `GET /api/v1/lecturer/courses` - List lecturer's courses
+- `POST /api/v1/lecturer/courses` - Create new course
+- `GET /api/v1/lecturer/courses/{id}` - Get course details
+- `PUT /api/v1/lecturer/courses/{id}` - Update course
+- `POST /api/v1/lecturer/sessions` - Create session for specific course
 - `GET /api/v1/lecturer/sessions` - List sessions
 - `GET /api/v1/lecturer/sessions/{id}/qr/status` - Get QR status
 - `POST /api/v1/lecturer/sessions/{id}/qr/rotate` - Rotate QR code
@@ -74,7 +78,8 @@ python3 -m venv .venv
 
 ### Core Models
 - `User` - User accounts with roles
-- `AttendanceSession` - Class sessions with QR/geofence data
+- `Course` - Course management with lecturer assignment
+- `AttendanceSession` - Class sessions with QR/geofence data (linked to courses)
 - `AttendanceRecord` - Individual attendance submissions
 - `Device` - IMEI device binding
 - `VerificationLog` - Audit trail
