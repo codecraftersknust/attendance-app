@@ -205,7 +205,7 @@ def manual_mark_attendance(
     session = db.get(AttendanceSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     student = db.get(User, student_id)
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
