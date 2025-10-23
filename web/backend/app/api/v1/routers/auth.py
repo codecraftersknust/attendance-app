@@ -25,11 +25,11 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     if existing_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     
-    # Check if student_id already exists (if provided)
-    if user_in.student_id:
-        existing_student_id = db.query(User).filter(User.student_id == user_in.student_id).first()
-        if existing_student_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Student ID already registered")
+    # Check if user_id already exists (if provided)
+    if user_in.user_id:
+        existing_user_id = db.query(User).filter(User.user_id == user_in.user_id).first()
+        if existing_user_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID already registered")
     
     try:
         role = UserRole(user_in.role)
@@ -38,7 +38,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     
     user = User(
         email=user_in.email,
-        student_id=user_in.student_id,
+        user_id=user_in.user_id,
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
         role=role,
@@ -51,13 +51,13 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # Try to find user by email first, then by student_id
+    # Try to find user by email first, then by user_id
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user:
-        user = db.query(User).filter(User.student_id == form_data.username).first()
+        user = db.query(User).filter(User.user_id == form_data.username).first()
     
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email/student ID or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email/user ID or password")
     
     access = create_access_token(subject=str(user.id))
     refresh = create_refresh_token(subject=str(user.id))

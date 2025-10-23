@@ -21,6 +21,7 @@ def seed_data():
         if not admin:
             admin = User(
                 email="admin@absense.com",
+                user_id="ADM001",
                 hashed_password=get_password_hash("admin123"),
                 full_name="System Administrator",
                 role=UserRole.admin,
@@ -34,6 +35,7 @@ def seed_data():
         if not lecturer:
             lecturer = User(
                 email="lecturer@absense.com",
+                user_id="LEC001",
                 hashed_password=get_password_hash("lecturer123"),
                 full_name="Sample Lecturer",
                 role=UserRole.lecturer,
@@ -47,7 +49,7 @@ def seed_data():
         if not student:
             student = User(
                 email="student@absense.com",
-                student_id="STU001",
+                user_id="STU001",
                 hashed_password=get_password_hash("student123"),
                 full_name="Sample Student",
                 role=UserRole.student,

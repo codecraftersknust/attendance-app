@@ -16,7 +16,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    student_id: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=True)
     face_reference_path: Mapped[str | None] = mapped_column(String(255), nullable=True)

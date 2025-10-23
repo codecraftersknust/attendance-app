@@ -127,9 +127,18 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 
 ## 👥 Default Users (after seeding)
 
-- **Admin**: `admin@absense.com` / `admin123`
-- **Lecturer**: `lecturer@absense.com` / `lecturer123`
-- **Student**: `student@absense.com` / `student123`
+### Login Options
+All users can login with either **email** or **user_id**:
+
+- **Admin**: 
+  - Email: `admin@absense.com` / `admin123`
+  - User ID: `ADM001` / `admin123`
+- **Lecturer**: 
+  - Email: `lecturer@absense.com` / `lecturer123`
+  - User ID: `LEC001` / `lecturer123`
+- **Student**: 
+  - Email: `student@absense.com` / `student123`
+  - User ID: `STU001` / `student123`
 
 **⚠️ Change passwords in production!**
 
