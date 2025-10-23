@@ -1,28 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 
 export default function AdminLoginPage() {
-  const { login, logout } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState("admin@absense.com");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const PORTAL_CODE = process.env.NEXT_PUBLIC_ADMIN_PORTAL_CODE || "AdminPortal123!";
+
+  useEffect(() => {
+    // Require primary auth first
+    if (!user) {
+      router.replace("/auth/login?redirect=/admin/login");
+    }
+  }, [user, router]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
-      const me = await apiClient.getCurrentUser();
-      if (me.role !== "admin") {
+      if (!user || user.role !== "admin") {
         toast.error("Admin account required");
-        logout();
         return;
+      }
+      if (password !== PORTAL_CODE) {
+        toast.error("Invalid admin portal password");
+        return;
+      }
+      // mark portal auth for this session only
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('admin_portal_ok', '1');
       }
       router.push("/admin/dashboard");
       toast.success("Welcome, Admin");
@@ -34,28 +45,17 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border border-blue-900/40 bg-[#0e1626] shadow-xl">
+    <div className="min-h-screen bg-white text-slate-900 flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl">
         <div className="p-6">
-          <h1 className="text-2xl font-semibold text-blue-200">Admin Portal</h1>
-          <p className="text-sm text-blue-300/70 mt-1">Sign in with your admin credentials</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Admin Portal</h1>
+          <p className="text-sm text-slate-600 mt-1">Secondary verification for administrators</p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm mb-1 text-blue-200">Email</label>
+              <label className="block text-sm mb-1 text-slate-700">Admin Portal Password</label>
               <input
-                className="w-full rounded-md bg-[#0b1220] border border-blue-900/50 px-3 py-2 text-white placeholder-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-700"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@absense.com"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1 text-blue-200">Password</label>
-              <input
-                className="w-full rounded-md bg-[#0b1220] border border-blue-900/50 px-3 py-2 text-white placeholder-blue-300/40 focus:outline-none focus:ring-2 focus:ring-blue-700"
+                className="w-full rounded-md bg-white border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -66,10 +66,11 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-md bg-blue-700 hover:bg-blue-600 disabled:opacity-60 py-2 font-medium"
+              className="w-full rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-60 py-2 font-medium text-white"
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
+            <p className="text-xs text-slate-500">Hint (dev): configured via NEXT_PUBLIC_ADMIN_PORTAL_CODE</p>
           </form>
         </div>
       </div>

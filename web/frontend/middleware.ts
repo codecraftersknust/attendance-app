@@ -37,9 +37,7 @@ export function middleware(req: NextRequest) {
         if (!isAdminLogin && !token) {
             return NextResponse.redirect(new URL('/admin/login', nextUrl));
         }
-        if (token && isAdminLogin && role === 'admin') {
-            return NextResponse.redirect(new URL('/admin/dashboard', nextUrl));
-        }
+        // Allow visiting /admin/login even if already authenticated; do not auto-redirect
         if (!isAdminLogin && role !== 'admin') {
             return NextResponse.redirect(new URL('/unauthorized', nextUrl));
         }

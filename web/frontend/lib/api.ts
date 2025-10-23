@@ -142,6 +142,28 @@ class ApiClient {
         const qs = new URLSearchParams({ user_id: String(userId), new_imei: newImei }).toString();
         return this.request(`/admin/imei/approve-reset?${qs}`, { method: 'POST' });
     }
+
+    async adminDashboard(): Promise<any> {
+        return this.request('/admin/dashboard');
+    }
+
+    async adminSessions(params: { active_only?: boolean; limit?: number; offset?: number } = {}): Promise<any[]> {
+        const qs = new URLSearchParams();
+        if (params.active_only) qs.set('active_only', 'true');
+        if (params.limit != null) qs.set('limit', String(params.limit));
+        if (params.offset != null) qs.set('offset', String(params.offset));
+        const q = qs.toString();
+        return this.request(`/admin/sessions${q ? `?${q}` : ''}`);
+    }
+
+    async adminUsers(params: { role?: 'student'|'lecturer'|'admin'; limit?: number; offset?: number } = {}): Promise<any[]> {
+        const qs = new URLSearchParams();
+        if (params.role) qs.set('role', params.role);
+        if (params.limit != null) qs.set('limit', String(params.limit));
+        if (params.offset != null) qs.set('offset', String(params.offset));
+        const q = qs.toString();
+        return this.request(`/admin/users${q ? `?${q}` : ''}`);
+    }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
