@@ -122,6 +122,26 @@ class ApiClient {
             method: 'POST',
         });
     }
+
+    // Admin endpoints
+    async adminListFlagged(): Promise<Array<{
+        record_id: number;
+        session_id: number;
+        student_id: number;
+        lecturer_id: number | null;
+        imei: string | null;
+        face_verified: boolean | null;
+        face_distance: number | null;
+        face_threshold: number | null;
+        face_model: string | null;
+    }>> {
+        return this.request('/admin/flagged');
+    }
+
+    async adminApproveImeiReset(userId: number, newImei: string): Promise<{ user_id: number; imei: string }> {
+        const qs = new URLSearchParams({ user_id: String(userId), new_imei: newImei }).toString();
+        return this.request(`/admin/imei/approve-reset?${qs}`, { method: 'POST' });
+    }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
