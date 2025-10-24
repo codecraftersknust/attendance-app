@@ -1,0 +1,351 @@
+[1mdiff --git a/README.md b/README.md[m
+[1mindex bfe6fec..4ead1ca 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -42,4 +42,93 @@[m [mReact Native mobile application with:[m
+ ### `/scripts/`[m
+ Development and deployment scripts:[m
+ - **start-dev.sh**: Starts both backend and frontend servers[m
+[31m-- **Backend scripts**: Database migrations, seeding, development server[m
+\ No newline at end of file[m
+[32m+[m[32m- **Backend scripts**: Database migrations, seeding, development server[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## Local Development Notes (updated)[m
+[32m+[m
+[32m+[m[32m- On this machine we are currently running the backend on port 8001 to avoid a port conflict.[m
+[32m+[m[32m  - Frontend: http://localhost:3000[m
+[32m+[m[32m  - Backend API: http://localhost:8001[m
+[32m+[m[32m  - Configure the frontend API base via: `web/frontend/.env.local`[m
+[32m+[m
+[32m+[m[32mExample `web/frontend/.env.local`:[m
+[32m+[m
+[32m+[m[32m```[m
+[32m+[m[32mNEXT_PUBLIC_API_URL=http://localhost:8001/api/v1[m
+[32m+[m[32mNEXT_PUBLIC_ADMIN_PORTAL_CODE=AdminPortal123![m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mAdmin Portal (web) requires a second verification password set by `NEXT_PUBLIC_ADMIN_PORTAL_CODE`. Default is `AdminPortal123!` if not provided.[m
+[32m+[m
+[32m+[m[32m## Seeded Accounts (development)[m
+[32m+[m
+[32m+[m[32mThe backend seed script creates the following users:[m
+[32m+[m
+[32m+[m[32m- Admin[m
+[32m+[m[32m  - Email: `admin@absense.com`[m
+[32m+[m[32m  - Password: `admin123`[m
+[32m+[m[32m- Lecturer[m
+[32m+[m[32m  - Email: `lecturer@absense.com`[m
+[32m+[m[32m  - Password: `lecturer123`[m
+[32m+[m[32m- Student[m
+[32m+[m[32m  - Email: `student@absense.com`[m
+[32m+[m[32m  - Student ID: `STU001`[m
+[32m+[m[32m  - Password: `student123`[m
+[32m+[m
+[32m+[m[32mRun the seed script if needed:[m
+[32m+[m
+[32m+[m[32m```[m
+[32m+[m[32mcd web/backend[m
+[32m+[m[32mpython scripts/seed.py[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m## REST API Endpoints (v1)[m
+[32m+[m
+[32m+[m[32mBase URL: `http://localhost:8001/api/v1` (use `8000` if running with the default script)[m
+[32m+[m
+[32m+[m[32m- Health[m
+[32m+[m[32m  - GET `/health`[m
+[32m+[m
+[32m+[m[32m- Auth[m
+[32m+[m[32m  - POST `/auth/register`[m
+[32m+[m[32m  - POST `/auth/login`[m
+[32m+[m[32m  - GET `/auth/me`[m
+[32m+[m[32m  - POST `/auth/refresh`[m
+[32m+[m[32m  - POST `/auth/logout`[m
+[32m+[m
+[32m+[m[32m- Student (requires role=student)[m
+[32m+[m[32m  - POST `/student/attendance`[m
+[32m+[m[32m  - POST `/student/device/bind`[m
+[32m+[m[32m  - POST `/student/enroll-face`[m
+[32m+[m[32m  - POST `/student/verify-face`[m
+[32m+[m
+[32m+[m[32m- Lecturer (requires role=lecturer)[m
+[32m+[m[32m  - GET `/lecturer/courses`[m
+[32m+[m[32m  - POST `/lecturer/courses`[m
+[32m+[m[32m  - GET `/lecturer/courses/{course_id}`[m
+[32m+[m[32m  - PUT `/lecturer/courses/{course_id}`[m
+[32m+[m[32m  - POST `/lecturer/sessions`[m
+[32m+[m[32m  - POST `/lecturer/sessions/{session_id}/qr/rotate`[m
+[32m+[m[32m  - GET `/lecturer/sessions/{session_id}/qr/status`[m
+[32m+[m[32m  - GET `/lecturer/sessions/{session_id}/qr`[m
+[32m+[m[32m  - POST `/lecturer/sessions/{session_id}/regenerate`[m
+[32m+[m[32m  - POST `/lecturer/sessions/{session_id}/close`[m
+[32m+[m[32m  - GET `/lecturer/sessions`[m
+[32m+[m[32m  - GET `/lecturer/sessions/{session_id}/attendance`[m
+[32m+[m[32m  - GET `/lecturer/sessions/{session_id}/flagged`[m
+[32m+[m[32m  - POST `/lecturer/attendance/{record_id}/confirm`[m
+[32m+[m[32m  - GET `/lecturer/dashboard`[m
+[32m+[m[32m  - GET `/lecturer/sessions/{session_id}/analytics`[m
+[32m+[m[32m  - GET `/lecturer/qr/{session_id}/display`[m
+[32m+[m
+[32m+[m[32m- Admin (requires role=admin)[m
+[32m+[m[32m  - POST `/admin/imei/approve-reset`[m
+[32m+[m[32m  - GET `/admin/flagged`[m
+[32m+[m[32m  - GET `/admin/sessions`[m
+[32m+[m[32m  - GET `/admin/sessions/{session_id}/attendance`[m
+[32m+[m[32m  - GET `/admin/users`[m
+[32m+[m[32m  - POST `/admin/attendance/manual-mark`[m
+[32m+[m[32m  - GET `/admin/activity`[m
+[32m+[m[32m  - GET `/admin/dashboard`[m
+[1mdiff --git a/web/frontend/app/admin/dashboard/page.tsx b/web/frontend/app/admin/dashboard/page.tsx[m
+[1mindex 6a215a1..8f4d28c 100644[m
+[1m--- a/web/frontend/app/admin/dashboard/page.tsx[m
+[1m+++ b/web/frontend/app/admin/dashboard/page.tsx[m
+[36m@@ -4,6 +4,8 @@[m [mimport { useEffect, useState } from 'react';[m
+ import { ProtectedRoute } from '@/components/ProtectedRoute';[m
+ import { apiClient } from '@/lib/api';[m
+ import toast from 'react-hot-toast';[m
+[32m+[m[32mimport { Sidebar } from '@/components/admin/Sidebar';[m
+[32m+[m[32mimport { Navbar } from '@/components/admin/Navbar';[m
+ [m
+ type Flagged = {[m
+   record_id: number;[m
+[36m@@ -23,11 +25,14 @@[m [mexport default function AdminDashboard() {[m
+   const [userId, setUserId] = useState('');[m
+   const [newImei, setNewImei] = useState('');[m
+   const [submitting, setSubmitting] = useState(false);[m
+[31m-  const [active, setActive] = useState<'overview' | 'flagged' | 'imei' | 'sessions' | 'users'>('overview');[m
+[32m+[m[32m  const [active, setActive] = useState<'overview' | 'flagged' | 'imei' | 'sessions' | 'users' | 'activity' | 'manual'>('overview');[m
+   const [sidebarOpen, setSidebarOpen] = useState(false);[m
+   const [overview, setOverview] = useState<any>(null);[m
+   const [sessions, setSessions] = useState<any[]>([]);[m
+   const [users, setUsers] = useState<any[]>([]);[m
+[32m+[m[32m  const [activity, setActivity] = useState<any|null>(null);[m
+[32m+[m[32m  const [sessionAttendance, setSessionAttendance] = useState<Record<number, any[]>>({});[m
+[32m+[m[32m  const [manual, setManual] = useState({ session_id: '', student_id: '', status: 'confirmed', reason: '' });[m
+ [m
+   const loadFlagged = async () => {[m
+     try {[m
+[36m@@ -41,16 +46,44 @@[m [mexport default function AdminDashboard() {[m
+     }[m
+   };[m
+ [m
+[31m-  useEffect(() => {[m
+[31m-    // Enforce admin portal second-factor[m
+[31m-    if (typeof window !== 'undefined') {[m
+[31m-      const ok = sessionStorage.getItem('admin_portal_ok');[m
+[31m-      if (!ok) {[m
+[31m-        window.location.href = '/admin/login';[m
+[31m-        return;[m
+[31m-      }[m
+[32m+[m[32m  const loadSessions = async () => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      setLoading(true);[m
+[32m+[m[32m      const data = await apiClient.adminSessions({ limit: 50 });[m
+[32m+[m[32m      setSessions(data);[m
+[32m+[m[32m    } catch (e:any) {[m
+[32m+[m[32m      toast.error(e?.message || 'Failed to load sessions');[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setLoading(false);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  const loadUsers = async (role?: 'student'|'lecturer'|'admin') => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      setLoading(true);[m
+[32m+[m[32m      const data = await apiClient.adminUsers({ role, limit: 100 });[m
+[32m+[m[32m      setUsers(data);[m
+[32m+[m[32m    } catch (e:any) {[m
+[32m+[m[32m      toast.error(e?.message || 'Failed to load users');[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setLoading(false);[m
+     }[m
+[31m-    // Load initial data[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  const loadActivity = async () => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      setLoading(true);[m
+[32m+[m[32m      const data = await apiClient.adminActivity({ hours: 24, limit: 100 });[m
+[32m+[m[32m      setActivity(data);[m
+[32m+[m[32m    } catch (e:any) {[m
+[32m+[m[32m      toast.error(e?.message || 'Failed to load activity');[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setLoading(false);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    // Load initial data (middleware enforces portal cookie)[m
+     (async () => {[m
+       try {[m
+         setLoading(true);[m
+[36m@@ -68,6 +101,13 @@[m [mexport default function AdminDashboard() {[m
+     })();[m
+   }, []);[m
+ [m
+[32m+[m[32m  // Lazy-load when switching tabs[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    if (active === 'sessions' && sessions.length === 0) loadSessions();[m
+[32m+[m[32m    if (active === 'users' && users.length === 0) loadUsers();[m
+[32m+[m[32m    if (active === 'activity' && !activity) loadActivity();[m
+[32m+[m[32m  }, [active]);[m
+[32m+[m
+   const approveImei = async (e: React.FormEvent) => {[m
+     e.preventDefault();[m
+     if (!userId || !newImei) {[m
+[36m@@ -89,47 +129,19 @@[m [mexport default function AdminDashboard() {[m
+ [m
+   return ([m
+     <ProtectedRoute allowedRoles={['admin']}>[m
+[31m-      <div className="min-h-screen bg-white text-slate-900 flex">[m
+[31m-        {/* Sidebar */}[m
+[31m-        <aside className={`fixed inset-y-0 left-0 z-40 w-72 transform border-r border-slate-200 bg-white p-4 transition-transform duration-200 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>[m
+[31m-          <div className="flex items-center justify-between mb-6">[m
+[31m-            <div className="text-xl font-semibold text-slate-900">Admin</div>[m
+[31m-            <button className="lg:hidden text-slate-600" onClick={() => setSidebarOpen(false)}>✕</button>[m
+[31m-          </div>[m
+[31m-          <nav className="space-y-1">[m
+[31m-            {[[m
+[31m-              { key: 'overview', label: 'Overview' },[m
+[31m-              { key: 'flagged', label: 'Flagged' },[m
+[31m-              { key: 'imei', label: 'IMEI Resets' },[m
+[31m-              { key: 'sessions', label: 'Sessions' },[m
+[31m-              { key: 'users', label: 'Users' },[m
+[31m-            ].map((item:any) => ([m
+[31m-              <button key={item.key} onClick={() => { setActive(item.key); setSidebarOpen(false); }}[m
+[31m-                className={`w-full text-left rounded px-3 py-2 ${active===item.key ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-700'}`}>[m
+[31m-                {item.label}[m
+[31m-              </button>[m
+[31m-            ))}[m
+[31m-          </nav>[m
+[31m-        </aside>[m
+[32m+[m[32m      <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex">[m
+[32m+[m[32m        <Sidebar active={active} onSelect={(k)=>setActive(k as any)} mobileOpen={sidebarOpen} setMobileOpen={setSidebarOpen} />[m
+ [m
+         {/* Main */}[m
+         <main className="flex-1 p-4 sm:p-6 space-y-6 lg:ml-0 ml-0">[m
+[31m-          {/* Top bar */}[m
+[31m-          <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-white/80 backdrop-blur border-b border-slate-200 flex items-center justify-between">[m
+[31m-            <button className="lg:hidden text-slate-700" onClick={() => setSidebarOpen(true)}>☰</button>[m
+[31m-            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">Admin Dashboard</h1>[m
+[31m-            <div className="flex items-center gap-2">[m
+[31m-              <button onClick={() => { if (typeof window !== 'undefined') sessionStorage.removeItem('admin_portal_ok'); toast.success('Admin session cleared'); }} className="hidden sm:inline text-sm text-slate-600 hover:text-slate-900">Clear Portal</button>[m
+[31m-              <button onClick={() => { sessionStorage.removeItem('admin_portal_ok'); window.location.href='/auth/login'; }} className="rounded-md bg-slate-900 text-white px-3 py-1.5 text-sm">Logout</button>[m
+[31m-            </div>[m
+[31m-          </div>[m
+[32m+[m[32m          <Navbar onMenuClick={() => setSidebarOpen(true)} onLogout={() => { try { document.cookie = 'admin_portal_ok=; Path=/; Max-Age=0; SameSite=Lax'; } catch {}; window.location.href='/auth/login'; }} />[m
+ [m
+           {/* Overview */}[m
+           {active==='overview' && ([m
+[31m-            <section className="rounded-xl border border-slate-200 bg-white p-4">[m
+[31m-              <h2 className="text-lg font-medium text-slate-900 mb-4">Overview</h2>[m
+[32m+[m[32m            <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">[m
+[32m+[m[32m              <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Overview</h2>[m
+               {!overview ? ([m
+[31m-                <div className="text-slate-500">Loading...</div>[m
+[32m+[m[32m                <div className="text-slate-500 dark:text-slate-400">Loading...</div>[m
+               ) : ([m
+                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">[m
+                   <StatCard title="Users" value={overview.overview?.total_users} />[m
+[36m@@ -143,22 +155,22 @@[m [mexport default function AdminDashboard() {[m
+ [m
+           {/* IMEI approval */}[m
+           {active==='imei' && ([m
+[31m-          <section className="rounded-xl border border-slate-200 bg-white p-4">[m
+[31m-            <h2 className="text-lg font-medium text-slate-900 mb-4">Approve IMEI Reset</h2>[m
+[32m+[m[32m          <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">[m
+[32m+[m[32m            <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Approve IMEI Reset</h2>[m
+             <form onSubmit={approveImei} className="grid gap-3 sm:grid-cols-3">[m
+               <div className="sm:col-span-1">[m
+[31m-                <label className="block text-sm mb-1 text-slate-700">User ID</label>[m
+[32m+[m[32m                <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">User ID</label>[m
+                 <input[m
+[31m-                  className="w-full rounded-md bg-white border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"[m
+[32m+[m[32m                  className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"[m
+                   value={userId}[m
+                   onChange={(e) => setUserId(e.target.value)}[m
+                   placeholder="123"[m
+                 />[m
+               </div>[m
+               <div className="sm:col-span-1">[m
+[31m-                <label className="block text-sm mb-1 text-slate-700">New IMEI</label>[m
+[32m+[m[32m                <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">New IMEI</label>[m
+                 <input[m
+[31m-                  className="w-full rounded-md bg-white border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"[m
+[32m+[m[32m                  className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"[m
+                   value={newImei}[m
+                   onChange={(e) => setNewImei(e.target.value)}[m
+                   placeholder="356938035643809"[m
+[36m@@ -179,9 +191,9 @@[m [mexport default function AdminDashboard() {[m
+ [m
+           {/* Flagged */}[m
+           {active==='flagged' && ([m
+[31m-          <section className="rounded-xl border border-slate-200 bg-white p-4">[m
+[32m+[m[32m          <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">[m
+             <div className="flex items-center justify-between mb-3">[m
+[31m-              <h2 className="text-lg font-medium text-slate-900">Flagged Attendances</h2>[m
+[32m+[m[32m              <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">Flagged Attendances</h2>[m
+               <button[m
+                 onClick={loadFlagged}[m
+                 className="rounded-md bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 text-sm"[m
+[36m@@ -191,14 +203,14 @@[m [mexport default function AdminDashboard() {[m
+             </div>[m
+ [m
+             {loading ? ([m
+[31m-              <div className="py-8 text-slate-500">Loading...</div>[m
+[32m+[m[32m              <div className="py-8 text-slate-500 dark:text-slate-400">Loading...</div>[m
+             ) : flagged.length === 0 ? ([m
+[31m-              <div className="py-8 text-slate-500">No flagged records.</div>[m
+[32m+[m[32m              <div className="py-8 text-slate-500 dark:text-slate-400">No flagged records.</div>[m
+             ) : ([m
+               <div className="overflow-x-auto">[m
+                 <table className="min-w-full text-sm">[m
+                   <thead>[m
+[31m-                    <tr className="text-left text-slate-600">[m
+[32m+[m[32m                    <tr className="text-left text-slate-600 dark:text-slate-300">[m
+                       <th className="px-3 py-2">Record ID</th>[m
+                       <th className="px-3 py-2">Session</th>[m
+                       <th className="px-3 py-2">Student</th>[m
+[36m@@ -208,7 +220,7 @@[m [mexport default function AdminDashboard() {[m
+                   </thead>[m
+                   <tbody>[m
+                     {flagged.map((f) => ([m
+[31m-                      <tr key={f.record_id} className="border-t border-slate-200">[m
+[32m+[m[32m                      <tr key={f.record_id} className="border-t border-slate-200 dark:border-slate-700">[m
+                         <td className="px-3 py-2">{f.record_id}</td>[m
+                         <td className="px-3 py-2">{f.session_id}</td>[m
+                         <td className="px-3 py-2">{f.student_id}</td>[m
+[36m@@ -225,17 +237,292 @@[m [mexport default function AdminDashboard() {[m
+ [m
+           {/* Sessions placeholder */}[m
+           {active==='sessions' && ([m
+[31m-            <section className="rounded-xl border border-slate-200 bg-white p-4">[m
+[31m-              <h2 className="text-lg font-medium text-slate-900 mb-2">Sessions</h2>[m
+[31m-              <p className="text-slate-600 text-sm">Coming soon — integrate admin sessions list.</p>[m
+[32m+[m[32m            <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">[m
+[32m+[m[32m              <div className="flex items-center justify-between mb-3">[m
+[32m+[m[32m                <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">Sessions</h2>[m
+[32m+[m[32m                <button onClick={loadSessions} className="rounded-md bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 text-sm">Refresh</button>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m              {loading && sessions.length===0 ? ([m
+[32m+[m[32m                <div className="text-slate-500 dark:text-slate-400">Loading...</div>[m
+[32m+[m[32m              ) : sessions.length===0 ? ([m
+[32m+[m[32m                <div className="text-slate-500 dark:text-slate-400">No sessions.</div>[m
+[32m+[m[32m              ) : ([m
+[32m+[m[32m                <div className="overflow-x-auto">[m
+[32m+[m[32m                  <table className="min-w-full text-sm">[m
+[32m+[m[32m                    <thead>[m
+[32m+[m[32m                      <tr className="text-left text-slate-600 dark:text-slate-300">[m
+[32m+[m[32m                        <th className="px-3 py-2">ID</th>[m
+[32m+[m[32m                        <th className="px-3 py-2">Code</th>[m
+[32m+[m[32m                        <th className="px-3 py-2">Lecturer</th>[m
+[32m+[m[32m                        <th className="px-3 py-2">Active</th>[m
+[32m+[m[32m                        <th className="px-3 py-2">Created</th>[m
+[32m+[m[32m                        <th className="px-3 py-2">Attendance</th>[m
+[32m+[m[32m                      </tr>[m
+[32m+[m[32m                    </thead>[m
+[32m+[m[32m                    <tbody>[m
+[32m+[m[32m                      {sessions.map((s:any) => ([m
+[32m+[m[32m                        <tr key={s.id} className="border-t border-slate

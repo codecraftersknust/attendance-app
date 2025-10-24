@@ -43,3 +43,92 @@ React Native mobile application with:
 Development and deployment scripts:
 - **start-dev.sh**: Starts both backend and frontend servers
 - **Backend scripts**: Database migrations, seeding, development server
+
+---
+
+## Local Development Notes (updated)
+
+- On this machine we are currently running the backend on port 8000.
+  - Frontend: http://localhost:3000
+  - Backend API: http://localhost:8000
+  - Configure the frontend API base via: `web/frontend/.env.local`
+
+Example `web/frontend/.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_ADMIN_PORTAL_CODE=AdminPortal123!
+```
+
+Admin Portal (web) requires a second verification password set by `NEXT_PUBLIC_ADMIN_PORTAL_CODE`. Default is `AdminPortal123!` if not provided.
+
+## Seeded Accounts (development)
+
+The backend seed script creates the following users:
+
+- Admin
+  - Email: `admin@absense.com`
+  - Password: `admin123`
+- Lecturer
+  - Email: `lecturer@absense.com`
+  - Password: `lecturer123`
+- Student
+  - Email: `student@absense.com`
+  - Student ID: `STU001`
+  - Password: `student123`
+
+Run the seed script if needed:
+
+```
+cd web/backend
+python scripts/seed.py
+```
+
+## REST API Endpoints (v1)
+
+Base URL: `http://localhost:8000/api/v1` (use `8001` if you choose an alternate port)
+
+- Health
+  - GET `/health`
+
+- Auth
+  - POST `/auth/register`
+  - POST `/auth/login`
+  - GET `/auth/me`
+  - POST `/auth/refresh`
+  - POST `/auth/logout`
+
+- Student (requires role=student)
+  - POST `/student/attendance`
+  - POST `/student/device/bind`
+  - POST `/student/enroll-face`
+  - POST `/student/verify-face`
+
+- Lecturer (requires role=lecturer)
+  - GET `/lecturer/courses`
+  - POST `/lecturer/courses`
+  - GET `/lecturer/courses/{course_id}`
+  - PUT `/lecturer/courses/{course_id}`
+  - POST `/lecturer/sessions`
+  - POST `/lecturer/sessions/{session_id}/qr/rotate`
+  - GET `/lecturer/sessions/{session_id}/qr/status`
+  - GET `/lecturer/sessions/{session_id}/qr`
+  - POST `/lecturer/sessions/{session_id}/regenerate`
+  - POST `/lecturer/sessions/{session_id}/close`
+  - GET `/lecturer/sessions`
+  - GET `/lecturer/sessions/{session_id}/attendance`
+  - GET `/lecturer/sessions/{session_id}/flagged`
+  - POST `/lecturer/attendance/{record_id}/confirm`
+  - GET `/lecturer/dashboard`
+  - GET `/lecturer/sessions/{session_id}/analytics`
+  - GET `/lecturer/qr/{session_id}/display`
+
+- Admin (requires role=admin)
+  - POST `/admin/imei/approve-reset`
+  - GET `/admin/flagged`
+  - GET `/admin/sessions`
+  - GET `/admin/sessions/{session_id}/attendance`
+  - GET `/admin/users`
+  - POST `/admin/attendance/manual-mark`
+  - GET `/admin/activity`
+  - GET `/admin/dashboard`

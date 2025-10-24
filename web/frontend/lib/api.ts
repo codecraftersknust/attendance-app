@@ -164,6 +164,27 @@ class ApiClient {
         const q = qs.toString();
         return this.request(`/admin/users${q ? `?${q}` : ''}`);
     }
+
+    async adminSessionAttendance(sessionId: number): Promise<any[]> {
+        return this.request(`/admin/sessions/${sessionId}/attendance`);
+    }
+
+    async adminActivity(params: { hours?: number; limit?: number } = {}): Promise<any> {
+        const qs = new URLSearchParams();
+        if (params.hours != null) qs.set('hours', String(params.hours));
+        if (params.limit != null) qs.set('limit', String(params.limit));
+        const q = qs.toString();
+        return this.request(`/admin/activity${q ? `?${q}` : ''}`);
+    }
+
+    async adminManualMark(body: { session_id: number; student_id: number; status?: string; reason?: string }): Promise<any> {
+        const qs = new URLSearchParams();
+        qs.set('session_id', String(body.session_id));
+        qs.set('student_id', String(body.student_id));
+        if (body.status) qs.set('status', body.status);
+        if (body.reason) qs.set('reason', body.reason);
+        return this.request(`/admin/attendance/manual-mark?${qs.toString()}`, { method: 'POST' });
+    }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

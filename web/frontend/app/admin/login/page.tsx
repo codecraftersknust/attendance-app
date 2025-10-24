@@ -31,9 +31,12 @@ export default function AdminLoginPage() {
         toast.error("Invalid admin portal password");
         return;
       }
-      // mark portal auth for this session only
+      // mark portal auth: set cookie so middleware can enforce without flicker
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('admin_portal_ok', '1');
+        try {
+          const secure = window.location.protocol === 'https:';
+          document.cookie = `admin_portal_ok=1; Path=/; SameSite=Lax${secure ? '; Secure' : ''}`;
+        } catch {}
       }
       router.push("/admin/dashboard");
       toast.success("Welcome, Admin");
@@ -45,17 +48,17 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl">
         <div className="p-6">
-          <h1 className="text-2xl font-semibold text-slate-900">Admin Portal</h1>
-          <p className="text-sm text-slate-600 mt-1">Secondary verification for administrators</p>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Admin Portal</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Secondary verification for administrators</p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm mb-1 text-slate-700">Admin Portal Password</label>
+              <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">Admin Portal Password</label>
               <input
-                className="w-full rounded-md bg-white border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -70,7 +73,7 @@ export default function AdminLoginPage() {
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
-            <p className="text-xs text-slate-500">Hint (dev): configured via NEXT_PUBLIC_ADMIN_PORTAL_CODE</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Hint (dev): configured via NEXT_PUBLIC_ADMIN_PORTAL_CODE</p>
           </form>
         </div>
       </div>

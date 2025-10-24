@@ -7,6 +7,7 @@ export function middleware(req: NextRequest) {
 
     const token = cookies.get('access_token')?.value;
     const role = cookies.get('role')?.value as 'student' | 'lecturer' | 'admin' | undefined;
+    const portalOk = cookies.get('admin_portal_ok')?.value === '1';
 
     const isAuthPage = path.startsWith('/auth');
     const isProtected =
@@ -40,6 +41,10 @@ export function middleware(req: NextRequest) {
         // Allow visiting /admin/login even if already authenticated; do not auto-redirect
         if (!isAdminLogin && role !== 'admin') {
             return NextResponse.redirect(new URL('/unauthorized', nextUrl));
+        }
+        // Require portal cookie for all admin routes except login
+        if (!isAdminLogin && !portalOk) {
+            return NextResponse.redirect(new URL('/admin/login', nextUrl));
         }
     }
 
