@@ -13,10 +13,13 @@ from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.device import Device
 from ....models.verification_log import VerificationLog
+from ....models.course import Course
+from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....services.audit import write_audit
 from ....storage.base import get_storage
 from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
+from typing import Optional, List
 
 
 face_service = FaceVerificationService()
@@ -207,3 +210,115 @@ async def verify_face(
         raise HTTPException(status_code=400, detail="Face verification failed")
 
     return result
+
+
+@router.get("/courses/search")
+def search_courses(
+    q: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Search for courses by code or name"""
+    query = db.query(Course).filter(Course.is_active == True)
+    
+    if q:
+        search_term = f"%{q}%"
+        query = query.filter(
+            (Course.code.ilike(search_term)) | (Course.name.ilike(search_term))
+        )
+    
+    courses = query.limit(20).all()
+    
+    # Get enrolled course IDs for current student
+    enrolled_ids = {
+        e.course_id 
+        for e in db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .all()
+    }
+    
+    write_audit(db, "student.search_courses", current.id, f"query={q}")
+    return [
+        {
+            "id": course.id,
+            "code": course.code,
+            "name": course.name,
+            "description": course.description,
+            "semester": course.semester,
+            "lecturer_name": course.lecturer.full_name if course.lecturer else None,
+            "is_enrolled": course.id in enrolled_ids,
+        }
+        for course in courses
+    ]
+
+
+@router.get("/courses")
+def get_enrolled_courses(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Get all courses the student is enrolled in"""
+    enrollments = (
+        db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .join(Course)
+        .filter(Course.is_active == True)
+        .order_by(StudentCourseEnrollment.enrolled_at.desc())
+        .all()
+    )
+    
+    write_audit(db, "student.get_courses", current.id)
+    return [
+        {
+            "id": e.course.id,
+            "code": e.course.code,
+            "name": e.course.name,
+            "description": e.course.description,
+            "semester": e.course.semester,
+            "lecturer_name": e.course.lecturer.full_name if e.course.lecturer else None,
+            "enrolled_at": e.enrolled_at.isoformat(),
+        }
+        for e in enrollments
+    ]
+
+
+@router.post("/courses/{course_id}/enroll")
+def enroll_in_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Enroll in a course"""
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.is_active == True
+    ).first()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Check if already enrolled
+    existing = db.query(StudentCourseEnrollment).filter(
+        StudentCourseEnrollment.student_id == current.id,
+        StudentCourseEnrollment.course_id == course_id
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Already enrolled in this course")
+    
+    enrollment = StudentCourseEnrollment(
+        student_id=current.id,
+        course_id=course_id
+    )
+    db.add(enrollment)
+    db.commit()
+    db.refresh(enrollment)
+    
+    write_audit(db, "student.enroll_course", current.id, f"course_id={course_id}")
+    return {
+        "id": enrollment.id,
+        "course_id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "enrolled_at": enrollment.enrolled_at.isoformat(),
+    }
