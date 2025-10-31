@@ -50,12 +50,12 @@ export function Sidebar({ active, onSelect, mobileOpen, setMobileOpen }: Sidebar
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar: mobile (off-canvas) */}
       <AnimatePresence initial={false}>
-        {(mobileOpen || true) && (
+        {mobileOpen && (
           <motion.aside
             aria-label="Admin navigation"
-            className="fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white dark:bg-slate-900 lg:static"
+            className="fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white dark:bg-slate-900 lg:hidden"
             initial={{ x: -300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -300, opacity: 0 }}
@@ -67,15 +67,18 @@ export function Sidebar({ active, onSelect, mobileOpen, setMobileOpen }: Sidebar
                 <div className="h-8 w-8 rounded-md bg-blue-600" />
                 {!collapsed && <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Admin</span>}
               </div>
-              <button
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                className="rounded-md p-1 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 hidden lg:inline-flex"
-                onClick={() => setCollapsed(v => !v)}
-              >
-                <motion.div animate={{ rotate: collapsed ? 180 : 0 }}>
-                  <ChevronLeft className="h-4 w-4" />
-                </motion.div>
-              </button>
+              {/* collapse button hidden on mobile */}
+              <div className="hidden lg:block">
+                <button
+                  aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  className="rounded-md p-1 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  onClick={() => setCollapsed(v => !v)}
+                >
+                  <motion.div animate={{ rotate: collapsed ? 180 : 0 }}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </motion.div>
+                </button>
+              </div>
             </div>
 
             <nav className="px-2 pb-3 space-y-1">
@@ -97,6 +100,46 @@ export function Sidebar({ active, onSelect, mobileOpen, setMobileOpen }: Sidebar
           </motion.aside>
         )}
       </AnimatePresence>
+
+      {/* Sidebar: desktop (static) */}
+      <aside
+        aria-label="Admin navigation"
+        className="hidden lg:flex lg:flex-col lg:sticky lg:top-0 lg:h-screen border-r border-slate-200 bg-white dark:bg-slate-900"
+        style={{ width: collapsed ? 80 : 288 }}
+      >
+        <div className="flex items-center justify-between gap-2 px-3 py-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-md bg-blue-600" />
+            {!collapsed && <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Admin</span>}
+          </div>
+          <button
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="rounded-md p-1 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            onClick={() => setCollapsed(v => !v)}
+          >
+            <motion.div animate={{ rotate: collapsed ? 180 : 0 }}>
+              <ChevronLeft className="h-4 w-4" />
+            </motion.div>
+          </button>
+        </div>
+
+        <nav className="px-2 pb-3 space-y-1">
+          {items.map(it => (
+            <NavItem
+              key={it.key}
+              icon={it.icon}
+              label={it.label}
+              active={active === it.key}
+              collapsed={collapsed}
+              onClick={() => onSelect(it.key)}
+            />
+          ))}
+        </nav>
+
+        <div className="mt-auto px-2 pb-3">
+          <DarkModeToggle collapsed={collapsed} />
+        </div>
+      </aside>
     </>
   );
 }

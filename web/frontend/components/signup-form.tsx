@@ -26,6 +26,8 @@ export function SignupForm({
     const [emailError, setEmailError] = useState("")
     const [studentId, setStudentId] = useState("")
     const [studentIdError, setStudentIdError] = useState("")
+    const [lecturerId, setLecturerId] = useState("")
+    const [lecturerIdError, setLecturerIdError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const { register } = useAuth()
     const router = useRouter()
@@ -60,7 +62,10 @@ export function SignupForm({
             setEmailError(validateEmail(email, role))
         }
         // Reset student id validation on role change
-        if (role !== "student") {
+        if (role === "student") {
+            setLecturerId("")
+            setLecturerIdError("")
+        } else {
             setStudentId("")
             setStudentIdError("")
         }
@@ -89,6 +94,14 @@ export function SignupForm({
                 return
             }
             setStudentIdError("")
+        } else if (userRole === "lecturer") {
+            const id = (e.currentTarget.elements.namedItem("lecturer_id") as HTMLInputElement)?.value || lecturerId
+            const idValid = !!id && id.length <= 50
+            if (!idValid) {
+                setLecturerIdError("Lecturer ID is required")
+                return
+            }
+            setLecturerIdError("")
         }
 
         // Get form data
@@ -99,7 +112,8 @@ export function SignupForm({
             confirmPassword: formData.get("confirm-password") as string,
             role: userRole,
             fullName: formData.get("fullName") as string || "",
-            student_id: formData.get("student_id") as string | null
+            student_id: formData.get("student_id") as string | null,
+            lecturer_id: formData.get("lecturer_id") as string | null
         }
 
         // Basic validation
@@ -120,7 +134,9 @@ export function SignupForm({
                 password: formObject.password,
                 full_name: formObject.fullName,
                 role: formObject.role,
-                student_id: formObject.role === "student" ? (formObject.student_id || undefined) : undefined
+                user_id: formObject.role === "student"
+                    ? (formObject.student_id || undefined)
+                    : (formObject.lecturer_id || undefined)
             })
 
             // Redirect to dashboard after successful registration
@@ -211,6 +227,29 @@ export function SignupForm({
                         />
                         {studentIdError && (
                             <p className="text-red-500 text-sm mt-1">{studentIdError}</p>
+                        )}
+                    </Field>
+                )}
+
+                {userRole === "lecturer" && (
+                    <Field>
+                        <FieldLabel htmlFor="lecturer_id">Lecturer ID</FieldLabel>
+                        <Input
+                            id="lecturer_id"
+                            name="lecturer_id"
+                            type="text"
+                            placeholder="e.g., LEC001"
+                            value={lecturerId}
+                            onChange={(e) => {
+                                const value = e.target.value
+                                setLecturerId(value)
+                                setLecturerIdError(value ? "" : "Lecturer ID is required")
+                            }}
+                            required
+                            className={lecturerIdError ? "border-red-500" : ""}
+                        />
+                        {lecturerIdError && (
+                            <p className="text-red-500 text-sm mt-1">{lecturerIdError}</p>
                         )}
                     </Field>
                 )}

@@ -48,10 +48,10 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl">
-        <div className="p-6">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Admin Portal</h1>
+        <div className="p-4 sm:p-6">
+          <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-slate-100">Admin Portal</h1>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Secondary verification for administrators</p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">

@@ -18,7 +18,7 @@ export interface RegisterRequest {
     password: string;
     full_name?: string;
     role: 'student' | 'lecturer';
-    student_id?: string;
+    user_id?: string; // student_id or lecturer_id unified
 }
 
 export interface LoginRequest {
@@ -156,7 +156,7 @@ class ApiClient {
         return this.request(`/admin/sessions${q ? `?${q}` : ''}`);
     }
 
-    async adminUsers(params: { role?: 'student'|'lecturer'|'admin'; limit?: number; offset?: number } = {}): Promise<any[]> {
+    async adminUsers(params: { role?: 'student' | 'lecturer' | 'admin'; limit?: number; offset?: number } = {}): Promise<any[]> {
         const qs = new URLSearchParams();
         if (params.role) qs.set('role', params.role);
         if (params.limit != null) qs.set('limit', String(params.limit));
@@ -184,6 +184,35 @@ class ApiClient {
         if (body.status) qs.set('status', body.status);
         if (body.reason) qs.set('reason', body.reason);
         return this.request(`/admin/attendance/manual-mark?${qs.toString()}`, { method: 'POST' });
+    }
+
+    // Lecturer endpoints
+    async lecturerCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean; created_at?: string; session_count?: number }>> {
+        return this.request('/lecturer/courses');
+    }
+
+    async lecturerCreateCourse(payload: { code: string; name: string; description?: string; semester?: string }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean }> {
+        const qs = new URLSearchParams();
+        qs.set('code', payload.code);
+        qs.set('name', payload.name);
+        if (payload.description) qs.set('description', payload.description);
+        if (payload.semester) qs.set('semester', payload.semester);
+        return this.request(`/lecturer/courses?${qs.toString()}`, { method: 'POST' });
+    }
+
+    // Student course endpoints
+    async studentSearchCourses(query?: string): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_name: string | null; is_enrolled: boolean }>> {
+        const qs = new URLSearchParams();
+        if (query) qs.set('q', query);
+        return this.request(`/student/courses/search${qs.toString() ? `?${qs.toString()}` : ''}`);
+    }
+
+    async studentGetCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_name: string | null; enrolled_at: string }>> {
+        return this.request('/student/courses');
+    }
+
+    async studentEnrollInCourse(courseId: number): Promise<{ id: number; course_id: number; code: string; name: string; enrolled_at: string }> {
+        return this.request(`/student/courses/${courseId}/enroll`, { method: 'POST' });
     }
 }
 
