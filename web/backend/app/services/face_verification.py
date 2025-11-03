@@ -34,25 +34,57 @@ class FaceVerificationService:
             return {"verified": True, "reason": "Face verification disabled"}
 
         if not _DEEPFACE_AVAILABLE:
-            # Fallback: accept but indicate missing engine
-            return {
-                "verified": True,
-                "reason": "DeepFace not available; bypassing",
-            }
+            # Lightweight fallback using PIL + numpy cosine similarity
+            try:
+                from PIL import Image
+                import numpy as np
+            except Exception:
+                return {
+                    "verified": False,
+                    "error": "Face engine unavailable (DeepFace import failed)",
+                }
+
+            try:
+                img1 = Image.open(live_image_path).convert("L").resize((160, 160))
+                img2 = Image.open(ref_path).convert("L").resize((160, 160))
+                v1 = np.asarray(img1, dtype=np.float32).flatten()
+                v2 = np.asarray(img2, dtype=np.float32).flatten()
+                # Normalize
+                v1 = (v1 - v1.mean()) / (v1.std() + 1e-6)
+                v2 = (v2 - v2.mean()) / (v2.std() + 1e-6)
+                # Cosine similarity in [ -1, 1 ]; map to [0,1]
+                sim = float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6))
+                sim01 = (sim + 1.0) / 2.0
+                # When using fallback, treat "distance" as (1 - similarity)
+                distance = 1.0 - sim01
+                # Fallback similarity threshold (0.6); tuned to reduce false negatives
+                verified = sim01 >= 0.60
+                return {
+                    "verified": verified,
+                    "distance": distance,
+                    "threshold": 1.0 - 0.60,
+                    "model": "fallback-cosine",
+                }
+            except Exception as e:
+                return {
+                    "verified": False,
+                    "error": f"Fallback error: {str(e)}",
+                }
 
         try:
             result = DeepFace.verify(
                 img1_path=live_image_path,
                 img2_path=ref_path,
                 model_name=cfg.face_model,
-                detector_backend="opencv",
-                enforce_detection=False,
+                detector_backend=getattr(cfg, "face_detector_backend", "retinaface"),
+                enforce_detection=True,
             )
 
             # Enforce optional threshold override from settings
             verified = bool(result.get("verified"))
             distance = float(result.get("distance", 0.0))
-            threshold = float(result.get("threshold", cfg.face_threshold))
+            # Prefer DeepFace-provided threshold; only override if configured
+            threshold = float(result.get("threshold", distance + 1.0))
             model = str(result.get("model", cfg.face_model))
 
             # If DeepFace threshold differs, allow admin override via settings

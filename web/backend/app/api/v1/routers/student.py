@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 import shutil
 import os
@@ -190,6 +190,7 @@ async def enroll_face(
 @router.post("/verify-face", response_model=FaceVerificationResponse)
 async def verify_face(
     file: UploadFile = File(...),
+    debug: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -207,9 +208,24 @@ async def verify_face(
         pass
 
     if not result.get("verified"):
+        if debug:
+            # Return result payload for debugging thresholds
+            return FaceVerificationResponse(
+                verified=False,
+                distance=result.get("distance"),
+                threshold=result.get("threshold"),
+                model=result.get("model"),
+                error=result.get("error"),
+            )
         raise HTTPException(status_code=400, detail="Face verification failed")
 
-    return result
+    return FaceVerificationResponse(
+        verified=True,
+        distance=result.get("distance"),
+        threshold=result.get("threshold"),
+        model=result.get("model"),
+        error=result.get("error"),
+    )
 
 
 @router.get("/courses/search")
