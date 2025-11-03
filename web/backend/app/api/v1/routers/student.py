@@ -85,6 +85,10 @@ async def submit_attendance(
     selfie_url = None
     selfie_fs_path = None
 
+    # Enforce selfie when face verification is enabled
+    if cfg.face_verification_enabled and selfie is None:
+        raise HTTPException(status_code=400, detail="Selfie is required when face verification is enabled")
+
     if selfie is not None:
         if selfie.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail="Invalid selfie type")
