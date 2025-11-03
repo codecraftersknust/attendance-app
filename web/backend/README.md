@@ -40,21 +40,21 @@ python3 -m venv .venv
 - `GET /api/v1/auth/me` - Get current user
 
 ### Student
-- `POST /api/v1/student/attendance` - Submit attendance (QR-only)
-- `POST /api/v1/student/enroll-face` - Enroll reference face
+- `POST /api/v1/student/enroll-face` - Enroll reference face (required once)
 - `POST /api/v1/student/device/bind` - Bind device IMEI
+- `POST /api/v1/student/attendance` - Submit attendance (requires selfie when face verification enabled)
 
-### Lecturer (Web & Mobile Compatible)
+### Lecturer (Web)
 - `GET /api/v1/lecturer/courses` - List lecturer's courses
 - `POST /api/v1/lecturer/courses` - Create new course
 - `GET /api/v1/lecturer/courses/{id}` - Get course details
 - `PUT /api/v1/lecturer/courses/{id}` - Update course
 - `POST /api/v1/lecturer/sessions` - Create session for specific course
 - `GET /api/v1/lecturer/sessions` - List sessions
-- `GET /api/v1/lecturer/sessions/{id}/qr/status` - Get QR status
-- `POST /api/v1/lecturer/sessions/{id}/qr/rotate` - Rotate QR code
-- `GET /api/v1/lecturer/sessions/{id}/qr` - Get QR payload
-- `GET /api/v1/lecturer/qr/{id}/display` - Get QR display data (web-optimized)
+- `GET /api/v1/lecturer/sessions/{id}/qr/status` - Get QR status (rotation window)
+- `POST /api/v1/lecturer/sessions/{id}/qr/rotate` - Rotate QR code (60s default)
+- `GET /api/v1/lecturer/sessions/{id}/qr` - Get QR payload (raw)
+- `GET /api/v1/lecturer/qr/{id}/display` - Get QR display data (qr_data, expires_at, remaining)
 - `GET /api/v1/lecturer/sessions/{id}/attendance` - View attendance
 - `GET /api/v1/lecturer/sessions/{id}/analytics` - Session analytics (web-optimized)
 - `GET /api/v1/lecturer/dashboard` - Lecturer dashboard stats
@@ -98,6 +98,12 @@ STORAGE_BACKEND=local
 
 ```bash
 pytest tests/
+
+# Face verification (manual, with images)
+./scripts/test_face_verification_curl.sh
+
+# End-to-end QR + attendance demo
+./scripts/qr_attendance_demo.sh  # uses test_images/verify_same.jpg as selfie
 ```
 
 **Test Coverage**: Auth, lecturer, student, admin, face verification, health checks
@@ -150,11 +156,18 @@ All users can login with either **email** or **user_id**:
 - **CORS Enabled**: All origins allowed in development
 - **RESTful APIs**: JSON responses for web frontend consumption
 
-### Mobile App Support
-- **Student Mobile App**: QR scanning and attendance submission
-- **OAuth2 Compatible**: Password flow for mobile authentication
-- **QR Auto-Rotation**: Codes change every 60 seconds
-- **LAN Testing**: Use `http://<LAN-IP>:8000` for mobile testing
+### Student Mobile Flow
+1. Enroll reference face via `POST /student/enroll-face`
+2. Bind device IMEI via `POST /student/device/bind`
+3. Scan classroom QR (contains `session_id` + `nonce`)
+4. Submit attendance via `POST /student/attendance` with form fields:
+   - `qr_session_id`, `qr_nonce`, `latitude`, `longitude`, `imei`, `selfie`
+5. Backend validates QR window, device, location, and matches selfie to reference
+6. Response includes record id, status, and face verification diagnostics
+
+### QR Display (Lecturer Web)
+- Use `GET /lecturer/qr/{session_id}/display` to render the QR (`qr_data`)
+- Poll every 3–5s; when `time_remaining_seconds` ≤ 0, re-fetch to re-render
 
 ## 🔒 Security
 

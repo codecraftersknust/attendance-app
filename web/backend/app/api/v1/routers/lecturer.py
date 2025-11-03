@@ -8,6 +8,7 @@ from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.verification_log import VerificationLog
 from ....schemas.auth import UserRead
+from ....schemas.lecturer import QRStatusResponse, QRDisplayResponse, QRPayload
 from ....services.utils import generate_session_code, generate_session_nonce
 from ....services.audit import write_audit
 from ....services.qr_rotation import add_session_to_rotation, remove_session_from_rotation
@@ -261,7 +262,7 @@ def rotate_qr(session_id: int, ttl_seconds: int = 60, db: Session = Depends(get_
     }
 
 
-@router.get("/sessions/{session_id}/qr/status", response_model=dict)
+@router.get("/sessions/{session_id}/qr/status", response_model=QRStatusResponse)
 def get_qr_status(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     from datetime import datetime
     session = db.get(AttendanceSession, session_id)
@@ -269,24 +270,24 @@ def get_qr_status(session_id: int, db: Session = Depends(get_db), current: User 
         raise HTTPException(status_code=404, detail="Session not found")
     
     if not session.qr_nonce or not session.qr_expires_at:
-        return {
-            "has_qr": False,
-            "expires_at": None,
-            "seconds_remaining": 0,
-            "is_expired": True
-        }
+        return QRStatusResponse(
+            has_qr=False,
+            expires_at=None,
+            seconds_remaining=0,
+            is_expired=True,
+        )
     
     now = datetime.utcnow()
     is_expired = session.qr_expires_at < now
     seconds_remaining = max(0, int((session.qr_expires_at - now).total_seconds()))
     
-    return {
-        "has_qr": True,
-        "expires_at": session.qr_expires_at.isoformat(),
-        "seconds_remaining": seconds_remaining,
-        "is_expired": is_expired,
-        "next_rotation_in": max(0, seconds_remaining - 10)  # Next rotation happens 10 seconds before expiry
-    }
+    return QRStatusResponse(
+        has_qr=True,
+        expires_at=session.qr_expires_at.isoformat(),
+        seconds_remaining=seconds_remaining,
+        is_expired=is_expired,
+        next_rotation_in=max(0, seconds_remaining - 10),
+    )
 
 
 @router.get("/sessions/{session_id}/qr", response_model=dict)
@@ -499,7 +500,7 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
     }
 
 
-@router.get("/qr/{session_id}/display", response_model=dict)
+@router.get("/qr/{session_id}/display", response_model=QRDisplayResponse)
 def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     """Get QR code data formatted for web display - includes QR image generation info"""
     from datetime import datetime
@@ -515,30 +516,30 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
     time_remaining = int((session.qr_expires_at - datetime.utcnow()).total_seconds())
     
     # QR payload for encoding
-    qr_payload = {
-        "session_id": session.id,
-        "nonce": session.qr_nonce,
-        "expires_at": session.qr_expires_at.isoformat(),
-        "lecturer_name": current.full_name or current.email,
-        "course_code": session.course.code if session.course else None,
-        "course_name": session.course.name if session.course else "General Session",
-        "location": {
+    qr_payload = QRPayload(
+        session_id=session.id,
+        nonce=session.qr_nonce,
+        expires_at=session.qr_expires_at.isoformat(),
+        lecturer_name=current.full_name or current.email,
+        course_code=session.course.code if session.course else None,
+        course_name=session.course.name if session.course else "General Session",
+        location=None if session.latitude is None else {
             "latitude": session.latitude,
             "longitude": session.longitude,
-            "radius_m": session.geofence_radius_m
-        } if session.latitude else None,
-        "session_code": session.code
-    }
+            "radius_m": session.geofence_radius_m,
+        },
+        session_code=session.code,
+    )
     
     write_audit(db, "lecturer.qr_display", current.id, f"session_id={session_id}")
-    return {
-        "session_id": session.id,
-        "session_code": session.code,
-        "qr_payload": qr_payload,
-        "qr_data": f"ABSENSE:{session.id}:{session.qr_nonce}",  # Simple format for QR generation
-        "expires_at": session.qr_expires_at.isoformat(),
-        "time_remaining_seconds": time_remaining,
-        "is_expired": time_remaining <= 0,
-        "lecturer_name": current.full_name or current.email
-    }
+    return QRDisplayResponse(
+        session_id=session.id,
+        session_code=session.code,
+        qr_payload=qr_payload,
+        qr_data=f"ABSENSE:{session.id}:{session.qr_nonce}",
+        expires_at=session.qr_expires_at.isoformat(),
+        time_remaining_seconds=time_remaining,
+        is_expired=time_remaining <= 0,
+        lecturer_name=current.full_name or current.email,
+    )
 
