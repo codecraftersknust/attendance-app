@@ -43,6 +43,10 @@ python3 -m venv .venv
 - `POST /api/v1/student/enroll-face` - Enroll reference face (required once)
 - `POST /api/v1/student/device/bind` - Bind device IMEI
 - `POST /api/v1/student/attendance` - Submit attendance (requires selfie when face verification enabled)
+- `POST /api/v1/student/verify-face` - One-off verification test (dev; supports `?debug=true`)
+- `GET /api/v1/student/courses/search` - Search active courses
+- `GET /api/v1/student/courses` - List enrolled courses
+- `POST /api/v1/student/courses/{course_id}/enroll` - Enroll in a course
 
 ### Lecturer (Web)
 - `GET /api/v1/lecturer/courses` - List lecturer's courses
