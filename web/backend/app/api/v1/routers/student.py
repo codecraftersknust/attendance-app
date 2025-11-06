@@ -169,6 +169,17 @@ def bind_device(imei: str, db: Session = Depends(get_db), current: User = Depend
     write_audit(db, "student.bind_device", current.id, f"imei={imei}")
     return {"status": "ok", "imei": imei}
 
+
+@router.get("/device/status", response_model=dict)
+def device_status(db: Session = Depends(get_db), current: User = Depends(get_current_student)):
+    """Return current student's bound device status (IMEI and active flag)."""
+    device = db.query(Device).filter(Device.user_id == current.id).first()
+    return {
+        "has_device": bool(device),
+        "imei": None if not device else device.imei,
+        "is_active": False if not device else bool(device.is_active),
+    }
+
 @router.post("/enroll-face", response_model=dict)
 async def enroll_face(
     file: UploadFile = File(...),

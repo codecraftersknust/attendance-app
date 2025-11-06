@@ -99,10 +99,14 @@ Base URL: `http://localhost:8000/api/v1` (use `8001` if you choose an alternate 
   - POST `/auth/logout`
 
 - Student (requires role=student)
-  - POST `/student/attendance`
-  - POST `/student/device/bind`
-  - POST `/student/enroll-face`
-  - POST `/student/verify-face`
+  - POST `/student/enroll-face` (enroll reference face)
+  - POST `/student/device/bind` (bind IMEI)
+  - GET `/student/device/status` (check bind status)
+  - POST `/student/attendance` (submit with `qr_session_id`, `qr_nonce`, `latitude`, `longitude`, `imei`, `selfie`)
+  - POST `/student/verify-face` (dev test; supports `?debug=true`)
+  - GET `/student/courses/search`
+  - GET `/student/courses`
+  - POST `/student/courses/{course_id}/enroll`
 
 - Lecturer (requires role=lecturer)
   - GET `/lecturer/courses`
