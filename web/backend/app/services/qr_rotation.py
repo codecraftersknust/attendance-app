@@ -55,6 +55,7 @@ class QRRotationService:
         while self.is_running:
             try:
                 await self._rotate_expired_qrs()
+                await self._close_expired_sessions()
                 await asyncio.sleep(30)  # Check every 30 seconds
             except asyncio.CancelledError:
                 break
@@ -103,6 +104,38 @@ class QRRotationService:
         except Exception as e:
             print(f"Error rotating QR for session {session.id}: {e}")
             db.rollback()
+
+    async def _close_expired_sessions(self):
+        """Automatically close sessions whose ends_at has passed."""
+        db = SessionLocal()
+        try:
+            now = datetime.utcnow()
+            expired = (
+                db.query(AttendanceSession)
+                .filter(
+                    AttendanceSession.is_active == True,
+                    AttendanceSession.ends_at != None,
+                    AttendanceSession.ends_at < now,
+                )
+                .all()
+            )
+            for session in expired:
+                session.is_active = False
+                session.qr_nonce = None
+                session.qr_expires_at = None
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    continue
+                # Stop rotating this session
+                self.remove_session(session.id)
+                try:
+                    write_audit(db, "system.auto_close_session", session.lecturer_id, f"session_id={session.id}")
+                except Exception:
+                    pass
+        finally:
+            db.close()
 
 
 # Global instance

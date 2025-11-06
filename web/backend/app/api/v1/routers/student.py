@@ -322,3 +322,47 @@ def enroll_in_course(
         "name": course.name,
         "enrolled_at": enrollment.enrolled_at.isoformat(),
     }
+
+
+@router.get("/sessions/active")
+def list_active_sessions(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """List active attendance sessions for courses the student is enrolled in."""
+    # Find enrolled course IDs
+    enrolled_course_ids = [
+        e.course_id
+        for e in db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .all()
+    ]
+
+    if not enrolled_course_ids:
+        return []
+
+    sessions = (
+        db.query(AttendanceSession)
+        .filter(
+            AttendanceSession.is_active == True,
+            AttendanceSession.course_id.in_(enrolled_course_ids),
+        )
+        .order_by(AttendanceSession.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for s in sessions:
+        course = db.get(Course, s.course_id) if s.course_id else None
+        result.append({
+            "id": s.id,
+            "code": s.code,
+            "course_id": s.course_id,
+            "course_code": course.code if course else None,
+            "course_name": course.name if course else None,
+            "starts_at": s.starts_at.isoformat() if s.starts_at else None,
+            "ends_at": s.ends_at.isoformat() if s.ends_at else None,
+        })
+
+    write_audit(db, "student.list_active_sessions", current.id, f"count={len(result)}")
+    return result
