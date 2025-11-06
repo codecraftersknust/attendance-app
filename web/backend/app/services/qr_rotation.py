@@ -179,3 +179,28 @@ def remove_session_from_rotation(session_id: int):
         except (RuntimeError, AttributeError):
             # No event loop - will stop on shutdown
             pass
+
+
+def ensure_qr_valid(session, db: Session, ttl_seconds: int = 60) -> bool:
+    """
+    Ensure session has a valid QR code (generate if missing, rotate if expired).
+    Returns True if QR was generated/rotated, False if already valid.
+    This makes QR management fully automatic for the frontend.
+    """
+    from datetime import datetime, timedelta
+    
+    now = datetime.utcnow()
+    needs_generation = not session.qr_nonce or not session.qr_expires_at
+    is_expired = session.qr_expires_at and session.qr_expires_at < now
+    
+    if needs_generation or is_expired:
+        # Generate or rotate QR
+        session.qr_nonce = generate_session_nonce()
+        session.qr_expires_at = now + timedelta(seconds=ttl_seconds)
+        db.commit()
+        
+        # Ensure session is in rotation
+        add_session_to_rotation(session.id)
+        
+        return True
+    return False
