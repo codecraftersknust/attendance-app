@@ -30,9 +30,10 @@ def upgrade() -> None:
     conn = op.get_bind()
     
     # Hash existing IMEI values in devices table before renaming
+    # All values are hashed (including special markers like "ADMIN_MANUAL")
     devices = conn.execute(text("SELECT id, imei FROM devices WHERE imei IS NOT NULL")).fetchall()
     for device_id, imei in devices:
-        if imei and imei != "ADMIN_MANUAL":  # Don't hash special markers
+        if imei:
             device_id_hash = hash_device_id(imei)
             conn.execute(
                 text("UPDATE devices SET imei = :hash WHERE id = :device_id"),
@@ -40,9 +41,10 @@ def upgrade() -> None:
             )
     
     # Hash existing IMEI values in attendance_records table before renaming
+    # All values are hashed (including special markers like "ADMIN_MANUAL")
     records = conn.execute(text("SELECT id, imei FROM attendance_records WHERE imei IS NOT NULL")).fetchall()
     for record_id, imei in records:
-        if imei and imei != "ADMIN_MANUAL":  # Don't hash special markers
+        if imei:
             device_id_hash = hash_device_id(imei)
             conn.execute(
                 text("UPDATE attendance_records SET imei = :hash WHERE id = :record_id"),
@@ -61,8 +63,6 @@ def upgrade() -> None:
     with op.batch_alter_table('attendance_records', schema=None) as batch_op:
         # Rename column (no unique index on this one)
         batch_op.alter_column('imei', new_column_name='device_id_hash')
-    
-    conn.commit()
 
 
 def downgrade() -> None:
@@ -82,5 +82,3 @@ def downgrade() -> None:
     # Set placeholder values (cannot reverse hash)
     conn.execute(text("UPDATE devices SET imei = 'MIGRATED_FROM_HASH' WHERE imei IS NOT NULL"))
     conn.execute(text("UPDATE attendance_records SET imei = 'MIGRATED_FROM_HASH' WHERE imei IS NOT NULL"))
-    
-    conn.commit()
