@@ -49,7 +49,7 @@ def test_admin_flagged_list_set_status_and_analytics(client):
             "qr_nonce": qr_nonce,
             "latitude": "40.7128",
             "longitude": "-74.0060",
-            "imei": "123456789012345"
+            "device_id": "test-device-id-12345"
         },
     )
     assert r.status_code == 200

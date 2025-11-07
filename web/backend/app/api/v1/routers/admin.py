@@ -13,6 +13,7 @@ from ....models.audit_log import AuditLog
 from ....services.audit import write_audit
 from ....api.deps.auth import role_required
 from ....services.face_verification import FaceVerificationService
+from ....services.utils import hash_device_id
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -21,18 +22,22 @@ def get_current_admin(current: User = Depends(role_required(UserRole.admin))) ->
     return current
 
 
-@router.post("/imei/approve-reset")
-def approve_imei_reset(user_id: int, new_imei: str, db: Session = Depends(get_db), current: User = Depends(get_current_admin)):
+@router.post("/device/approve-reset")
+def approve_device_reset(user_id: int, new_device_id: str, db: Session = Depends(get_db), current: User = Depends(get_current_admin)):
+    """Approve device ID reset - device ID is hashed before storage"""
+    # Hash device ID before storing
+    device_id_hash = hash_device_id(new_device_id)
+    
     device = db.query(Device).filter(Device.user_id == user_id).first()
     if not device:
-        device = Device(user_id=user_id, imei=new_imei, is_active=True)
+        device = Device(user_id=user_id, device_id_hash=device_id_hash, is_active=True)
         db.add(device)
     else:
-        device.imei = new_imei
+        device.device_id_hash = device_id_hash
         device.is_active = True
     db.commit()
-    write_audit(db, "admin.approve_imei_reset", current.id, f"user_id={user_id}")
-    return {"user_id": user_id, "imei": new_imei}
+    write_audit(db, "admin.approve_device_reset", current.id, f"user_id={user_id}")
+    return {"user_id": user_id, "device_id": "***"}  # Don't return device ID for security
 
 
 @router.get("/flagged", response_model=list[dict])
@@ -52,7 +57,7 @@ def list_all_flagged(db: Session = Depends(get_db), current: User = Depends(get_
             "session_id": r.session_id,
             "student_id": r.student_id,
             "lecturer_id": None if not session else session.lecturer_id,
-            "imei": r.imei,
+            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
             "face_verified": None if not v else v.verified,
             "face_distance": None if not v else v.distance,
             "face_threshold": None if not v else v.threshold,
@@ -136,7 +141,7 @@ def get_session_attendance(
             "student_name": student.full_name if student else None,
             "student_email": student.email if student else None,
             "status": record.status.value,
-            "imei": record.imei,
+            "device_id_hash": record.device_id_hash[:8] + "..." if record.device_id_hash else None,  # Show partial hash for debugging
             "selfie_image_path": record.selfie_image_path,
             "presence_image_path": record.presence_image_path,
             "created_at": record.created_at.isoformat(),
@@ -183,7 +188,7 @@ def get_all_users(
             "student_id": user.student_id,
             "is_active": user.is_active,
             "created_at": user.created_at.isoformat(),
-            "device_imei": device.imei if device else None,
+            "device_id_hash": device.device_id_hash[:8] + "..." if device and device.device_id_hash else None,  # Show partial hash for debugging
             "device_active": device.is_active if device else None,
             "attendance_count": attendance_count
         })
@@ -232,7 +237,7 @@ def manual_mark_attendance(
     record = AttendanceRecord(
         session_id=session_id,
         student_id=student_id,
-        imei="ADMIN_MANUAL",  # Special marker for admin manual entries
+        device_id_hash=hash_device_id("ADMIN_MANUAL"),  # Special marker for admin manual entries
         selfie_image_path=None,
         presence_image_path=None,
         status=attendance_status,
