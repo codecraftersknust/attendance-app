@@ -4,6 +4,7 @@ from typing import List
 from ....db.deps import get_db
 from ....models.user import UserRole, User
 from ....models.course import Course
+from ....models.device import Device
 from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.verification_log import VerificationLog
@@ -348,7 +349,7 @@ def get_attendance(session_id: int, db: Session = Depends(get_db), current: User
             "id": r.id,
             "student_id": r.student_id,
             "status": r.status.value,
-            "imei": r.imei,
+            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
         }
         for r in records
     ]
@@ -378,7 +379,7 @@ def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), curr
         result.append({
             "record_id": r.id,
             "student_id": r.student_id,
-            "imei": r.imei,
+            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
             "face_verified": None if not v else v.verified,
             "face_distance": None if not v else v.distance,
             "face_threshold": None if not v else v.threshold,
@@ -447,6 +448,36 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
     # Recent attendance (last 10 records)
     recent_records = sorted(records, key=lambda x: x.created_at, reverse=True)[:10]
     
+    # Compute verification methods for recent records
+    recent_attendance = []
+    for r in recent_records:
+        # Check device ID validity (device matches registered device)
+        device = db.query(Device).filter(
+            Device.user_id == r.student_id,
+            Device.device_id_hash == r.device_id_hash,
+            Device.is_active == True
+        ).first()
+        device_id_valid = device is not None
+        
+        # Check face verification
+        verification_log = db.query(VerificationLog).filter(
+            VerificationLog.user_id == r.student_id,
+            VerificationLog.session_id == session_id
+        ).order_by(VerificationLog.id.desc()).first()
+        face_valid = verification_log.verified if verification_log else None
+        
+        recent_attendance.append({
+            "student_id": r.student_id,
+            "status": r.status.value,
+            "timestamp": r.created_at.isoformat(),
+            "verification_methods": {
+                "qr_valid": True,  # If record exists, QR was valid
+                "location_valid": True,  # Location validation is done at submission
+                "device_id_valid": device_id_valid,  # Device ID matches registered device
+                "face_valid": face_valid  # Face verification result
+            }
+        })
+    
     write_audit(db, "lecturer.session_analytics", current.id, f"session_id={session_id}")
     return {
         "session": {
@@ -463,20 +494,7 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
             "flagged_count": flagged_count,
             "attendance_rate": round(attendance_rate, 2)
         },
-        "recent_attendance": [
-            {
-                "student_id": r.student_id,
-                "status": r.status.value,
-                "timestamp": r.created_at.isoformat(),
-                "verification_methods": {
-                    "qr_valid": r.qr_valid,
-                    "location_valid": r.location_valid,
-                    "imei_valid": r.imei_valid,
-                    "face_valid": r.face_valid
-                }
-            }
-            for r in recent_records
-        ]
+        "recent_attendance": recent_attendance
     }
 
 

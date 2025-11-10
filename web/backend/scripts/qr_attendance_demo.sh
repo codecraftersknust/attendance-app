@@ -41,7 +41,7 @@ echo "Login as student..."
 STU_TOKEN=$(curl -sSf -X POST "$BASE/auth/login" -H "Content-Type: application/x-www-form-urlencoded" -d "username=$STUDENT_EMAIL&password=$STUDENT_PASS" | grep -o '"access_token":"[^"]*"' | cut -d '"' -f4)
 [ -n "$STU_TOKEN" ] || die "Student login failed"
 
-IMEI=${IMEI:-356938035643809}
+DEVICE_ID=${DEVICE_ID:-test-device-id-12345}
 LAT=${LAT:-0}
 LON=${LON:-0}
 SELFIE_PATH=${SELFIE_PATH:-test_images/verify_same.jpg}
@@ -53,7 +53,7 @@ curl -sS -w "\nHTTP:%{http_code}\n" -H "Authorization: Bearer $STU_TOKEN" \
   -F "qr_nonce=$QR_NONCE" \
   -F "latitude=$LAT" \
   -F "longitude=$LON" \
-  -F "imei=$IMEI" \
+  -F "device_id=$DEVICE_ID" \
   -F "selfie=@$SELFIE_PATH" \
   "$BASE/student/attendance" | python3 -m json.tool || true
 
