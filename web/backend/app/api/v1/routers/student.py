@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 import shutil
 import os
@@ -84,6 +84,10 @@ async def submit_attendance(
     # Store URLs for DB and filesystem paths for verification
     selfie_url = None
     selfie_fs_path = None
+
+    # Enforce selfie when face verification is enabled
+    if cfg.face_verification_enabled and selfie is None:
+        raise HTTPException(status_code=400, detail="Selfie is required when face verification is enabled")
 
     if selfie is not None:
         if selfie.content_type not in allowed_types:
@@ -190,6 +194,7 @@ async def enroll_face(
 @router.post("/verify-face", response_model=FaceVerificationResponse)
 async def verify_face(
     file: UploadFile = File(...),
+    debug: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -207,9 +212,24 @@ async def verify_face(
         pass
 
     if not result.get("verified"):
+        if debug:
+            # Return result payload for debugging thresholds
+            return FaceVerificationResponse(
+                verified=False,
+                distance=result.get("distance"),
+                threshold=result.get("threshold"),
+                model=result.get("model"),
+                error=result.get("error"),
+            )
         raise HTTPException(status_code=400, detail="Face verification failed")
 
-    return result
+    return FaceVerificationResponse(
+        verified=True,
+        distance=result.get("distance"),
+        threshold=result.get("threshold"),
+        model=result.get("model"),
+        error=result.get("error"),
+    )
 
 
 @router.get("/courses/search")

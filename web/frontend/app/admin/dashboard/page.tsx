@@ -344,7 +344,7 @@ export default function AdminDashboard() {
                         <th className="px-3 py-2">Email</th>
                         <th className="px-3 py-2">Name</th>
                         <th className="px-3 py-2">Role</th>
-                        <th className="px-3 py-2">Student ID</th>
+                        <th className="px-3 py-2">User ID</th>
                         <th className="px-3 py-2">IMEI</th>
                         <th className="px-3 py-2">Records</th>
                         <th className="px-3 py-2">Created</th>
@@ -357,7 +357,7 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2">{u.email}</td>
                           <td className="px-3 py-2">{u.full_name || '-'}</td>
                           <td className="px-3 py-2">{u.role}</td>
-                          <td className="px-3 py-2">{u.student_id || '-'}</td>
+                          <td className="px-3 py-2">{u.user_id || '-'}</td>
                           <td className="px-3 py-2">{u.device_imei || '-'}</td>
                           <td className="px-3 py-2">{u.attendance_count ?? '-'}</td>
                           <td className="px-3 py-2">{u.created_at?.replace('T',' ').slice(0,19)}</td>
