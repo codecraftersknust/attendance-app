@@ -37,7 +37,7 @@ async def submit_attendance(
     qr_nonce: str = Form(...),
     latitude: float = Form(...),
     longitude: float = Form(...),
-    imei: str = Form(...),
+    device_id: str = Form(...),
     selfie: UploadFile = File(None),
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
@@ -99,9 +99,12 @@ async def submit_attendance(
         selfie_fs_path = storage.save_bytes(data, selfie_rel)
         selfie_url = storage.url_for(selfie_rel)
 
+    # Hash device ID for comparison
+    device_id_hash = hash_device_id(device_id)
+    
     device = (
         db.query(Device)
-        .filter(Device.user_id == current.id, Device.imei == imei, Device.is_active == True)
+        .filter(Device.user_id == current.id, Device.device_id_hash == device_id_hash, Device.is_active == True)
         .first()
     )
     status = AttendanceStatus.confirmed if device else AttendanceStatus.flagged
@@ -131,7 +134,7 @@ async def submit_attendance(
     record = AttendanceRecord(
         session_id=session.id,
         student_id=current.id,
-        imei=imei,
+        device_id_hash=device_id_hash,
         selfie_image_path=selfie_url,
         presence_image_path=None,  # No longer required - GPS + QR is sufficient
         status=status,
@@ -158,16 +161,30 @@ async def submit_attendance(
 
 
 @router.post("/device/bind")
-def bind_device(imei: str, db: Session = Depends(get_db), current: User = Depends(get_current_student)):
+def bind_device(device_id: str, db: Session = Depends(get_db), current: User = Depends(get_current_student)):
+    """Bind device ID to student - device ID is hashed before storage"""
+    # Hash device ID before storing
+    device_id_hash = hash_device_id(device_id)
+    
     existing = db.query(Device).filter(Device.user_id == current.id).first()
     if existing:
-        existing.imei = imei
+        existing.device_id_hash = device_id_hash
         existing.is_active = True
     else:
-        db.add(Device(user_id=current.id, imei=imei, is_active=True))
+        db.add(Device(user_id=current.id, device_id_hash=device_id_hash, is_active=True))
     db.commit()
-    write_audit(db, "student.bind_device", current.id, f"imei={imei}")
-    return {"status": "ok", "imei": imei}
+    write_audit(db, "student.bind_device", current.id, f"device_id_hash={device_id_hash[:8]}...")
+    return {"status": "ok", "device_id": "***"}  # Don't return device ID for security
+
+
+@router.get("/device/status", response_model=dict)
+def device_status(db: Session = Depends(get_db), current: User = Depends(get_current_student)):
+    """Return current student's bound device status (device ID hash and active flag)."""
+    device = db.query(Device).filter(Device.user_id == current.id).first()
+    return {
+        "has_device": bool(device),
+        "is_active": False if not device else bool(device.is_active),
+    }
 
 @router.post("/enroll-face", response_model=dict)
 async def enroll_face(

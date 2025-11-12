@@ -4,6 +4,7 @@ from typing import List
 from ....db.deps import get_db
 from ....models.user import UserRole, User
 from ....models.course import Course
+from ....models.device import Device
 from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.verification_log import VerificationLog
@@ -11,7 +12,7 @@ from ....schemas.auth import UserRead
 from ....schemas.lecturer import QRStatusResponse, QRDisplayResponse, QRPayload
 from ....services.utils import generate_session_code, generate_session_nonce
 from ....services.audit import write_audit
-from ....services.qr_rotation import add_session_to_rotation, remove_session_from_rotation
+from ....services.qr_rotation import add_session_to_rotation, remove_session_from_rotation, ensure_qr_valid
 from ....api.deps.auth import role_required
 
 router = APIRouter(prefix="/lecturer", tags=["lecturer"])
@@ -207,8 +208,8 @@ def create_session(
     db.commit()
     db.refresh(session)
     
-    # Add session to automatic QR rotation
-    add_session_to_rotation(session.id)
+    # Auto-generate QR code when session is created
+    ensure_qr_valid(session, db, ttl_seconds=60)
     
     write_audit(db, "lecturer.create_session", current.id, f"session_id={session.id},course_id={course_id}")
     return {
@@ -226,6 +227,7 @@ def create_session(
 
 @router.post("/sessions/{session_id}/qr/rotate", response_model=dict)
 def rotate_qr(session_id: int, ttl_seconds: int = 60, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    """Manually rotate QR code (optional - QR is automatically managed, this is for manual override)"""
     from datetime import datetime, timedelta
     session = db.get(AttendanceSession, session_id)
     if not session or session.lecturer_id != current.id:
@@ -236,6 +238,10 @@ def rotate_qr(session_id: int, ttl_seconds: int = 60, db: Session = Depends(get_
     session.qr_nonce = generate_session_nonce()
     session.qr_expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
     db.commit()
+    
+    # Ensure session is in rotation
+    add_session_to_rotation(session.id)
+    
     write_audit(db, "lecturer.rotate_qr", current.id, f"session_id={session_id}")
     
     # Enhanced QR payload with session context
@@ -264,10 +270,16 @@ def rotate_qr(session_id: int, ttl_seconds: int = 60, db: Session = Depends(get_
 
 @router.get("/sessions/{session_id}/qr/status", response_model=QRStatusResponse)
 def get_qr_status(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    """Get QR status - automatically ensures QR is valid if session is active"""
     from datetime import datetime
     session = db.get(AttendanceSession, session_id)
     if not session or session.lecturer_id != current.id:
         raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Auto-ensure QR is valid for active sessions
+    if session.is_active:
+        ensure_qr_valid(session, db, ttl_seconds=60)
+        db.refresh(session)
     
     if not session.qr_nonce or not session.qr_expires_at:
         return QRStatusResponse(
@@ -290,37 +302,6 @@ def get_qr_status(session_id: int, db: Session = Depends(get_db), current: User 
     )
 
 
-@router.get("/sessions/{session_id}/qr", response_model=dict)
-def get_qr_payload(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
-    from datetime import datetime
-    session = db.get(AttendanceSession, session_id)
-    if not session or session.lecturer_id != current.id:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if not session.qr_nonce or not session.qr_expires_at or session.qr_expires_at < datetime.utcnow():
-        raise HTTPException(status_code=400, detail="QR not generated or expired")
-    
-    # Return enhanced QR payload
-    qr_payload = {
-        "session_id": session.id,
-        "nonce": session.qr_nonce,
-        "expires_at": session.qr_expires_at.isoformat(),
-        "lecturer_name": current.full_name or current.email,
-        "course_code": session.course.code if session.course else None,
-        "course_name": session.course.name if session.course else "General Session",
-        "location": {
-            "latitude": session.latitude,
-            "longitude": session.longitude,
-            "radius_m": session.geofence_radius_m
-        } if session.latitude else None,
-        "session_code": session.code
-    }
-    
-    return {
-        "session_id": session.id,
-        "nonce": session.qr_nonce,
-        "expires_at": session.qr_expires_at.isoformat(),
-        "qr_payload": qr_payload
-    }
 @router.post("/sessions/{session_id}/regenerate", response_model=dict)
 def regenerate_code(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     session = db.get(AttendanceSession, session_id)
@@ -368,7 +349,7 @@ def get_attendance(session_id: int, db: Session = Depends(get_db), current: User
             "id": r.id,
             "student_id": r.student_id,
             "status": r.status.value,
-            "imei": r.imei,
+            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
         }
         for r in records
     ]
@@ -398,7 +379,7 @@ def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), curr
         result.append({
             "record_id": r.id,
             "student_id": r.student_id,
-            "imei": r.imei,
+            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
             "face_verified": None if not v else v.verified,
             "face_distance": None if not v else v.distance,
             "face_threshold": None if not v else v.threshold,
@@ -467,6 +448,36 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
     # Recent attendance (last 10 records)
     recent_records = sorted(records, key=lambda x: x.created_at, reverse=True)[:10]
     
+    # Compute verification methods for recent records
+    recent_attendance = []
+    for r in recent_records:
+        # Check device ID validity (device matches registered device)
+        device = db.query(Device).filter(
+            Device.user_id == r.student_id,
+            Device.device_id_hash == r.device_id_hash,
+            Device.is_active == True
+        ).first()
+        device_id_valid = device is not None
+        
+        # Check face verification
+        verification_log = db.query(VerificationLog).filter(
+            VerificationLog.user_id == r.student_id,
+            VerificationLog.session_id == session_id
+        ).order_by(VerificationLog.id.desc()).first()
+        face_valid = verification_log.verified if verification_log else None
+        
+        recent_attendance.append({
+            "student_id": r.student_id,
+            "status": r.status.value,
+            "timestamp": r.created_at.isoformat(),
+            "verification_methods": {
+                "qr_valid": True,  # If record exists, QR was valid
+                "location_valid": True,  # Location validation is done at submission
+                "device_id_valid": device_id_valid,  # Device ID matches registered device
+                "face_valid": face_valid  # Face verification result
+            }
+        })
+    
     write_audit(db, "lecturer.session_analytics", current.id, f"session_id={session_id}")
     return {
         "session": {
@@ -483,34 +494,24 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
             "flagged_count": flagged_count,
             "attendance_rate": round(attendance_rate, 2)
         },
-        "recent_attendance": [
-            {
-                "student_id": r.student_id,
-                "status": r.status.value,
-                "timestamp": r.created_at.isoformat(),
-                "verification_methods": {
-                    "qr_valid": r.qr_valid,
-                    "location_valid": r.location_valid,
-                    "imei_valid": r.imei_valid,
-                    "face_valid": r.face_valid
-                }
-            }
-            for r in recent_records
-        ]
+        "recent_attendance": recent_attendance
     }
 
 
 @router.get("/qr/{session_id}/display", response_model=QRDisplayResponse)
 def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
-    """Get QR code data formatted for web display - includes QR image generation info"""
+    """Get QR code data formatted for web display - automatically ensures QR is valid"""
     from datetime import datetime
     
     session = db.get(AttendanceSession, session_id)
     if not session or session.lecturer_id != current.id:
         raise HTTPException(status_code=404, detail="Session not found")
+    if not session.is_active:
+        raise HTTPException(status_code=400, detail="Session inactive")
     
-    if not session.qr_nonce or not session.qr_expires_at or session.qr_expires_at < datetime.utcnow():
-        raise HTTPException(status_code=400, detail="QR not generated or expired")
+    # Automatically ensure QR is valid (generates if missing, rotates if expired)
+    ensure_qr_valid(session, db, ttl_seconds=60)
+    db.refresh(session)
     
     # Calculate time remaining
     time_remaining = int((session.qr_expires_at - datetime.utcnow()).total_seconds())

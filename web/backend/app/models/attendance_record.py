@@ -16,7 +16,7 @@ class AttendanceRecord(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[int] = mapped_column(ForeignKey("attendance_sessions.id", ondelete="CASCADE"), index=True, nullable=False)
     student_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
-    imei: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_id_hash: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA-256 hash of device ID
     selfie_image_path: Mapped[str] = mapped_column(String(255), nullable=True)
     presence_image_path: Mapped[str] = mapped_column(String(255), nullable=True)
     status: Mapped[AttendanceStatus] = mapped_column(Enum(AttendanceStatus), nullable=False, default=AttendanceStatus.confirmed)

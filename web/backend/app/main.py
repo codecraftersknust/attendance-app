@@ -6,15 +6,14 @@ from .api.v1.routers import api_router
 from .core.logging_middleware import RequestIDLoggingMiddleware
 from .core.security_headers_middleware import SecurityHeadersMiddleware
 from .core.config import Settings
-from .services.qr_rotation import start_qr_rotation, stop_qr_rotation
+from .services.qr_rotation import stop_qr_rotation
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    await start_qr_rotation()
+    # Startup - QR rotation service starts lazily when first session is created
     yield
-    # Shutdown
+    # Shutdown - stop QR rotation service if running
     await stop_qr_rotation()
 
 
