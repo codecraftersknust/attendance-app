@@ -101,7 +101,7 @@ async def submit_attendance(
 
     # Hash device ID for comparison
     device_id_hash = hash_device_id(device_id)
-    
+
     device = (
         db.query(Device)
         .filter(Device.user_id == current.id, Device.device_id_hash == device_id_hash, Device.is_active == True)

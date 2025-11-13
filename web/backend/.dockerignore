@@ -34,4 +34,11 @@ venv.bak/
 env.bak/
 
 tests/
-alembic/versions/*.py
+test_images/
+*.md
+README.md
+DOCKER_DEPLOYMENT.md
+.dockerignore
+Dockerfile
+docker-compose.yml
+docker-compose.prod.yml

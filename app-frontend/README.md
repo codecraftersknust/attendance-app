@@ -2,6 +2,18 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## 📚 Backend Integration
+
+**See [MOBILE_APP_INTEGRATION.md](./MOBILE_APP_INTEGRATION.md) for complete backend API integration guide.**
+
+This guide covers:
+- Authentication (login, registration, token management)
+- Device binding (required for attendance)
+- Face enrollment (optional but recommended)
+- Course enrollment
+- QR code scanning and attendance submission
+- Required permissions and libraries
+
 ## Get started
 
 1. Install dependencies

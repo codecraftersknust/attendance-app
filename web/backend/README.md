@@ -116,15 +116,48 @@ pytest tests/
 ## 🚀 Deployment
 
 ### Docker (Recommended)
-```bash
-# Development
-docker compose up -d
 
-# Production
-docker compose -f docker-compose.prod.yml up -d
+**Quick Start:**
+```bash
+# 1. Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# 2. Start services
+./scripts/deploy.sh start
+
+# 3. Seed database (optional)
+./scripts/deploy.sh seed
 ```
 
-### Manual
+**Manual Docker Commands:**
+```bash
+# Build and start
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Run migrations
+docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f app
+
+# Stop services
+docker compose -f docker-compose.prod.yml down
+```
+
+**Deployment Helper Script:**
+```bash
+./scripts/deploy.sh start      # Start all services
+./scripts/deploy.sh stop       # Stop all services
+./scripts/deploy.sh logs app    # View app logs
+./scripts/deploy.sh migrate     # Run migrations
+./scripts/deploy.sh seed        # Seed database
+./scripts/deploy.sh status      # Show service status
+```
+
+For detailed Docker deployment instructions, see [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md).
+
+### Manual Deployment
 ```bash
 # Migrations
 alembic upgrade head

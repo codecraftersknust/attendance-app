@@ -66,10 +66,10 @@ class FaceVerificationService:
                     "model": "fallback-cosine",
                 }
             except Exception as e:
-                return {
+             return {
                     "verified": False,
                     "error": f"Fallback error: {str(e)}",
-                }
+            }
 
         try:
             result = DeepFace.verify(

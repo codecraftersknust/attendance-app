@@ -27,14 +27,14 @@ class QRRotationService:
         """Start the background QR rotation service"""
         with self._lock:
             if self.is_running or self._starting:
-                return
+              return
             
             self._starting = True
         
         try:
-            self.is_running = True
-            self.rotation_task = asyncio.create_task(self._rotation_loop())
-            print("QR Rotation Service started")
+          self.is_running = True
+          self.rotation_task = asyncio.create_task(self._rotation_loop())
+          print("QR Rotation Service started")
         finally:
             with self._lock:
                 self._starting = False
@@ -57,13 +57,13 @@ class QRRotationService:
     def add_session(self, session_id: int):
         """Add a session to automatic rotation (thread-safe)"""
         with self._lock:
-            self.active_sessions.add(session_id)
+          self.active_sessions.add(session_id)
         print(f"Added session {session_id} to QR rotation")
     
     def remove_session(self, session_id: int):
         """Remove a session from automatic rotation (thread-safe)"""
         with self._lock:
-            self.active_sessions.discard(session_id)
+          self.active_sessions.discard(session_id)
         print(f"Removed session {session_id} from QR rotation")
     
     def get_active_sessions_count(self) -> int:
