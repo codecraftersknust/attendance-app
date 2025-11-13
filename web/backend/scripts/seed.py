@@ -103,7 +103,7 @@ def seed_data():
                 for course in courses:
                     db.add(course)
                 print("Created sample courses")
-        
+
         db.commit()
         print("Database seeded successfully!")
     except Exception as e:
