@@ -24,7 +24,7 @@ class UserRead(BaseModel):
     id: int
     email: EmailStr
     full_name: Optional[str] = None
-    student_id: Optional[str] = None
+    user_id: Optional[str] = None
     role: str
 
     class Config:

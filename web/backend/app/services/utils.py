@@ -1,5 +1,6 @@
 import secrets
 import string
+import hashlib
 from pathlib import Path
 
 
@@ -19,3 +20,8 @@ def generate_session_nonce(length: int = 24) -> str:
     # Use a restricted alphabet for easier QR decoding if needed
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def hash_device_id(device_id: str) -> str:
+    """Hash device ID using SHA-256 for secure storage."""
+    return hashlib.sha256(device_id.encode('utf-8')).hexdigest()

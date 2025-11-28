@@ -7,6 +7,7 @@ from ..models.attendance_session import AttendanceSession
 from ..models.attendance_record import AttendanceRecord, AttendanceStatus
 from ..models.verification_log import VerificationLog
 from ..models.audit_log import AuditLog
+from ..models.student_course_enrollment import StudentCourseEnrollment
 
 __all__ = [
     "Base",
@@ -19,4 +20,5 @@ __all__ = [
     "AttendanceStatus",
     "VerificationLog",
     "AuditLog",
+    "StudentCourseEnrollment",
 ]

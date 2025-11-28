@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     # Face verification settings
     face_verification_enabled: bool = True
     face_model: str = "Facenet512"
-    face_threshold: float = 0.8
+    face_threshold: float | None = 0.6
+    face_detector_backend: str = "retinaface"
 
     class Config:
         env_file = ".env"

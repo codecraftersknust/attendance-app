@@ -4,6 +4,7 @@ export interface User {
     id: number;
     email: string;
     full_name: string | null;
+    user_id: string | null;
     role: 'student' | 'lecturer' | 'admin';
 }
 
@@ -18,7 +19,7 @@ export interface RegisterRequest {
     password: string;
     full_name?: string;
     role: 'student' | 'lecturer';
-    student_id?: string;
+    user_id?: string; // student_id or lecturer_id unified
 }
 
 export interface LoginRequest {
@@ -156,7 +157,7 @@ class ApiClient {
         return this.request(`/admin/sessions${q ? `?${q}` : ''}`);
     }
 
-    async adminUsers(params: { role?: 'student'|'lecturer'|'admin'; limit?: number; offset?: number } = {}): Promise<any[]> {
+    async adminUsers(params: { role?: 'student' | 'lecturer' | 'admin'; limit?: number; offset?: number } = {}): Promise<any[]> {
         const qs = new URLSearchParams();
         if (params.role) qs.set('role', params.role);
         if (params.limit != null) qs.set('limit', String(params.limit));
@@ -184,6 +185,119 @@ class ApiClient {
         if (body.status) qs.set('status', body.status);
         if (body.reason) qs.set('reason', body.reason);
         return this.request(`/admin/attendance/manual-mark?${qs.toString()}`, { method: 'POST' });
+    }
+
+    // Lecturer endpoints
+    async lecturerCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean; created_at?: string; session_count?: number }>> {
+        return this.request('/lecturer/courses');
+    }
+
+    async lecturerCreateCourse(payload: { code: string; name: string; description?: string; semester?: string }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean }> {
+        const qs = new URLSearchParams();
+        qs.set('code', payload.code);
+        qs.set('name', payload.name);
+        if (payload.description) qs.set('description', payload.description);
+        if (payload.semester) qs.set('semester', payload.semester);
+        return this.request(`/lecturer/courses?${qs.toString()}`, { method: 'POST' });
+    }
+
+    async lecturerSessions(): Promise<Array<{ id: number; code: string; is_active: boolean }>> {
+        return this.request('/lecturer/sessions');
+    }
+
+    async lecturerCreateSession(payload: { course_id: number; duration_minutes?: number }): Promise<{ id: number; code: string; course: { id: number; code: string; name: string }; starts_at: string; ends_at: string }> {
+        const qs = new URLSearchParams();
+        qs.set('course_id', String(payload.course_id));
+        if (payload.duration_minutes != null) qs.set('duration_minutes', String(payload.duration_minutes));
+        return this.request(`/lecturer/sessions?${qs.toString()}`, { method: 'POST' });
+    }
+
+    async lecturerCloseSession(sessionId: number): Promise<{ id: number; is_active: boolean }> {
+        return this.request(`/lecturer/sessions/${sessionId}/close`, { method: 'POST' });
+    }
+
+    async lecturerRegenerateSessionCode(sessionId: number): Promise<{ id: number; code: string }> {
+        return this.request(`/lecturer/sessions/${sessionId}/regenerate`, { method: 'POST' });
+    }
+
+    async lecturerRotateQr(sessionId: number, ttlSeconds: number = 60): Promise<{ session_id: number; nonce: string; expires_at: string; qr_payload: any }> {
+        const qs = new URLSearchParams();
+        if (ttlSeconds != null) qs.set('ttl_seconds', String(ttlSeconds));
+        return this.request(`/lecturer/sessions/${sessionId}/qr/rotate?${qs.toString()}`, { method: 'POST' });
+    }
+
+    async lecturerQrStatus(sessionId: number): Promise<{ has_qr: boolean; expires_at: string | null; seconds_remaining: number; is_expired: boolean; next_rotation_in: number }> {
+        return this.request(`/lecturer/sessions/${sessionId}/qr/status`);
+    }
+
+    async lecturerQrPayload(sessionId: number): Promise<{ session_id: number; nonce: string; expires_at: string; qr_payload: any }> {
+        return this.request(`/lecturer/sessions/${sessionId}/qr`);
+    }
+
+    async lecturerSessionAttendance(sessionId: number): Promise<Array<{ id: number; student_id: number; status: string; imei: string }>> {
+        return this.request(`/lecturer/sessions/${sessionId}/attendance`);
+    }
+
+    // Student course endpoints
+    async studentSearchCourses(query?: string): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_name: string | null; is_enrolled: boolean }>> {
+        const qs = new URLSearchParams();
+        if (query) qs.set('q', query);
+        return this.request(`/student/courses/search${qs.toString() ? `?${qs.toString()}` : ''}`);
+    }
+
+    async studentGetCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_name: string | null; enrolled_at: string }>> {
+        return this.request('/student/courses');
+    }
+
+    async studentEnrollInCourse(courseId: number): Promise<{ id: number; course_id: number; code: string; name: string; enrolled_at: string }> {
+        return this.request(`/student/courses/${courseId}/enroll`, { method: 'POST' });
+    }
+
+    // Student attendance endpoints
+    async studentActiveSessions(): Promise<Array<{ id: number; code: string; course_id: number; course_code?: string; course_name?: string; starts_at?: string; ends_at?: string }>> {
+        return this.request('/student/sessions/active');
+    }
+
+    async studentBindDevice(imei: string): Promise<{ status: string; imei: string }> {
+        const qs = new URLSearchParams({ imei });
+        return this.request(`/student/device/bind?${qs.toString()}`, { method: 'POST' });
+    }
+
+    async studentEnrollFace(file: File): Promise<{ message: string; path: string }> {
+        const form = new FormData();
+        form.append('file', file);
+        return this.request('/student/enroll-face', {
+            method: 'POST',
+            headers: {},
+            body: form,
+        });
+    }
+
+    async studentVerifyFace(file: File): Promise<any> {
+        const form = new FormData();
+        form.append('file', file);
+        return this.request('/student/verify-face', {
+            method: 'POST',
+            headers: {},
+            body: form,
+        });
+    }
+
+    async studentSubmitAttendance(payload: { qr_session_id: number; qr_nonce: string; latitude: number; longitude: number; imei: string; selfie?: File | null }): Promise<any> {
+        const form = new FormData();
+        form.append('qr_session_id', String(payload.qr_session_id));
+        form.append('qr_nonce', payload.qr_nonce);
+        form.append('latitude', String(payload.latitude));
+        form.append('longitude', String(payload.longitude));
+        form.append('imei', payload.imei);
+        if (payload.selfie) {
+            form.append('selfie', payload.selfie);
+        }
+        return this.request('/student/attendance', {
+            method: 'POST',
+            headers: {},
+            body: form,
+        });
     }
 }
 

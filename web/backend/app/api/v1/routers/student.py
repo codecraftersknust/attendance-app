@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 import shutil
 import os
@@ -13,10 +13,13 @@ from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.device import Device
 from ....models.verification_log import VerificationLog
+from ....models.course import Course
+from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....services.audit import write_audit
 from ....storage.base import get_storage
 from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
+from typing import Optional, List
 
 
 face_service = FaceVerificationService()
@@ -34,7 +37,7 @@ async def submit_attendance(
     qr_nonce: str = Form(...),
     latitude: float = Form(...),
     longitude: float = Form(...),
-    imei: str = Form(...),
+    device_id: str = Form(...),
     selfie: UploadFile = File(None),
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
@@ -82,6 +85,10 @@ async def submit_attendance(
     selfie_url = None
     selfie_fs_path = None
 
+    # Enforce selfie when face verification is enabled
+    if cfg.face_verification_enabled and selfie is None:
+        raise HTTPException(status_code=400, detail="Selfie is required when face verification is enabled")
+
     if selfie is not None:
         if selfie.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail="Invalid selfie type")
@@ -92,9 +99,12 @@ async def submit_attendance(
         selfie_fs_path = storage.save_bytes(data, selfie_rel)
         selfie_url = storage.url_for(selfie_rel)
 
+    # Hash device ID for comparison
+    device_id_hash = hash_device_id(device_id)
+    
     device = (
         db.query(Device)
-        .filter(Device.user_id == current.id, Device.imei == imei, Device.is_active == True)
+        .filter(Device.user_id == current.id, Device.device_id_hash == device_id_hash, Device.is_active == True)
         .first()
     )
     status = AttendanceStatus.confirmed if device else AttendanceStatus.flagged
@@ -124,7 +134,7 @@ async def submit_attendance(
     record = AttendanceRecord(
         session_id=session.id,
         student_id=current.id,
-        imei=imei,
+        device_id_hash=device_id_hash,
         selfie_image_path=selfie_url,
         presence_image_path=None,  # No longer required - GPS + QR is sufficient
         status=status,
@@ -151,16 +161,30 @@ async def submit_attendance(
 
 
 @router.post("/device/bind")
-def bind_device(imei: str, db: Session = Depends(get_db), current: User = Depends(get_current_student)):
+def bind_device(device_id: str, db: Session = Depends(get_db), current: User = Depends(get_current_student)):
+    """Bind device ID to student - device ID is hashed before storage"""
+    # Hash device ID before storing
+    device_id_hash = hash_device_id(device_id)
+    
     existing = db.query(Device).filter(Device.user_id == current.id).first()
     if existing:
-        existing.imei = imei
+        existing.device_id_hash = device_id_hash
         existing.is_active = True
     else:
-        db.add(Device(user_id=current.id, imei=imei, is_active=True))
+        db.add(Device(user_id=current.id, device_id_hash=device_id_hash, is_active=True))
     db.commit()
-    write_audit(db, "student.bind_device", current.id, f"imei={imei}")
-    return {"status": "ok", "imei": imei}
+    write_audit(db, "student.bind_device", current.id, f"device_id_hash={device_id_hash[:8]}...")
+    return {"status": "ok", "device_id": "***"}  # Don't return device ID for security
+
+
+@router.get("/device/status", response_model=dict)
+def device_status(db: Session = Depends(get_db), current: User = Depends(get_current_student)):
+    """Return current student's bound device status (device ID hash and active flag)."""
+    device = db.query(Device).filter(Device.user_id == current.id).first()
+    return {
+        "has_device": bool(device),
+        "is_active": False if not device else bool(device.is_active),
+    }
 
 @router.post("/enroll-face", response_model=dict)
 async def enroll_face(
@@ -187,6 +211,7 @@ async def enroll_face(
 @router.post("/verify-face", response_model=FaceVerificationResponse)
 async def verify_face(
     file: UploadFile = File(...),
+    debug: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -204,6 +229,177 @@ async def verify_face(
         pass
 
     if not result.get("verified"):
+        if debug:
+            # Return result payload for debugging thresholds
+            return FaceVerificationResponse(
+                verified=False,
+                distance=result.get("distance"),
+                threshold=result.get("threshold"),
+                model=result.get("model"),
+                error=result.get("error"),
+            )
         raise HTTPException(status_code=400, detail="Face verification failed")
 
+    return FaceVerificationResponse(
+        verified=True,
+        distance=result.get("distance"),
+        threshold=result.get("threshold"),
+        model=result.get("model"),
+        error=result.get("error"),
+    )
+
+
+@router.get("/courses/search")
+def search_courses(
+    q: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Search for courses by code or name"""
+    query = db.query(Course).filter(Course.is_active == True)
+    
+    if q:
+        search_term = f"%{q}%"
+        query = query.filter(
+            (Course.code.ilike(search_term)) | (Course.name.ilike(search_term))
+        )
+    
+    courses = query.limit(20).all()
+    
+    # Get enrolled course IDs for current student
+    enrolled_ids = {
+        e.course_id 
+        for e in db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .all()
+    }
+    
+    write_audit(db, "student.search_courses", current.id, f"query={q}")
+    return [
+        {
+            "id": course.id,
+            "code": course.code,
+            "name": course.name,
+            "description": course.description,
+            "semester": course.semester,
+            "lecturer_name": course.lecturer.full_name if course.lecturer else None,
+            "is_enrolled": course.id in enrolled_ids,
+        }
+        for course in courses
+    ]
+
+
+@router.get("/courses")
+def get_enrolled_courses(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Get all courses the student is enrolled in"""
+    enrollments = (
+        db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .join(Course)
+        .filter(Course.is_active == True)
+        .order_by(StudentCourseEnrollment.enrolled_at.desc())
+        .all()
+    )
+    
+    write_audit(db, "student.get_courses", current.id)
+    return [
+        {
+            "id": e.course.id,
+            "code": e.course.code,
+            "name": e.course.name,
+            "description": e.course.description,
+            "semester": e.course.semester,
+            "lecturer_name": e.course.lecturer.full_name if e.course.lecturer else None,
+            "enrolled_at": e.enrolled_at.isoformat(),
+        }
+        for e in enrollments
+    ]
+
+
+@router.post("/courses/{course_id}/enroll")
+def enroll_in_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Enroll in a course"""
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.is_active == True
+    ).first()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Check if already enrolled
+    existing = db.query(StudentCourseEnrollment).filter(
+        StudentCourseEnrollment.student_id == current.id,
+        StudentCourseEnrollment.course_id == course_id
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Already enrolled in this course")
+    
+    enrollment = StudentCourseEnrollment(
+        student_id=current.id,
+        course_id=course_id
+    )
+    db.add(enrollment)
+    db.commit()
+    db.refresh(enrollment)
+    
+    write_audit(db, "student.enroll_course", current.id, f"course_id={course_id}")
+    return {
+        "id": enrollment.id,
+        "course_id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "enrolled_at": enrollment.enrolled_at.isoformat(),
+    }
+
+
+@router.get("/sessions/active")
+def list_active_sessions(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """List active attendance sessions for courses the student is enrolled in."""
+    # Find enrolled course IDs
+    enrolled_course_ids = [
+        e.course_id
+        for e in db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .all()
+    ]
+
+    if not enrolled_course_ids:
+        return []
+
+    sessions = (
+        db.query(AttendanceSession)
+        .filter(
+            AttendanceSession.is_active == True,
+            AttendanceSession.course_id.in_(enrolled_course_ids),
+        )
+        .order_by(AttendanceSession.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for s in sessions:
+        course = db.get(Course, s.course_id) if s.course_id else None
+        result.append({
+            "id": s.id,
+            "code": s.code,
+            "course_id": s.course_id,
+            "course_code": course.code if course else None,
+            "course_name": course.name if course else None,
+            "starts_at": s.starts_at.isoformat() if s.starts_at else None,
+            "ends_at": s.ends_at.isoformat() if s.ends_at else None,
+        })
+
+    write_audit(db, "student.list_active_sessions", current.id, f"count={len(result)}")
     return result
