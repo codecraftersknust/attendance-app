@@ -45,21 +45,21 @@ if ! docker info > /dev/null 2>&1; then
 fi
 
 # Check if docker-compose is available
-if ! command -v docker compose &> /dev/null; then
-    echo_error "docker compose is not installed. Please install Docker Compose."
+if ! command -v docker-compose &> /dev/null; then
+    echo_error "docker-compose is not installed. Please install Docker Compose."
     exit 1
 fi
 
 # Function to start services
 start() {
     echo_info "Building and starting services..."
-    docker compose -f docker-compose.prod.yml up -d --build
+    docker-compose -f docker-compose.prod.yml up -d --build
     
     echo_info "Waiting for database to be ready..."
     sleep 5
     
     echo_info "Running database migrations..."
-    docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
+    docker-compose -f docker-compose.prod.yml --profile migrate run --rm migrate
     
     echo_info "Services started successfully!"
     echo_info "Backend API: http://localhost:8000"
@@ -70,39 +70,39 @@ start() {
 # Function to stop services
 stop() {
     echo_info "Stopping services..."
-    docker compose -f docker-compose.prod.yml down
+    docker-compose -f docker-compose.prod.yml down
     echo_info "Services stopped."
 }
 
 # Function to view logs
 logs() {
-    docker compose -f docker-compose.prod.yml logs -f "${1:-}"
+    docker-compose -f docker-compose.prod.yml logs -f "${1:-}"
 }
 
 # Function to run migrations
 migrate() {
     echo_info "Running database migrations..."
-    docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
+    docker-compose -f docker-compose.prod.yml --profile migrate run --rm migrate
     echo_info "Migrations completed!"
 }
 
 # Function to seed database
 seed() {
     echo_info "Seeding database..."
-    docker compose -f docker-compose.prod.yml exec app python scripts/seed.py
+    docker-compose -f docker-compose.prod.yml exec app python scripts/seed.py
     echo_info "Database seeded!"
 }
 
 # Function to show status
 status() {
     echo_info "Service status:"
-    docker compose -f docker-compose.prod.yml ps
+    docker-compose -f docker-compose.prod.yml ps
 }
 
 # Function to restart services
 restart() {
     echo_info "Restarting services..."
-    docker compose -f docker-compose.prod.yml restart
+    docker-compose -f docker-compose.prod.yml restart
     echo_info "Services restarted!"
 }
 

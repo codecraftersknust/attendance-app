@@ -1,5 +1,6 @@
 import os
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional
 try:
     from deepface import DeepFace  # type: ignore
     _DEEPFACE_AVAILABLE = True
@@ -11,23 +12,51 @@ from app.core.config import Settings
 
 class FaceVerificationService:
     def __init__(self, base_dir="uploads/faces/"):
-        self.base_dir = base_dir
-        os.makedirs(self.base_dir, exist_ok=True)
+        self.base_dir = Path(base_dir).resolve()
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def get_reference_path(self, user_id: int) -> str:
-        return os.path.join(self.base_dir, f"{user_id}_reference.jpg")
+        """Get the reference path for a user (returns absolute path)."""
+        ref_path = self.base_dir / f"{user_id}_reference.jpg"
+        return str(ref_path.resolve())
 
     def save_reference_face(self, user_id: int, temp_path: str) -> str:
-        """Save student's reference face permanently."""
+        """Save student's reference face permanently. Returns absolute path."""
         ref_path = self.get_reference_path(user_id)
-        os.replace(temp_path, ref_path)
-        return ref_path
+        # Ensure temp_path is absolute
+        temp_abs = Path(temp_path).resolve()
+        ref_abs = Path(ref_path).resolve()
+        # Ensure parent directory exists
+        ref_abs.parent.mkdir(parents=True, exist_ok=True)
+        # Move the file
+        if temp_abs.exists():
+            temp_abs.replace(ref_abs)
+        else:
+            raise FileNotFoundError(f"Temporary file not found: {temp_path}")
+        # Return absolute path
+        return str(ref_abs)
 
-    def verify_face(self, user_id: int, live_image_path: str) -> Dict[str, Any]:
-        """Compare uploaded face with stored reference."""
-        ref_path = self.get_reference_path(user_id)
-        if not os.path.exists(ref_path):
-            return {"verified": False, "reason": "No reference image found"}
+    def verify_face(self, user_id: int, live_image_path: str, reference_path: Optional[str] = None) -> Dict[str, Any]:
+        """Compare uploaded face with stored reference.
+        
+        Args:
+            user_id: User ID
+            live_image_path: Path to the live image to verify
+            reference_path: Optional path to reference image. If not provided, uses get_reference_path(user_id)
+        """
+        # Use provided reference path or construct from user_id
+        if reference_path:
+            ref_path = Path(reference_path).resolve()
+        else:
+            ref_path = Path(self.get_reference_path(user_id))
+        
+        if not ref_path.exists():
+            return {"verified": False, "reason": f"No reference image found at {ref_path}"}
+        
+        # Ensure live image path is absolute
+        live_path = Path(live_image_path).resolve()
+        if not live_path.exists():
+            return {"verified": False, "reason": f"Live image not found at {live_image_path}"}
 
         cfg = Settings()
         if not cfg.face_verification_enabled:
@@ -45,8 +74,8 @@ class FaceVerificationService:
                 }
 
             try:
-                img1 = Image.open(live_image_path).convert("L").resize((160, 160))
-                img2 = Image.open(ref_path).convert("L").resize((160, 160))
+                img1 = Image.open(str(live_path)).convert("L").resize((160, 160))
+                img2 = Image.open(str(ref_path)).convert("L").resize((160, 160))
                 v1 = np.asarray(img1, dtype=np.float32).flatten()
                 v2 = np.asarray(img2, dtype=np.float32).flatten()
                 # Normalize
@@ -73,8 +102,8 @@ class FaceVerificationService:
 
         try:
             result = DeepFace.verify(
-                img1_path=live_image_path,
-                img2_path=ref_path,
+                img1_path=str(live_path),
+                img2_path=str(ref_path),
                 model_name=cfg.face_model,
                 detector_backend=getattr(cfg, "face_detector_backend", "retinaface"),
                 enforce_detection=True,

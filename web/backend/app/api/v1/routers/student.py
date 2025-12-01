@@ -111,9 +111,12 @@ async def submit_attendance(
 
     # If we have a selfie and a reference, perform face verification (guarded by settings inside service)
     verification = None
+    # Get reference path - prefer database path, fallback to constructed path
     ref_path = current.face_reference_path or face_service.get_reference_path(current.id)
-    if selfie_fs_path and os.path.exists(ref_path):
-        verification = face_service.verify_face(current.id, selfie_fs_path)
+    # Resolve to absolute path for existence check
+    ref_path_abs = os.path.abspath(ref_path) if not os.path.isabs(ref_path) else ref_path
+    if selfie_fs_path and os.path.exists(ref_path_abs):
+        verification = face_service.verify_face(current.id, selfie_fs_path, reference_path=ref_path_abs)
         if not verification.get("verified"):
             # Flag but do not reject to avoid blocking legitimate attendance
             status = AttendanceStatus.flagged
@@ -186,6 +189,18 @@ def device_status(db: Session = Depends(get_db), current: User = Depends(get_cur
         "is_active": False if not device else bool(device.is_active),
     }
 
+@router.get("/face/status", response_model=dict)
+def face_status(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    """Check if the current user has enrolled their face."""
+    ref_path = current.face_reference_path or face_service.get_reference_path(current.id)
+    ref_path_abs = os.path.abspath(ref_path) if not os.path.isabs(ref_path) else ref_path
+    has_face = os.path.exists(ref_path_abs)
+    
+    return {
+        "has_enrolled_face": has_face,
+        "reference_path": current.face_reference_path if current.face_reference_path else None,
+    }
+
 @router.post("/enroll-face", response_model=dict)
 async def enroll_face(
     file: UploadFile = File(...),
@@ -193,19 +208,54 @@ async def enroll_face(
     current_user: User = Depends(get_current_user),
 ):
     """Upload a selfie to store as reference face."""
+    # Validate file type
+    cfg = Settings()
+    allowed_types = set(
+        [t.strip() for t in cfg.upload_allowed_image_types.split(",") if t.strip()]
+    )
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(allowed_types)}")
+    
+    # Validate file size
+    max_size_bytes = cfg.upload_max_image_mb * 1024 * 1024
+    file.file.seek(0, 2)  # Seek to end
+    file_size = file.file.tell()
+    file.file.seek(0)  # Reset to beginning
+    
+    if file_size > max_size_bytes:
+        raise HTTPException(status_code=400, detail=f"File too large. Max size: {cfg.upload_max_image_mb}MB")
+    
+    # Create temp directory if needed
     os.makedirs("uploads", exist_ok=True)
-    temp_path = f"uploads/temp_{current_user.id}.jpg"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    ref_path = face_service.save_reference_face(current_user.id, temp_path)
-
-    # Persist reference path on user for future checks
-    current_user.face_reference_path = ref_path
-    db.add(current_user)
-    db.commit()
-
-    return {"message": "Reference face enrolled successfully", "path": ref_path}
+    temp_path = f"uploads/temp_{current_user.id}_{file.filename or 'face.jpg'}"
+    
+    try:
+        # Save uploaded file to temp location
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Save to permanent location and get absolute path
+        ref_path = face_service.save_reference_face(current_user.id, temp_path)
+        
+        # Persist absolute reference path on user for future checks
+        current_user.face_reference_path = ref_path
+        db.add(current_user)
+        db.commit()
+        db.refresh(current_user)
+        
+        return {
+            "message": "Reference face enrolled successfully",
+            "path": ref_path,
+            "user_id": current_user.id
+        }
+    except Exception as e:
+        # Clean up temp file on error
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+        raise HTTPException(status_code=500, detail=f"Failed to enroll face: {str(e)}")
 
 
 @router.post("/verify-face", response_model=FaceVerificationResponse)
@@ -216,17 +266,32 @@ async def verify_face(
     current_user: User = Depends(get_current_user),
 ):
     """Compare uploaded face with enrolled reference face."""
+    # Get reference path from database or construct it
+    ref_path = current_user.face_reference_path or face_service.get_reference_path(current_user.id)
+    ref_path_abs = os.path.abspath(ref_path) if not os.path.isabs(ref_path) else ref_path
+    
+    if not os.path.exists(ref_path_abs):
+        raise HTTPException(
+            status_code=404,
+            detail="No reference face found. Please enroll your face first using /enroll-face"
+        )
+    
     os.makedirs("uploads", exist_ok=True)
-    temp_path = f"uploads/temp_verify_{current_user.id}.jpg"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    result = face_service.verify_face(current_user.id, temp_path)
-
+    temp_path = f"uploads/temp_verify_{current_user.id}_{file.filename or 'verify.jpg'}"
+    
     try:
-        os.remove(temp_path)
-    except OSError:
-        pass
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Verify using the stored reference path
+        result = face_service.verify_face(current_user.id, temp_path, reference_path=ref_path_abs)
+    finally:
+        # Clean up temp file
+        try:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except OSError:
+            pass
 
     if not result.get("verified"):
         if debug:
