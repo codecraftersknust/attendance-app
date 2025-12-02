@@ -4,6 +4,37 @@ A comprehensive attendance management system with multi-layered verification inc
 
 ## 🚀 Quick Start
 
+### Docker Deployment (Recommended)
+
+```bash
+# 1. Navigate to backend directory
+cd web/backend
+
+# 2. Start services (builds and runs containers)
+docker-compose -f docker-compose.prod.yml up -d
+
+# 3. Run database migrations (if needed)
+docker exec absense-backend-prod python -m alembic upgrade head
+
+# 4. Seed database with initial data
+docker exec absense-backend-prod python scripts/seed.py
+
+# 5. Access API
+# Swagger UI: http://localhost:8001/docs
+# Health: GET http://localhost:8001/api/v1/health
+```
+
+**Helper Script:**
+```bash
+# Use the deploy.sh script for easier management
+./scripts/deploy.sh start    # Start all services
+./scripts/deploy.sh stop     # Stop all services
+./scripts/deploy.sh logs app # View app logs
+./scripts/deploy.sh status   # Check service status
+```
+
+### Local Development (Alternative)
+
 ```bash
 # 1. Setup environment
 cd web/backend
