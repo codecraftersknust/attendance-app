@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
-
-type ActiveSession = { id: number; code: string; course_id: number; course_code?: string; course_name?: string; starts_at?: string; ends_at?: string };
+import { ActiveSession } from "./types";
 
 export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => void }) {
     const { onOpen } = props;
@@ -16,9 +15,10 @@ export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => v
         try {
             setLoading(true);
             const list = await apiClient.studentActiveSessions();
-            setSessions(list as any);
-        } catch (e: any) {
-            toast.error(e?.message || "Failed to load active sessions");
+            setSessions(list);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to load active sessions";
+            toast.error(message);
         } finally {
             setLoading(false);
         }

@@ -36,4 +36,5 @@ class QRDisplayResponse(BaseModel):
     time_remaining_seconds: int
     is_expired: bool
     lecturer_name: Optional[str] = None
+    session_ends_at: Optional[str] = None
 

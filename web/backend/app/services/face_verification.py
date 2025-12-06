@@ -23,6 +23,10 @@ class FaceVerificationService:
         os.replace(temp_path, ref_path)
         return ref_path
 
+    def has_reference_face(self, user_id: int) -> bool:
+        """Check if a reference face exists for the user."""
+        return os.path.exists(self.get_reference_path(user_id))
+
     def verify_face(self, user_id: int, live_image_path: str) -> Dict[str, Any]:
         """Compare uploaded face with stored reference."""
         ref_path = self.get_reference_path(user_id)

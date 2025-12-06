@@ -1,89 +1,237 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
-import dynamic from "next/dynamic";
+import { QRScanner } from "@/components/qr-scanner";
+import { FaceCapture } from "@/components/face-capture";
+import { ActiveSession } from "./types";
 
-const QrScanner = dynamic(() => import("@/components/qr-scanner").then(m => m.QRScanner), { ssr: false });
-
-type ActiveSession = { id: number; code: string; course_id: number; course_code?: string; course_name?: string };
+const DEVICE_STORAGE_KEY = "absense.device_id";
 
 export function AttendanceFlow(props: { session: ActiveSession; onDone: () => void }) {
     const { session, onDone } = props;
 
-    const [imei, setImei] = useState<string>("");
+    // Auto-exit when session expires
+    useEffect(() => {
+        if (!session.ends_at) return;
+
+        const checkExpiration = () => {
+            const now = new Date();
+            const end = new Date(session.ends_at!);
+            const diff = end.getTime() - now.getTime();
+
+            if (diff <= 0) {
+                toast.error("Session has ended");
+                onDone();
+            } else {
+                // Schedule exit
+                const timer = setTimeout(() => {
+                    toast.error("Session has ended");
+                    onDone();
+                }, diff);
+                return () => clearTimeout(timer);
+            }
+        };
+
+        return checkExpiration();
+    }, [session.ends_at, onDone]);
+
+    const [deviceId, setDeviceId] = useState<string>("");
+    const [checkingDevice, setCheckingDevice] = useState<boolean>(false);
+    const [deviceStatus, setDeviceStatus] = useState<{ has_device: boolean; is_active: boolean; has_face_enrolled: boolean } | null>(null);
     const [binding, setBinding] = useState<boolean>(false);
-    const [bound, setBound] = useState<boolean>(false);
 
-    const [refFace, setRefFace] = useState<File | null>(null);
-    const [enrolling, setEnrolling] = useState<boolean>(false);
-    const [enrolled, setEnrolled] = useState<boolean>(false);
-
-    const [selfie, setSelfie] = useState<File | null>(null);
     const [qrPayload, setQrPayload] = useState<{ session_id: number; nonce: string } | null>(null);
+    const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+    const [locating, setLocating] = useState<boolean>(false);
+
+    const [refFaceFile, setRefFaceFile] = useState<File | null>(null);
+    const [refCaptureKey, setRefCaptureKey] = useState<number>(0);
+    const [enrolling, setEnrolling] = useState<boolean>(false);
+
+    // Derived from backend status
+    const isFaceEnrolled = deviceStatus?.has_face_enrolled ?? false;
+
+    const [selfieFile, setSelfieFile] = useState<File | null>(null);
+    const [selfieCaptureKey, setSelfieCaptureKey] = useState<number>(0);
     const [submitting, setSubmitting] = useState<boolean>(false);
 
-    const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-
-    const getLocation = useCallback(() => {
-        if (!navigator.geolocation) return toast.error("Geolocation not supported");
-        navigator.geolocation.getCurrentPosition(
-            (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => toast.error("Failed to get location"),
-            { enableHighAccuracy: true, timeout: 8000 }
-        );
+    // Helper to get or create device ID
+    const getDeviceId = useCallback(() => {
+        if (typeof window === "undefined") return "";
+        let id = localStorage.getItem(DEVICE_STORAGE_KEY);
+        if (!id) {
+            // Generate a persistent random ID
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                id = crypto.randomUUID();
+            } else {
+                id = 'dev_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            }
+            localStorage.setItem(DEVICE_STORAGE_KEY, id);
+        }
+        return id;
     }, []);
 
-    const bindDevice = async () => {
-        if (!imei.trim()) return toast.error("Enter your device IMEI");
+    useEffect(() => {
+        const id = getDeviceId();
+        setDeviceId(id);
+    }, [getDeviceId]);
+
+    const getErrorMessage = useCallback((error: unknown) => {
+        if (error instanceof Error) return error.message;
+        if (typeof error === "string") return error;
+        return "Something went wrong";
+    }, []);
+
+    const bindDevice = useCallback(async (id: string) => {
         try {
             setBinding(true);
-            await apiClient.studentBindDevice(imei.trim());
-            setBound(true);
-            toast.success("Device bound");
-        } catch (e: any) {
-            toast.error(e?.message || "Failed to bind device");
+            await apiClient.studentBindDevice(id);
+            // toast.success("Device bound automatically");
+            return true;
+        } catch (error) {
+            console.error("Auto-bind failed", error);
+            return false;
         } finally {
             setBinding(false);
         }
-    };
+    }, []);
+
+    const refreshDeviceStatus = useCallback(async () => {
+        try {
+            setCheckingDevice(true);
+            const status = await apiClient.studentDeviceStatus();
+            setDeviceStatus(status);
+
+            // Auto-bind if not bound
+            if (!status.has_device) {
+                const id = getDeviceId();
+                if (id) {
+                    const success = await bindDevice(id);
+                    if (success) {
+                        // Refresh status after binding
+                        const newStatus = await apiClient.studentDeviceStatus();
+                        setDeviceStatus(newStatus);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error(getErrorMessage(error));
+        } finally {
+            setCheckingDevice(false);
+        }
+    }, [getErrorMessage, getDeviceId, bindDevice]);
+
+    useEffect(() => {
+        refreshDeviceStatus();
+    }, [refreshDeviceStatus]);
+
+    // Removed manual handleBind since it's automatic now
+
+    const getLocation = useCallback(() => {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation not supported");
+            return;
+        }
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocating(false);
+            },
+            (err) => {
+                console.error(err);
+                toast.error("Failed to get location");
+                setLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 },
+        );
+    }, []);
+
+    const parseQrPayload = useCallback(
+        (raw: string) => {
+            let sessionId: number | null = null;
+            let nonce: string | null = null;
+            const trimmed = raw.trim();
+
+            if (trimmed.startsWith("ABSENSE")) {
+                const parts = trimmed.split(":");
+                if (parts.length >= 3) {
+                    sessionId = Number(parts[1]);
+                    nonce = parts[2];
+                }
+            } else {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    sessionId = Number(parsed.session_id ?? parsed.sessionId);
+                    nonce = String(parsed.nonce ?? parsed.qr_nonce ?? "");
+                } catch (err) {
+                    console.error("QR parse error", err);
+                }
+            }
+
+            if (!sessionId || !nonce) throw new Error("Invalid QR payload");
+            if (sessionId !== session.id) throw new Error("QR belongs to another session");
+            return { session_id: sessionId, nonce };
+        },
+        [session.id],
+    );
+
+    const onScan = useCallback(
+        (value: string) => {
+            try {
+                const payload = parseQrPayload(value);
+                setQrPayload(payload);
+                toast.success("QR scanned");
+            } catch (error) {
+                toast.error(getErrorMessage(error));
+            }
+        },
+        [getErrorMessage, parseQrPayload],
+    );
 
     const enrollFace = async () => {
-        if (!refFace) return toast.error("Choose a selfie for enrollment");
+        if (!refFaceFile) {
+            toast.error("Capture a reference selfie first");
+            return;
+        }
         try {
             setEnrolling(true);
-            await apiClient.studentEnrollFace(refFace);
-            setEnrolled(true);
-            toast.success("Face enrolled");
-        } catch (e: any) {
-            toast.error(e?.message || "Failed to enroll face");
+            await apiClient.studentEnrollFace(refFaceFile);
+            toast.success("Reference face enrolled");
+            setRefFaceFile(null);
+            setRefCaptureKey((key) => key + 1);
+            refreshDeviceStatus(); // Update status to hide enrollment section
+        } catch (error) {
+            toast.error(getErrorMessage(error));
         } finally {
             setEnrolling(false);
         }
     };
 
-    const onScan = (value: string) => {
-        try {
-            const parsed = JSON.parse(value);
-            if (parsed && parsed.session_id && parsed.nonce) {
-                setQrPayload({ session_id: Number(parsed.session_id), nonce: String(parsed.nonce) });
-                toast.success("QR scanned");
-            } else {
-                toast.error("Invalid QR payload");
-            }
-        } catch {
-            toast.error("Invalid QR payload");
-        }
-    };
-
     const submit = async () => {
-        if (!qrPayload) return toast.error("Scan the QR code shown by your lecturer");
-        if (!coords) return toast.error("Get your location first");
-        if (!imei.trim()) return toast.error("Bind your device");
+        if (!qrPayload) {
+            toast.error("Scan the QR code displayed by your lecturer");
+            return;
+        }
+        if (!coords) {
+            toast.error("Capture your current location");
+            return;
+        }
+        const value = deviceId.trim();
+        if (!value) {
+            toast.error("Device ID missing");
+            return;
+        }
+        if (!selfieFile) {
+            toast.error("Capture a selfie for this attendance");
+            return;
+        }
         try {
             setSubmitting(true);
             const res = await apiClient.studentSubmitAttendance({
@@ -91,17 +239,28 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
                 qr_nonce: qrPayload.nonce,
                 latitude: coords.lat,
                 longitude: coords.lng,
-                imei: imei.trim(),
-                selfie,
+                device_id: value,
+                selfie: selfieFile,
             });
             toast.success(`Attendance marked (${res.status})`);
+            setSelfieFile(null);
+            setSelfieCaptureKey((key) => key + 1);
+            setQrPayload(null);
+            setCoords(null);
             onDone();
-        } catch (e: any) {
-            toast.error(e?.message || "Failed to submit attendance");
+        } catch (error) {
+            toast.error(getErrorMessage(error));
         } finally {
             setSubmitting(false);
         }
     };
+
+    const deviceStatusText = useMemo(() => {
+        if (checkingDevice) return "Checking device status…";
+        if (!deviceStatus?.has_device) return "Binding device...";
+        if (!deviceStatus.is_active) return "Device pending approval";
+        return "Device verified";
+    }, [checkingDevice, deviceStatus]);
 
     return (
         <div className="bg-white rounded-md shadow p-4 space-y-6">
@@ -110,48 +269,95 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
                 <div className="text-xs text-gray-500">Session #{session.id}</div>
             </div>
 
-            <div className="space-y-2">
-                <Label>Device IMEI</Label>
-                <div className="flex gap-2">
-                    <Input value={imei} onChange={(e) => setImei(e.target.value)} placeholder="Enter your device IMEI" />
-                    <Button onClick={bindDevice} disabled={binding || bound}>{binding ? "Binding..." : bound ? "Bound" : "Bind"}</Button>
-                </div>
-            </div>
+            {/* Device ID section hidden but logic active */}
+            {/* <section className="space-y-3">
+                <Label>Device Identifier</Label>
+                <div className="text-xs text-gray-500 font-mono">{deviceId}</div>
+                <p className="text-xs text-emerald-700">{deviceStatusText}</p>
+            </section> */}
 
-            <div className="grid sm:grid-cols-2 gap-4">
+            <section className="grid gap-6 lg:grid-cols-2">
+                {!isFaceEnrolled ? (
+                    <div className="space-y-4 border-r pr-4">
+                        <Label className="text-amber-600 font-bold">Step 1: Reference Face Enrollment</Label>
+                        <p className="text-xs text-gray-600">You must enroll your face once before marking attendance.</p>
+                        <FaceCapture
+                            key={`ref-${refCaptureKey}`}
+                            label="Capture a clear reference selfie"
+                            allowUpload
+                            note="Use good lighting, remove face coverings, and center your face."
+                            onCapture={(file) => setRefFaceFile(file)}
+                            onClear={() => setRefFaceFile(null)}
+                        />
+                        <Button
+                            variant="outline"
+                            onClick={enrollFace}
+                            disabled={!refFaceFile || enrolling}
+                            className="w-full"
+                        >
+                            {enrolling ? "Uploading..." : "Enroll Reference Face"}
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="hidden lg:block space-y-4 border-r pr-4 opacity-50 pointer-events-none">
+                        <Label>Reference Face</Label>
+                        <div className="h-40 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-sm">
+                            Enrolled
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-4">
+                    <Label className={!isFaceEnrolled ? "opacity-50" : "font-bold"}>
+                        {!isFaceEnrolled ? "Step 2: Attendance Selfie" : "Attendance Selfie"}
+                    </Label>
+                    <FaceCapture
+                        key={`selfie-${selfieCaptureKey}`}
+                        label="Capture real-time selfie"
+                        allowUpload
+                        note="This selfie is uploaded with your attendance submission."
+                        onCapture={(file) => setSelfieFile(file)}
+                        onClear={() => setSelfieFile(null)}
+                    />
+                </div>
+            </section>
+
+            <section className="space-y-4 pt-4 border-t">
                 <div className="space-y-2">
-                    <Label>Enroll Reference Face (optional but recommended)</Label>
-                    <Input type="file" accept="image/*" onChange={(e) => setRefFace(e.target.files?.[0] || null)} />
-                    <Button onClick={enrollFace} disabled={enrolling || !refFace || enrolled}>{enrolling ? "Enrolling..." : enrolled ? "Enrolled" : "Enroll"}</Button>
+                    <Label>Scan QR from lecturer</Label>
+                    <QRScanner onDecode={onScan} />
+                    {qrPayload ? (
+                        <p className="text-sm text-emerald-700 font-medium">
+                            ✓ QR locked for session #{qrPayload.session_id}
+                        </p>
+                    ) : (
+                        <p className="text-xs text-gray-500">Position the rotating QR code inside the frame.</p>
+                    )}
                 </div>
-                <div className="space-y-2">
-                    <Label>Selfie for this Attendance (optional)</Label>
-                    <Input type="file" accept="image/*" onChange={(e) => setSelfie(e.target.files?.[0] || null)} />
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <Button variant="outline" onClick={getLocation} disabled={locating}>
+                        {locating ? "Locating..." : "Capture location"}
+                    </Button>
+                    <div className="text-xs text-gray-600">
+                        {coords ? `✓ Location captured` : "Location required"}
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div className="space-y-2">
-                <Label>Scan QR from Lecturer</Label>
-                <QrScanner onSuccess={() => {
-                    // In the mock scanner, ask for the nonce so we can simulate the QR payload
-                    const nonce = window.prompt("Enter QR nonce from lecturer screen:") || "";
-                    if (!nonce) {
-                        toast.error("Nonce required");
-                        return;
-                    }
-                    onScan(JSON.stringify({ session_id: session.id, nonce }));
-                }} />
-            </div>
-
-            <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={getLocation}>Get Location</Button>
-                <div className="text-xs text-gray-600">{coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : "Location not set"}</div>
-            </div>
-
-            <div>
-                <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={submit} disabled={submitting}>
+            <div className="pt-2">
+                <Button
+                    className="w-full bg-emerald-900 hover:bg-emerald-900/90 text-white py-6 text-lg"
+                    onClick={submit}
+                    disabled={submitting || !isFaceEnrolled}
+                >
                     {submitting ? "Submitting..." : "Submit Attendance"}
                 </Button>
+                {!isFaceEnrolled && (
+                    <p className="text-center text-xs text-red-500 mt-2">
+                        Please enroll your reference face first.
+                    </p>
+                )}
             </div>
         </div>
     );

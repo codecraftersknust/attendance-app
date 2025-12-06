@@ -30,7 +30,7 @@ export default function AdminDashboard() {
   const [overview, setOverview] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [activity, setActivity] = useState<any|null>(null);
+  const [activity, setActivity] = useState<any | null>(null);
   const [sessionAttendance, setSessionAttendance] = useState<Record<number, any[]>>({});
   const [manual, setManual] = useState({ session_id: '', student_id: '', status: 'confirmed', reason: '' });
 
@@ -51,19 +51,19 @@ export default function AdminDashboard() {
       setLoading(true);
       const data = await apiClient.adminSessions({ limit: 50 });
       setSessions(data);
-    } catch (e:any) {
+    } catch (e: any) {
       toast.error(e?.message || 'Failed to load sessions');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUsers = async (role?: 'student'|'lecturer'|'admin') => {
+  const loadUsers = async (role?: 'student' | 'lecturer' | 'admin') => {
     try {
       setLoading(true);
       const data = await apiClient.adminUsers({ role, limit: 100 });
       setUsers(data);
-    } catch (e:any) {
+    } catch (e: any) {
       toast.error(e?.message || 'Failed to load users');
     } finally {
       setLoading(false);
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
       setLoading(true);
       const data = await apiClient.adminActivity({ hours: 24, limit: 100 });
       setActivity(data);
-    } catch (e:any) {
+    } catch (e: any) {
       toast.error(e?.message || 'Failed to load activity');
     } finally {
       setLoading(false);
@@ -93,7 +93,7 @@ export default function AdminDashboard() {
         ]);
         setOverview(dash);
         setFlagged(flg);
-      } catch (e:any) {
+      } catch (e: any) {
         // ignore handled toasts in callers
       } finally {
         setLoading(false);
@@ -130,14 +130,14 @@ export default function AdminDashboard() {
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex">
-        <Sidebar active={active} onSelect={(k)=>setActive(k as any)} mobileOpen={sidebarOpen} setMobileOpen={setSidebarOpen} />
+        <Sidebar active={active} onSelect={(k) => setActive(k as any)} mobileOpen={sidebarOpen} setMobileOpen={setSidebarOpen} />
 
         {/* Main */}
         <main className="flex-1 p-4 sm:p-6 space-y-6 lg:ml-0 ml-0">
-          <Navbar onMenuClick={() => setSidebarOpen(true)} onLogout={() => { try { document.cookie = 'admin_portal_ok=; Path=/; Max-Age=0; SameSite=Lax'; } catch {}; window.location.href='/auth/login'; }} />
+          <Navbar onMenuClick={() => setSidebarOpen(true)} onLogout={() => { try { document.cookie = 'admin_portal_ok=; Path=/; Max-Age=0; SameSite=Lax'; } catch { }; window.location.href = '/auth/login'; }} />
 
           {/* Overview */}
-          {active==='overview' && (
+          {active === 'overview' && (
             <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
               <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Overview</h2>
               {!overview ? (
@@ -154,97 +154,97 @@ export default function AdminDashboard() {
           )}
 
           {/* IMEI approval */}
-          {active==='imei' && (
-          <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-            <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Approve IMEI Reset</h2>
-            <form onSubmit={approveImei} className="grid gap-3 sm:grid-cols-3">
-              <div className="sm:col-span-1">
-                <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">User ID</label>
-                <input
-                  className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="123"
-                />
-              </div>
-              <div className="sm:col-span-1">
-                <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">New IMEI</label>
-                <input
-                  className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  value={newImei}
-                  onChange={(e) => setNewImei(e.target.value)}
-                  placeholder="356938035643809"
-                />
-              </div>
-              <div className="sm:col-span-1 flex items-end">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-60 py-2 font-medium text-white"
-                >
-                  {submitting ? 'Submitting...' : 'Approve Reset'}
-                </button>
-              </div>
-            </form>
-          </section>
+          {active === 'imei' && (
+            <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Approve IMEI Reset</h2>
+              <form onSubmit={approveImei} className="grid gap-3 sm:grid-cols-3">
+                <div className="sm:col-span-1">
+                  <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">User ID</label>
+                  <input
+                    className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
+                    placeholder="123"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">New IMEI</label>
+                  <input
+                    className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    value={newImei}
+                    onChange={(e) => setNewImei(e.target.value)}
+                    placeholder="356938035643809"
+                  />
+                </div>
+                <div className="sm:col-span-1 flex items-end">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-60 py-2 font-medium text-white"
+                  >
+                    {submitting ? 'Submitting...' : 'Approve Reset'}
+                  </button>
+                </div>
+              </form>
+            </section>
           )}
 
           {/* Flagged */}
-          {active==='flagged' && (
-          <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">Flagged Attendances</h2>
-              <button
-                onClick={loadFlagged}
-                className="rounded-md bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 text-sm"
-              >
-                Refresh
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="py-8 text-slate-500 dark:text-slate-400">Loading...</div>
-            ) : flagged.length === 0 ? (
-              <div className="py-8 text-slate-500 dark:text-slate-400">No flagged records.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-slate-600 dark:text-slate-300">
-                      <th className="px-3 py-2">Record ID</th>
-                      <th className="px-3 py-2">Session</th>
-                      <th className="px-3 py-2">Student</th>
-                      <th className="px-3 py-2">IMEI</th>
-                      <th className="px-3 py-2">Face</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {flagged.map((f) => (
-                      <tr key={f.record_id} className="border-t border-slate-200 dark:border-slate-700">
-                        <td className="px-3 py-2">{f.record_id}</td>
-                        <td className="px-3 py-2">{f.session_id}</td>
-                        <td className="px-3 py-2">{f.student_id}</td>
-                        <td className="px-3 py-2">{f.imei ?? '-'}</td>
-                        <td className="px-3 py-2">{f.face_verified === null ? '-' : f.face_verified ? 'Verified' : 'Failed'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {active === 'flagged' && (
+            <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">Flagged Attendances</h2>
+                <button
+                  onClick={loadFlagged}
+                  className="rounded-md bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 text-sm"
+                >
+                  Refresh
+                </button>
               </div>
-            )}
-          </section>
+
+              {loading ? (
+                <div className="py-8 text-slate-500 dark:text-slate-400">Loading...</div>
+              ) : flagged.length === 0 ? (
+                <div className="py-8 text-slate-500 dark:text-slate-400">No flagged records.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-slate-600 dark:text-slate-300">
+                        <th className="px-3 py-2">Record ID</th>
+                        <th className="px-3 py-2">Session</th>
+                        <th className="px-3 py-2">Student</th>
+                        <th className="px-3 py-2">IMEI</th>
+                        <th className="px-3 py-2">Face</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {flagged.map((f) => (
+                        <tr key={f.record_id} className="border-t border-slate-200 dark:border-slate-700">
+                          <td className="px-3 py-2">{f.record_id}</td>
+                          <td className="px-3 py-2">{f.session_id}</td>
+                          <td className="px-3 py-2">{f.student_id}</td>
+                          <td className="px-3 py-2">{f.imei ?? '-'}</td>
+                          <td className="px-3 py-2">{f.face_verified === null ? '-' : f.face_verified ? 'Verified' : 'Failed'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
           )}
 
           {/* Sessions placeholder */}
-          {active==='sessions' && (
+          {active === 'sessions' && (
             <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">Sessions</h2>
                 <button onClick={loadSessions} className="rounded-md bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 text-sm">Refresh</button>
               </div>
-              {loading && sessions.length===0 ? (
+              {loading && sessions.length === 0 ? (
                 <div className="text-slate-500 dark:text-slate-400">Loading...</div>
-              ) : sessions.length===0 ? (
+              ) : sessions.length === 0 ? (
                 <div className="text-slate-500 dark:text-slate-400">No sessions.</div>
               ) : (
                 <div className="overflow-x-auto">
@@ -260,21 +260,21 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sessions.map((s:any) => (
+                      {sessions.map((s: any) => (
                         <tr key={s.id} className="border-t border-slate-200 dark:border-slate-700 align-top">
                           <td className="px-3 py-2">{s.id}</td>
                           <td className="px-3 py-2">{s.code}</td>
                           <td className="px-3 py-2">{s.lecturer_name || '-'}</td>
                           <td className="px-3 py-2">{s.is_active ? 'Yes' : 'No'}</td>
-                          <td className="px-3 py-2">{s.created_at?.replace('T',' ').slice(0,19)}</td>
+                          <td className="px-3 py-2">{s.created_at?.replace('T', ' ').slice(0, 19)}</td>
                           <td className="px-3 py-2">
                             <button
-                              onClick={async()=>{
+                              onClick={async () => {
                                 if (!sessionAttendance[s.id]) {
                                   const rows = await apiClient.adminSessionAttendance(s.id);
-                                  setSessionAttendance(prev=>({ ...prev, [s.id]: rows }));
+                                  setSessionAttendance(prev => ({ ...prev, [s.id]: rows }));
                                 } else {
-                                  setSessionAttendance(prev=>{ const c={...prev}; delete c[s.id]; return c; });
+                                  setSessionAttendance(prev => { const c = { ...prev }; delete c[s.id]; return c; });
                                 }
                               }}
                               className="rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1 text-xs"
@@ -291,7 +291,7 @@ export default function AdminDashboard() {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {sessionAttendance[s.id].map((r:any)=> (
+                                    {sessionAttendance[s.id].map((r: any) => (
                                       <tr key={r.id} className="border-t border-slate-200 dark:border-slate-700">
                                         <td className="px-2 py-1">{r.id}</td>
                                         <td className="px-2 py-1">{r.student_name || r.student_id}</td>
@@ -314,13 +314,13 @@ export default function AdminDashboard() {
           )}
 
           {/* Users placeholder */}
-          {active==='users' && (
+          {active === 'users' && (
             <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">Users</h2>
                 <div className="flex items-center gap-2">
                   <select
-                    onChange={(e)=>loadUsers(e.target.value as any || undefined)}
+                    onChange={(e) => loadUsers(e.target.value as any || undefined)}
                     className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-sm"
                   >
                     <option value="">All</option>
@@ -328,12 +328,12 @@ export default function AdminDashboard() {
                     <option value="lecturer">Lecturers</option>
                     <option value="admin">Admins</option>
                   </select>
-                  <button onClick={()=>loadUsers()} className="rounded-md bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 text-sm">Refresh</button>
+                  <button onClick={() => loadUsers()} className="rounded-md bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 text-sm">Refresh</button>
                 </div>
               </div>
-              {loading && users.length===0 ? (
+              {loading && users.length === 0 ? (
                 <div className="text-slate-500 dark:text-slate-400">Loading...</div>
-              ) : users.length===0 ? (
+              ) : users.length === 0 ? (
                 <div className="text-slate-500 dark:text-slate-400">No users.</div>
               ) : (
                 <div className="overflow-x-auto">
@@ -351,7 +351,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map((u:any)=> (
+                      {users.map((u: any) => (
                         <tr key={u.id} className="border-t border-slate-200 dark:border-slate-700">
                           <td className="px-3 py-2">{u.id}</td>
                           <td className="px-3 py-2">{u.email}</td>
@@ -360,7 +360,7 @@ export default function AdminDashboard() {
                           <td className="px-3 py-2">{u.user_id || '-'}</td>
                           <td className="px-3 py-2">{u.device_imei || '-'}</td>
                           <td className="px-3 py-2">{u.attendance_count ?? '-'}</td>
-                          <td className="px-3 py-2">{u.created_at?.replace('T',' ').slice(0,19)}</td>
+                          <td className="px-3 py-2">{u.created_at?.replace('T', ' ').slice(0, 19)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -370,7 +370,7 @@ export default function AdminDashboard() {
             </section>
           )}
 
-          {active==='activity' && (
+          {active === 'activity' && (
             <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100">Recent Activity</h2>
@@ -398,12 +398,12 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {activity.recent_sessions?.map((s:any)=> (
+                          {activity.recent_sessions?.map((s: any) => (
                             <tr key={s.id} className="border-t border-slate-200 dark:border-slate-700">
                               <td className="px-3 py-2">{s.id}</td>
                               <td className="px-3 py-2">{s.code}</td>
                               <td className="px-3 py-2">{s.lecturer_name || '-'}</td>
-                              <td className="px-3 py-2">{s.created_at?.replace('T',' ').slice(0,19)}</td>
+                              <td className="px-3 py-2">{s.created_at?.replace('T', ' ').slice(0, 19)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -424,7 +424,7 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {activity.recent_attendance?.map((a:any)=> (
+                          {activity.recent_attendance?.map((a: any) => (
                             <tr key={a.id} className="border-t border-slate-200 dark:border-slate-700">
                               <td className="px-3 py-2">{a.id}</td>
                               <td className="px-3 py-2">{a.student_name || '-'}</td>
@@ -451,13 +451,13 @@ export default function AdminDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {activity.recent_audit_logs?.map((l:any)=> (
+                          {activity.recent_audit_logs?.map((l: any) => (
                             <tr key={l.id} className="border-t border-slate-200 dark:border-slate-700">
                               <td className="px-3 py-2">{l.id}</td>
                               <td className="px-3 py-2">{l.action}</td>
                               <td className="px-3 py-2">{l.user_email || '-'}</td>
                               <td className="px-3 py-2">{l.details || '-'}</td>
-                              <td className="px-3 py-2">{l.timestamp?.replace('T',' ').slice(0,19)}</td>
+                              <td className="px-3 py-2">{l.timestamp?.replace('T', ' ').slice(0, 19)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -469,11 +469,11 @@ export default function AdminDashboard() {
             </section>
           )}
 
-          {active==='manual' && (
+          {active === 'manual' && (
             <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
               <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">Manual Mark Attendance</h2>
               <form
-                onSubmit={async (e)=>{
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (!manual.session_id || !manual.student_id) { toast.error('Session ID and Student ID are required'); return; }
                   try {
@@ -486,7 +486,7 @@ export default function AdminDashboard() {
                     });
                     toast.success(`Marked ${res.status} for student ${res.student_id} in session ${res.session_id}`);
                     setManual({ session_id: '', student_id: '', status: 'confirmed', reason: '' });
-                  } catch (e:any) {
+                  } catch (e: any) {
                     toast.error(e?.message || 'Failed to mark');
                   } finally {
                     setSubmitting(false);
@@ -496,17 +496,17 @@ export default function AdminDashboard() {
               >
                 <div>
                   <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">Session ID</label>
-                  <input value={manual.session_id} onChange={e=>setManual(v=>({...v, session_id: e.target.value}))}
+                  <input value={manual.session_id} onChange={e => setManual(v => ({ ...v, session_id: e.target.value }))}
                     className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2" />
                 </div>
                 <div>
                   <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">Student ID</label>
-                  <input value={manual.student_id} onChange={e=>setManual(v=>({...v, student_id: e.target.value}))}
+                  <input value={manual.student_id} onChange={e => setManual(v => ({ ...v, student_id: e.target.value }))}
                     className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2" />
                 </div>
                 <div>
                   <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">Status</label>
-                  <select value={manual.status} onChange={e=>setManual(v=>({...v, status: e.target.value}))}
+                  <select value={manual.status} onChange={e => setManual(v => ({ ...v, status: e.target.value }))}
                     className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2">
                     <option value="confirmed">confirmed</option>
                     <option value="present">present</option>
@@ -516,7 +516,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">Reason (optional)</label>
-                  <input value={manual.reason} onChange={e=>setManual(v=>({...v, reason: e.target.value}))}
+                  <input value={manual.reason} onChange={e => setManual(v => ({ ...v, reason: e.target.value }))}
                     className="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2" />
                 </div>
                 <div className="sm:col-span-4 flex justify-end">

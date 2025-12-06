@@ -334,7 +334,16 @@ def close_session(session_id: int, db: Session = Depends(get_db), current: User 
 def list_sessions(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     sessions = db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == current.id).order_by(AttendanceSession.id.desc()).all()
     write_audit(db, "lecturer.list_sessions", current.id)
-    return [{"id": s.id, "code": s.code, "is_active": s.is_active} for s in sessions]
+    return [
+        {
+            "id": s.id, 
+            "code": s.code, 
+            "is_active": s.is_active,
+            "starts_at": s.starts_at.isoformat() if s.starts_at else None,
+            "ends_at": s.ends_at.isoformat() if s.ends_at else None
+        } 
+        for s in sessions
+    ]
 
 
 @router.get("/sessions/{session_id}/attendance", response_model=List[dict])
@@ -532,6 +541,10 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
         session_code=session.code,
     )
     
+    # Check if session has ended
+    if session.ends_at and session.ends_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Session has ended")
+
     write_audit(db, "lecturer.qr_display", current.id, f"session_id={session_id}")
     return QRDisplayResponse(
         session_id=session.id,
@@ -542,5 +555,6 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
         time_remaining_seconds=time_remaining,
         is_expired=time_remaining <= 0,
         lecturer_name=current.full_name or current.email,
+        session_ends_at=session.ends_at.isoformat() if session.ends_at else None,
     )
 

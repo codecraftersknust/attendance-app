@@ -1,17 +1,139 @@
 "use client";
-export function QRScanner({ onSuccess }: { onSuccess: () => void }) {
+
+import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+type QRScannerProps = {
+    onDecode: (value: string) => void;
+    paused?: boolean;
+    className?: string;
+};
+
+export function QRScanner({ onDecode, paused = false, className }: QRScannerProps) {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const controlsRef = useRef<IScannerControls | null>(null);
+    const lastResultRef = useRef<string | null>(null);
+
+    const [status, setStatus] = useState<string>("Requesting camera access…");
+    const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
+    const [manualValue, setManualValue] = useState<string>("");
+
+    const supported = useMemo(() => {
+        if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+        return typeof navigator.mediaDevices !== "undefined" && typeof navigator.mediaDevices.getUserMedia === "function";
+    }, []);
+
+    const stopScanner = useCallback(() => {
+        if (controlsRef.current) {
+            controlsRef.current.stop();
+            controlsRef.current = null;
+        }
+    }, []);
+
+    const startScanner = useCallback(async () => {
+        if (!supported || !videoRef.current) {
+            return;
+        }
+        stopScanner();
+        setPermissionDenied(false);
+        setStatus("Starting camera…");
+
+        const reader = new BrowserMultiFormatReader();
+        try {
+            controlsRef.current = await reader.decodeFromVideoDevice(
+                undefined,
+                videoRef.current,
+                (result, error) => {
+                    if (result) {
+                        const text = result.getText();
+                        if (text && text !== lastResultRef.current) {
+                            lastResultRef.current = text;
+                            onDecode(text);
+                        }
+                        setStatus("QR detected");
+                        setTimeout(() => setStatus("Point your camera at the QR code"), 1500);
+                    } else if (error && !(error instanceof DOMException)) {
+                        console.debug("QR scan error", error);
+                    }
+                }
+            );
+            setStatus("Point your camera at the QR code");
+        } catch (err) {
+            console.error("Unable to start QR scanner", err);
+            setPermissionDenied(true);
+            setStatus("Camera permission denied or unavailable");
+            stopScanner();
+        }
+    }, [onDecode, stopScanner, supported]);
+
+    useEffect(() => {
+        if (!supported) {
+            setStatus("Camera access is not supported in this browser");
+            return;
+        }
+        if (paused) {
+            stopScanner();
+            return;
+        }
+        startScanner();
+        return () => {
+            stopScanner();
+        };
+    }, [paused, startScanner, stopScanner, supported]);
+
+    const handleManualSubmit = () => {
+        if (!manualValue.trim()) return;
+        lastResultRef.current = manualValue.trim();
+        onDecode(manualValue.trim());
+        setManualValue("");
+    };
+
     return (
-        <div className="text-center space-y-4 p-4">
-            <p className="text-gray-700 text-sm sm:text-base">Scan the QR code displayed by your lecturer.</p>
-            <div className="w-full max-w-xs sm:max-w-sm mx-auto aspect-square bg-gray-200 rounded-md flex items-center justify-center">
-                <p className="text-sm sm:text-base">QR Scanner Mock</p>
+        <div className={cn("space-y-3", className)}>
+            <div className="relative rounded-xl border border-dashed border-gray-300 bg-black/80">
+                {supported ? (
+                    <video
+                        ref={videoRef}
+                        className="w-full h-64 object-cover rounded-xl"
+                        muted
+                        playsInline
+                        autoPlay
+                    />
+                ) : (
+                    <div className="w-full h-64 flex items-center justify-center text-white text-sm">
+                        Camera not supported
+                    </div>
+                )}
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="w-48 h-48 border-2 border-emerald-400/80 rounded-lg animate-pulse"></div>
+                </div>
             </div>
-            <button
-                onClick={onSuccess}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm sm:text-base w-full sm:w-auto"
-            >
-                Simulate Scan
-            </button>
+
+            <div className="text-sm text-gray-600">{status}</div>
+
+            {permissionDenied && (
+                <div className="rounded-md bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm">
+                    Camera access was denied. Please enable camera permission in your browser settings and tap retry.
+                    <div className="mt-2">
+                        <Button variant="outline" size="sm" onClick={startScanner}>Retry camera</Button>
+                    </div>
+                </div>
+            )}
+
+            <div className="space-y-2">
+                <p className="text-sm text-gray-600">No camera? Enter the QR payload manually.</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                        value={manualValue}
+                        onChange={(e) => setManualValue(e.target.value)}
+                        placeholder="ABSENSE:123:nonce or JSON payload"
+                    />
+                    <Button variant="secondary" onClick={handleManualSubmit}>Submit</Button>
+                </div>
+            </div>
         </div>
     );
 }

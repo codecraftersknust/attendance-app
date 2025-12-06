@@ -55,6 +55,10 @@ async def submit_attendance(
     if session.qr_expires_at < datetime.utcnow():
         raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
     
+    # Enforce session duration
+    if session.ends_at and session.ends_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Session has ended")
+
     if qr_nonce != session.qr_nonce:
         raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
 
@@ -181,9 +185,17 @@ def bind_device(device_id: str, db: Session = Depends(get_db), current: User = D
 def device_status(db: Session = Depends(get_db), current: User = Depends(get_current_student)):
     """Return current student's bound device status (device ID hash and active flag)."""
     device = db.query(Device).filter(Device.user_id == current.id).first()
+    
+    # Check if face is enrolled
+    has_face = bool(current.face_reference_path)
+    if not has_face:
+        # Fallback to checking storage if path not in DB (legacy support)
+        has_face = face_service.has_reference_face(current.id)
+
     return {
         "has_device": bool(device),
         "is_active": False if not device else bool(device.is_active),
+        "has_face_enrolled": has_face,
     }
 
 @router.post("/enroll-face", response_model=dict)
@@ -378,10 +390,13 @@ def list_active_sessions(
     if not enrolled_course_ids:
         return []
 
+    from datetime import datetime
+    now = datetime.utcnow()
     sessions = (
         db.query(AttendanceSession)
         .filter(
             AttendanceSession.is_active == True,
+            AttendanceSession.ends_at > now,
             AttendanceSession.course_id.in_(enrolled_course_ids),
         )
         .order_by(AttendanceSession.created_at.desc())

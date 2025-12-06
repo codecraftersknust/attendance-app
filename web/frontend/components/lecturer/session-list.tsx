@@ -5,16 +5,33 @@ import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, QrCode, XCircle } from "lucide-react";
+import { QRDisplayDialog } from "./qr-display-dialog";
 
 type SessionRow = { id: number; code: string; is_active: boolean };
 
 export function SessionList() {
-    const [sessions, setSessions] = useState<SessionRow[]>([]);
+    const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [busyId, setBusyId] = useState<number | null>(null);
 
-    const active = useMemo(() => sessions.filter(s => s.is_active), [sessions]);
-    const inactive = useMemo(() => sessions.filter(s => !s.is_active), [sessions]);
+    // Filter active based on is_active AND time
+    const active = useMemo(() => {
+        const now = new Date();
+        return sessions.filter(s => {
+            if (!s.is_active) return false;
+            if (s.ends_at && new Date(s.ends_at) < now) return false;
+            return true;
+        });
+    }, [sessions]);
+
+    const inactive = useMemo(() => {
+        const now = new Date();
+        return sessions.filter(s => {
+            if (!s.is_active) return true;
+            if (s.ends_at && new Date(s.ends_at) < now) return true;
+            return false;
+        });
+    }, [sessions]);
 
     const load = async () => {
         try {
@@ -70,6 +87,8 @@ export function SessionList() {
         }
     };
 
+    const [qrSessionId, setQrSessionId] = useState<number | null>(null);
+
     return (
         <div className="bg-white rounded-md shadow p-4">
             <div className="flex items-center justify-between mb-3">
@@ -93,13 +112,13 @@ export function SessionList() {
                                             <div className="text-xs text-gray-500">Active</div>
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            <Button variant="default" size="sm" onClick={() => setQrSessionId(s.id)}>
+                                                <QrCode className="mr-1 h-4 w-4" />
+                                                Show QR
+                                            </Button>
                                             <Button variant="secondary" size="sm" onClick={() => regen(s.id)} disabled={busyId === s.id}>
                                                 <RefreshCw className="mr-1 h-4 w-4" />
                                                 Regenerate Code
-                                            </Button>
-                                            <Button variant="secondary" size="sm" onClick={() => rotate(s.id)} disabled={busyId === s.id}>
-                                                <QrCode className="mr-1 h-4 w-4" />
-                                                Rotate QR
                                             </Button>
                                             <Button variant="destructive" size="sm" onClick={() => close(s.id)} disabled={busyId === s.id}>
                                                 <XCircle className="mr-1 h-4 w-4" />
@@ -131,6 +150,12 @@ export function SessionList() {
                     </div>
                 </div>
             )}
+
+            <QRDisplayDialog
+                sessionId={qrSessionId}
+                open={!!qrSessionId}
+                onOpenChange={(open) => !open && setQrSessionId(null)}
+            />
         </div>
     );
 }

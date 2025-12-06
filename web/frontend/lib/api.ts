@@ -234,9 +234,36 @@ class ApiClient {
         return this.request(`/lecturer/sessions/${sessionId}/qr`);
     }
 
-    async lecturerSessionAttendance(sessionId: number): Promise<Array<{ id: number; student_id: number; status: string; imei: string }>> {
+    async lecturerSessionAttendance(sessionId: number): Promise<Array<{ id: number; student_id: number; status: string; device_id_hash: string | null }>> {
         return this.request(`/lecturer/sessions/${sessionId}/attendance`);
     }
+
+    async lecturerSessionAnalytics(sessionId: number): Promise<{
+        total_students: number;
+        present_count: number;
+        late_count: number;
+        absent_count: number;
+        flagged_count: number;
+        attendance_rate: number;
+    }> {
+        return this.request(`/lecturer/sessions/${sessionId}/analytics`);
+    }
+
+    async lecturerQrDisplay(sessionId: number): Promise<{
+        session_id: number;
+        session_code: string;
+        qr_payload: any;
+        qr_data: string;
+        expires_at: string;
+        time_remaining_seconds: number;
+        is_expired: boolean;
+        lecturer_name: string;
+        session_ends_at?: string;
+    }> {
+        return this.request(`/lecturer/qr/${sessionId}/display`);
+    }
+
+
 
     // Student course endpoints
     async studentSearchCourses(query?: string): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_name: string | null; is_enrolled: boolean }>> {
@@ -258,8 +285,12 @@ class ApiClient {
         return this.request('/student/sessions/active');
     }
 
-    async studentBindDevice(imei: string): Promise<{ status: string; imei: string }> {
-        const qs = new URLSearchParams({ imei });
+    async studentDeviceStatus(): Promise<{ has_device: boolean; is_active: boolean; has_face_enrolled: boolean }> {
+        return this.request('/student/device/status');
+    }
+
+    async studentBindDevice(deviceId: string): Promise<{ status: string }> {
+        const qs = new URLSearchParams({ device_id: deviceId });
         return this.request(`/student/device/bind?${qs.toString()}`, { method: 'POST' });
     }
 
@@ -283,13 +314,13 @@ class ApiClient {
         });
     }
 
-    async studentSubmitAttendance(payload: { qr_session_id: number; qr_nonce: string; latitude: number; longitude: number; imei: string; selfie?: File | null }): Promise<any> {
+    async studentSubmitAttendance(payload: { qr_session_id: number; qr_nonce: string; latitude: number; longitude: number; device_id: string; selfie?: File | null }): Promise<any> {
         const form = new FormData();
         form.append('qr_session_id', String(payload.qr_session_id));
         form.append('qr_nonce', payload.qr_nonce);
         form.append('latitude', String(payload.latitude));
         form.append('longitude', String(payload.longitude));
-        form.append('imei', payload.imei);
+        form.append('device_id', payload.device_id);
         if (payload.selfie) {
             form.append('selfie', payload.selfie);
         }

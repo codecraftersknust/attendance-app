@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { QRDisplayDialog } from "./qr-display-dialog";
 
 type Course = { id: number; code: string; name: string };
 
@@ -34,6 +35,8 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
         load();
     }, []);
 
+    const [createdSessionId, setCreatedSessionId] = useState<number | null>(null);
+
     const create = async () => {
         if (!courseId) {
             toast.error("Please select a course");
@@ -44,6 +47,7 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
             setCreating(true);
             const created = await apiClient.lecturerCreateSession({ course_id: Number(courseId), duration_minutes: dur });
             toast.success("Session created");
+            setCreatedSessionId(created.id);
             onCreated?.({ id: created.id, code: created.code });
         } catch (e: any) {
             toast.error(e?.message || "Failed to create session");
@@ -80,6 +84,12 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
                     </Button>
                 </div>
             </div>
+
+            <QRDisplayDialog
+                sessionId={createdSessionId}
+                open={!!createdSessionId}
+                onOpenChange={(open) => !open && setCreatedSessionId(null)}
+            />
         </div>
     );
 }

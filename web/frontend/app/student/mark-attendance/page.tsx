@@ -3,10 +3,11 @@
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ActiveSessionList } from "@/components/student/active-session-list";
 import { AttendanceFlow } from "@/components/student/attendance-flow";
+import { ActiveSession } from "@/components/student/types";
 import { useState } from "react";
 
 export default function MarkAttendancePage() {
-    const [selected, setSelected] = useState<any | null>(null);
+    const [selected, setSelected] = useState<ActiveSession | null>(null);
 
     return (
         <ProtectedRoute allowedRoles={["student"]}>
