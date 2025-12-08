@@ -10,8 +10,9 @@ ENV/
 .venv
 
 # Backend
-backend/.env
-backend/uploads/
+.env
+.env.local
+uploads/
 *.db
 *.sqlite3
 

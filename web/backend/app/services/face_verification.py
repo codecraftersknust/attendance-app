@@ -1,5 +1,6 @@
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from pathlib import Path
 try:
     from deepface import DeepFace  # type: ignore
     _DEEPFACE_AVAILABLE = True
@@ -10,26 +11,29 @@ except Exception:  # pragma: no cover
 from app.core.config import Settings
 
 class FaceVerificationService:
-    def __init__(self, base_dir="uploads/faces/"):
-        self.base_dir = base_dir
-        os.makedirs(self.base_dir, exist_ok=True)
+    def __init__(self, base_dir: str = "uploads/faces/"):
+        # Store an absolute, canonical path so lookups stay consistent across runs
+        self.base_dir = Path(base_dir).resolve()
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def get_reference_path(self, user_id: int) -> str:
-        return os.path.join(self.base_dir, f"{user_id}_reference.jpg")
+        return str(self.base_dir / f"{user_id}_reference.jpg")
 
     def save_reference_face(self, user_id: int, temp_path: str) -> str:
         """Save student's reference face permanently."""
         ref_path = self.get_reference_path(user_id)
+        Path(ref_path).parent.mkdir(parents=True, exist_ok=True)
         os.replace(temp_path, ref_path)
         return ref_path
 
-    def has_reference_face(self, user_id: int) -> bool:
+    def has_reference_face(self, user_id: int, reference_path: Optional[str] = None) -> bool:
         """Check if a reference face exists for the user."""
-        return os.path.exists(self.get_reference_path(user_id))
+        ref_path = reference_path or self.get_reference_path(user_id)
+        return os.path.exists(ref_path)
 
-    def verify_face(self, user_id: int, live_image_path: str) -> Dict[str, Any]:
+    def verify_face(self, user_id: int, live_image_path: str, reference_path: Optional[str] = None) -> Dict[str, Any]:
         """Compare uploaded face with stored reference."""
-        ref_path = self.get_reference_path(user_id)
+        ref_path = reference_path or self.get_reference_path(user_id)
         if not os.path.exists(ref_path):
             return {"verified": False, "reason": "No reference image found"}
 

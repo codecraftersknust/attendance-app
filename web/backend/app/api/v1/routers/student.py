@@ -117,7 +117,7 @@ async def submit_attendance(
     verification = None
     ref_path = current.face_reference_path or face_service.get_reference_path(current.id)
     if selfie_fs_path and os.path.exists(ref_path):
-        verification = face_service.verify_face(current.id, selfie_fs_path)
+        verification = face_service.verify_face(current.id, selfie_fs_path, reference_path=ref_path)
         if not verification.get("verified"):
             # Flag but do not reject to avoid blocking legitimate attendance
             status = AttendanceStatus.flagged
@@ -188,7 +188,9 @@ def device_status(db: Session = Depends(get_db), current: User = Depends(get_cur
     
     # Check if face is enrolled
     has_face = bool(current.face_reference_path)
-    if not has_face:
+    if has_face:
+        has_face = face_service.has_reference_face(current.id, current.face_reference_path)
+    else:
         # Fallback to checking storage if path not in DB (legacy support)
         has_face = face_service.has_reference_face(current.id)
 
@@ -233,7 +235,7 @@ async def verify_face(
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    result = face_service.verify_face(current_user.id, temp_path)
+    result = face_service.verify_face(current_user.id, temp_path, reference_path=current_user.face_reference_path)
 
     try:
         os.remove(temp_path)
