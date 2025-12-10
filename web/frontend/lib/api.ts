@@ -40,9 +40,15 @@ class ApiClient {
     ): Promise<T> {
         const url = `${this.baseURL}${endpoint}`;
 
+        // Don't set Content-Type for FormData - let browser set it with boundary
+        const isFormData = options.body instanceof FormData;
+        const defaultHeaders: HeadersInit = isFormData
+            ? {}
+            : { 'Content-Type': 'application/json' };
+
         const config: RequestInit = {
             headers: {
-                'Content-Type': 'application/json',
+                ...defaultHeaders,
                 ...options.headers,
             },
             ...options,

@@ -18,6 +18,7 @@ from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....services.audit import write_audit
 from ....storage.base import get_storage
 from ....core.config import Settings
+from ....services.utils import hash_device_id
 from math import radians, cos, sin, asin, sqrt
 from typing import Optional, List
 
@@ -207,19 +208,52 @@ async def enroll_face(
     current_user: User = Depends(get_current_user),
 ):
     """Upload a selfie to store as reference face."""
+    cfg = Settings()
+    max_size_bytes = cfg.upload_max_image_mb * 1024 * 1024
+    allowed_types = set(
+        [t.strip() for t in cfg.upload_allowed_image_types.split(",") if t.strip()]
+    )
+    
+    # Validate file type
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
+        )
+    
+    # Read and validate file size
+    data = await file.read()
+    if len(data) > max_size_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size: {cfg.upload_max_image_mb}MB"
+        )
+    
+    # Save temporary file
     os.makedirs("uploads", exist_ok=True)
     temp_path = f"uploads/temp_{current_user.id}.jpg"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    ref_path = face_service.save_reference_face(current_user.id, temp_path)
-
-    # Persist reference path on user for future checks
-    current_user.face_reference_path = ref_path
-    db.add(current_user)
-    db.commit()
-
-    return {"message": "Reference face enrolled successfully", "path": ref_path}
+    try:
+        with open(temp_path, "wb") as buffer:
+            buffer.write(data)
+        
+        # Save reference face (moves temp file to permanent location)
+        ref_path = face_service.save_reference_face(current_user.id, temp_path)
+        
+        # Persist reference path on user for future checks
+        current_user.face_reference_path = ref_path
+        db.add(current_user)
+        db.commit()
+        db.refresh(current_user)
+        
+        return {"message": "Reference face enrolled successfully", "path": ref_path}
+    except Exception as e:
+        # Clean up temp file on error
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        raise HTTPException(status_code=500, detail=f"Failed to save face reference: {str(e)}")
 
 
 @router.post("/verify-face", response_model=FaceVerificationResponse)
