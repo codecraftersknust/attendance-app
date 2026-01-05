@@ -8,12 +8,15 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { CreateCourseDialog } from '@/components/lecturer/create-course-dialog';
+import { CourseDetailsDialog } from '@/components/lecturer/course-details-dialog';
 
 export default function LecturerDashboard() {
 	const { user } = useAuth();
 	const [courses, setCourses] = useState<Array<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean }>>([]);
 	const [loading, setLoading] = useState<boolean>(true);
 	const [showCreate, setShowCreate] = useState<boolean>(false);
+	const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+	const [showDetails, setShowDetails] = useState<boolean>(false);
 
 	useEffect(() => {
 		const load = async () => {
@@ -41,8 +44,10 @@ export default function LecturerDashboard() {
 			setLoading(false);
 		}
 	};
-
-	// creation is handled in the dialog component
+	const handleCourseClick = (courseId: number) => {
+		setSelectedCourseId(courseId);
+		setShowDetails(true);
+	};
 
 	return (
 		<ProtectedRoute allowedRoles={['lecturer']}>
@@ -63,14 +68,17 @@ export default function LecturerDashboard() {
 					) : (
 						<ul className="divide-y">
 							{courses.map((c) => (
-								<li key={c.id} className="py-3 flex items-center justify-between">
+								<li key={c.id} className="py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 px-2 rounded-md transition-colors" onClick={() => handleCourseClick(c.id)}>
 									<div>
-										<div className="font-medium">{c.code} - {c.name}</div>
+										<div className="font-medium text-emerald-900">{c.code} - {c.name}</div>
 										{c.description ? (
 											<div className="text-sm text-gray-600">{c.description}</div>
 										) : null}
 									</div>
-									<div className="text-sm text-gray-500">{c.semester}</div>
+									<div className="flex items-center gap-4">
+										<div className="text-sm text-gray-500">{c.semester}</div>
+										<Button variant="ghost" size="sm" className="hidden sm:inline-flex">View Details</Button>
+									</div>
 								</li>
 							))}
 						</ul>
@@ -79,6 +87,7 @@ export default function LecturerDashboard() {
 			</div>
 
 			<CreateCourseDialog open={showCreate} onOpenChange={setShowCreate} onCreated={refreshCourses} />
+			<CourseDetailsDialog open={showDetails} onOpenChange={setShowDetails} courseId={selectedCourseId} />
 		</ProtectedRoute>
 	);
 }

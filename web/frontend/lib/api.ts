@@ -63,6 +63,14 @@ class ApiClient {
             }
         }
 
+        // If body is FormData, remove Content-Type to let browser set boundary
+        if (options.body instanceof FormData) {
+            // @ts-ignore
+            delete config.headers['Content-Type'];
+        }
+
+        console.log(`API Request: ${options.method || 'GET'} ${url}`);
+
         try {
             const response = await fetch(url, config);
 
@@ -203,6 +211,10 @@ class ApiClient {
 
     async lecturerSessions(): Promise<Array<{ id: number; code: string; is_active: boolean }>> {
         return this.request('/lecturer/sessions');
+    }
+
+    async lecturerCourseDetails(courseId: number): Promise<any> {
+        return this.request(`/lecturer/courses/${courseId}`);
     }
 
     async lecturerCreateSession(payload: { course_id: number; duration_minutes?: number }): Promise<{ id: number; code: string; course: { id: number; code: string; name: string }; starts_at: string; ends_at: string }> {

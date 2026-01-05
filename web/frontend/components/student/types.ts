@@ -6,6 +6,7 @@ export type ActiveSession = {
     course_name?: string;
     starts_at?: string;
     ends_at?: string;
+    is_attended?: boolean;
 };
 
 

@@ -16,6 +16,7 @@ from ....models.verification_log import VerificationLog
 from ....models.course import Course
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....services.audit import write_audit
+from ....services.utils import hash_device_id
 from ....storage.base import get_storage
 from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
@@ -46,6 +47,14 @@ async def submit_attendance(
     session = db.get(AttendanceSession, qr_session_id)
     if not session or not session.is_active:
         raise HTTPException(status_code=404, detail="Invalid or inactive session")
+
+    # Check if already attended
+    existing_record = db.query(AttendanceRecord).filter(
+        AttendanceRecord.session_id == session.id,
+        AttendanceRecord.student_id == current.id
+    ).first()
+    if existing_record:
+        raise HTTPException(status_code=400, detail="Attendance already submitted for this session")
 
     # Validate rotating QR nonce window
     from datetime import datetime
@@ -170,12 +179,23 @@ def bind_device(device_id: str, db: Session = Depends(get_db), current: User = D
     # Hash device ID before storing
     device_id_hash = hash_device_id(device_id)
     
+    # Check if this device ID is already registered to ANYONE
+    conflict = db.query(Device).filter(Device.device_id_hash == device_id_hash).first()
+    if conflict and conflict.user_id != current.id:
+        raise HTTPException(status_code=409, detail="Device already registered to another student")
+    
     existing = db.query(Device).filter(Device.user_id == current.id).first()
     if existing:
         existing.device_id_hash = device_id_hash
         existing.is_active = True
     else:
+        # If we found a conflict belonging to current.id above, it would be caught here as 'existing'
+        # (assuming 1 device per user constraint in logic, though DB allows many if not for primary key)
+        # Actually DB model: user_id (FK), device_id_hash (Unique).
+        # device table has id PK.
+        # But `existing = db.query(Device).filter(Device.user_id == current.id).first()` implies strict 1-device-per-user logic in this app.
         db.add(Device(user_id=current.id, device_id_hash=device_id_hash, is_active=True))
+    
     db.commit()
     write_audit(db, "student.bind_device", current.id, f"device_id_hash={device_id_hash[:8]}...")
     return {"status": "ok", "device_id": "***"}  # Don't return device ID for security
@@ -403,6 +423,17 @@ def list_active_sessions(
         .all()
     )
 
+    # Check for existing attendance records for these sessions
+    session_ids = [s.id for s in sessions]
+    attended_session_ids = set()
+    if session_ids:
+        records = db.query(AttendanceRecord.session_id).filter(
+            AttendanceRecord.student_id == current.id,
+            AttendanceRecord.session_id.in_(session_ids)
+        ).all()
+        # records is a list of tuples like [(1,), (2,)]
+        attended_session_ids = {r[0] for r in records}
+
     result = []
     for s in sessions:
         course = db.get(Course, s.course_id) if s.course_id else None
@@ -414,6 +445,7 @@ def list_active_sessions(
             "course_name": course.name if course else None,
             "starts_at": s.starts_at.isoformat() if s.starts_at else None,
             "ends_at": s.ends_at.isoformat() if s.ends_at else None,
+            "is_attended": s.id in attended_session_ids
         })
 
     write_audit(db, "student.list_active_sessions", current.id, f"count={len(result)}")

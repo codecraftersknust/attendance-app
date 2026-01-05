@@ -31,11 +31,17 @@ fi
 # Start backend
 echo "Starting backend server..."
 cd web/backend
-source .venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+./.venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 
 # Wait a moment for backend to start
 sleep 3
+
+if ! kill -0 $BACKEND_PID 2>/dev/null; then
+    echo "Backend failed to start"
+    exit 1
+fi
+
 
 # Start frontend
 echo "Starting frontend server..."

@@ -14,6 +14,7 @@ from ....services.utils import generate_session_code, generate_session_nonce
 from ....services.audit import write_audit
 from ....services.qr_rotation import add_session_to_rotation, remove_session_from_rotation, ensure_qr_valid
 from ....api.deps.auth import role_required
+from ....models.student_course_enrollment import StudentCourseEnrollment
 
 router = APIRouter(prefix="/lecturer", tags=["lecturer"])
 
@@ -101,6 +102,19 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
     ).order_by(AttendanceSession.created_at.desc()).limit(5).all()
     
     write_audit(db, "lecturer.get_course_details", current.id, f"course_id={course_id}")
+    
+    # Get enrolled students
+    enrollments = db.query(StudentCourseEnrollment).filter(StudentCourseEnrollment.course_id == course_id).all()
+    enrolled_students = [
+        {
+            "id": e.student.id,
+            "matriculation_id": e.student.user_id,
+            "name": e.student.full_name,
+            "email": e.student.email
+        }
+        for e in enrollments if e.student
+    ]
+
     return {
         "id": course.id,
         "code": course.code,
@@ -119,7 +133,8 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
                 "attendance_count": len(session.records)
             }
             for session in recent_sessions
-        ]
+        ],
+        "enrolled_students": enrolled_students
     }
 
 
@@ -357,6 +372,8 @@ def get_attendance(session_id: int, db: Session = Depends(get_db), current: User
         {
             "id": r.id,
             "student_id": r.student_id,
+            "student_matriculation_id": r.student.user_id if r.student else None,
+            "student_name": r.student.full_name if r.student else None,
             "status": r.status.value,
             "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
         }
@@ -446,10 +463,16 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
     records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
     
     # Calculate analytics
-    total_students = len(records)
-    present_count = len([r for r in records if r.status == AttendanceStatus.present])
-    absent_count = len([r for r in records if r.status == AttendanceStatus.absent])
+    # Total students should be based on course enrollment, not just attendance records
+    total_students = db.query(StudentCourseEnrollment).filter(StudentCourseEnrollment.course_id == session.course_id).count()
+    
+    present_count = len([r for r in records if r.status == AttendanceStatus.confirmed])
     flagged_count = len([r for r in records if r.status == AttendanceStatus.flagged])
+    
+    # Absent count is total enrolled students minus present/flagged students
+    # Note: This assumes one record per student per session, which is enforced by DB constraint usually
+    attended_count = len(records)
+    absent_count = max(0, total_students - attended_count)
     
     # Attendance rate
     attendance_rate = (present_count / total_students * 100) if total_students > 0 else 0
@@ -477,6 +500,8 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
         
         recent_attendance.append({
             "student_id": r.student_id,
+            "student_matriculation_id": r.student.user_id if r.student else None,
+            "student_name": r.student.full_name if r.student else None,
             "status": r.status.value,
             "timestamp": r.created_at.isoformat(),
             "verification_methods": {

@@ -31,6 +31,8 @@ type Analytics = {
 type AttendanceRecord = {
     id: number;
     student_id: number;
+    student_matriculation_id?: string;
+    student_name?: string;
     status: string;
     device_id_hash: string | null;
 };
@@ -73,11 +75,12 @@ export default function ReportsPage() {
     const loadReport = async (sessionId: number) => {
         try {
             setLoadingReport(true);
-            const [analyticsData, recordsData] = await Promise.all([
+            const [analyticsResponse, recordsData] = await Promise.all([
                 apiClient.lecturerSessionAnalytics(sessionId),
                 apiClient.lecturerSessionAttendance(sessionId)
             ]);
-            setAnalytics(analyticsData);
+            // The API returns { session, analytics, recent_attendance }
+            setAnalytics((analyticsResponse as any).analytics);
             setRecords(recordsData);
         } catch (e: any) {
             toast.error(e?.message || 'Failed to load report data');
@@ -108,7 +111,7 @@ export default function ReportsPage() {
                             <SelectContent>
                                 {sessions.map((s) => (
                                     <SelectItem key={s.id} value={String(s.id)}>
-                                        #{s.id} - {s.code} ({s.is_active ? 'Active' : 'Closed'})
+                                        #{s.id} - {s.code} ({(s.is_active && (!s.ends_at || new Date(s.ends_at) > new Date())) ? 'Active' : 'Closed'})
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -195,14 +198,17 @@ export default function ReportsPage() {
                                     ) : (
                                         records.map((record) => (
                                             <TableRow key={record.id}>
-                                                <TableCell className="font-medium">#{record.student_id}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <div>{record.student_name || `#${record.student_id}`}</div>
+                                                    <div className="text-xs text-gray-500">{record.student_matriculation_id || `#${record.student_id}`}</div>
+                                                </TableCell>
                                                 <TableCell>
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                                                        ${record.status === 'present' ? 'bg-emerald-100 text-emerald-800' :
+                                                        ${(record.status === 'present' || record.status === 'confirmed') ? 'bg-emerald-100 text-emerald-800' :
                                                             record.status === 'flagged' ? 'bg-amber-100 text-amber-800' :
                                                                 record.status === 'absent' ? 'bg-red-100 text-red-800' :
                                                                     'bg-gray-100 text-gray-800'}`}>
-                                                        {record.status}
+                                                        {record.status === 'confirmed' ? 'present' : record.status}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="font-mono text-xs text-gray-500">
