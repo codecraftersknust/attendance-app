@@ -97,7 +97,7 @@ cleanup() {
     echo "Stopping servers..."
     kill $FRONTEND_PID 2>/dev/null
     echo "Stopping backend Docker containers..."
-    cd "$(dirname "$0")/web/backend"
+    cd "/Desktop/attendance-app/web/backend"
     docker-compose -f docker-compose.prod.yml stop
     echo "Servers stopped"
     exit 0
