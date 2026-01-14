@@ -194,10 +194,23 @@ def update_course(
 def create_session(
     course_id: int,
     duration_minutes: int = 15,
+    latitude: float | None = None,
+    longitude: float | None = None,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_lecturer)
 ):
-    """Create a new attendance session for a specific course"""
+    """Create a new attendance session for a specific course
+    
+    Args:
+        course_id: ID of the course
+        duration_minutes: Session duration in minutes (default: 15)
+        latitude: Lecturer's current latitude (optional, auto-captured from frontend)
+        longitude: Lecturer's current longitude (optional, auto-captured from frontend)
+    
+    Note:
+        If latitude and longitude are provided, a default geofence radius of 100 meters is set.
+        The radius can be adjusted later using the geofence endpoint.
+    """
     # Verify the course belongs to the lecturer
     course = db.query(Course).filter(
         Course.id == course_id,
@@ -208,25 +221,43 @@ def create_session(
     if not course:
         raise HTTPException(status_code=404, detail="Course not found or not accessible")
     
+    # Validate GPS coordinates if provided
+    if latitude is not None and (latitude < -90 or latitude > 90):
+        raise HTTPException(status_code=400, detail="Latitude must be between -90 and 90")
+    
+    if longitude is not None and (longitude < -180 or longitude > 180):
+        raise HTTPException(status_code=400, detail="Longitude must be between -180 and 180")
+    
+    # Both lat and lon must be provided together
+    if (latitude is not None and longitude is None) or (latitude is None and longitude is not None):
+        raise HTTPException(status_code=400, detail="Both latitude and longitude must be provided together")
+    
     code = generate_session_code()
     from datetime import datetime, timedelta
     now = datetime.utcnow()
+    
+    # Set default geofence radius if location is provided
+    default_radius = 100.0 if latitude is not None else None
+    
     session = AttendanceSession(
         lecturer_id=current.id,
         course_id=course_id,
         code=code,
         starts_at=now,
         ends_at=now + timedelta(minutes=duration_minutes),
-        is_active=True
+        is_active=True,
+        latitude=latitude,
+        longitude=longitude,
+        geofence_radius_m=default_radius
     )
     db.add(session)
     db.commit()
     db.refresh(session)
     
     # Auto-generate QR code when session is created
-    ensure_qr_valid(session, db, ttl_seconds=60)
+    ensure_qr_valid(session, db, ttl_seconds=30)
     
-    write_audit(db, "lecturer.create_session", current.id, f"session_id={session.id},course_id={course_id}")
+    write_audit(db, "lecturer.create_session", current.id, f"session_id={session.id},course_id={course_id},has_location={latitude is not None}")
     return {
         "id": session.id,
         "code": session.code,
@@ -236,12 +267,16 @@ def create_session(
             "name": course.name
         },
         "starts_at": session.starts_at.isoformat(),
-        "ends_at": session.ends_at.isoformat()
+        "ends_at": session.ends_at.isoformat(),
+        "latitude": session.latitude,
+        "longitude": session.longitude,
+        "geofence_radius_m": session.geofence_radius_m,
+        "geofence_enabled": session.latitude is not None and session.geofence_radius_m is not None
     }
 
 
 @router.post("/sessions/{session_id}/qr/rotate", response_model=dict)
-def rotate_qr(session_id: int, ttl_seconds: int = 60, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+def rotate_qr(session_id: int, ttl_seconds: int = 30, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     """Manually rotate QR code (optional - QR is automatically managed, this is for manual override)"""
     from datetime import datetime, timedelta
     session = db.get(AttendanceSession, session_id)
@@ -293,7 +328,7 @@ def get_qr_status(session_id: int, db: Session = Depends(get_db), current: User 
     
     # Auto-ensure QR is valid for active sessions
     if session.is_active:
-        ensure_qr_valid(session, db, ttl_seconds=60)
+        ensure_qr_valid(session, db, ttl_seconds=30)
         db.refresh(session)
     
     if not session.qr_nonce or not session.qr_expires_at:
@@ -343,6 +378,93 @@ def close_session(session_id: int, db: Session = Depends(get_db), current: User 
     
     write_audit(db, "lecturer.close_session", current.id, f"session_id={session_id}")
     return {"id": session.id, "is_active": session.is_active}
+
+
+@router.put("/sessions/{session_id}/geofence", response_model=dict)
+def update_geofence_radius(
+    session_id: int,
+    radius_meters: float,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer)
+):
+    """Update the geofence radius for a session
+    
+    The session location (latitude/longitude) is set when the session is created
+    using the lecturer's GPS coordinates. This endpoint only controls the allowable
+    radius around that location.
+    
+    Args:
+        session_id: ID of the session to update
+        radius_meters: Geofence radius in meters (must be positive)
+    
+    Returns:
+        Updated session geofence settings
+    
+    Examples:
+        - Small classroom: radius_meters=50
+        - Large lecture hall: radius_meters=100
+        - Campus building: radius_meters=200
+        - Outdoor venue: radius_meters=500
+    """
+    session = db.get(AttendanceSession, session_id)
+    if not session or session.lecturer_id != current.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Check if session has location set
+    if session.latitude is None or session.longitude is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Session does not have a location set. Location is captured when creating the session."
+        )
+    
+    # Validate radius
+    if radius_meters <= 0:
+        raise HTTPException(status_code=400, detail="Radius must be positive")
+    
+    if radius_meters > 10000:  # 10km max
+        raise HTTPException(status_code=400, detail="Radius cannot exceed 10,000 meters (10km)")
+    
+    # Update radius
+    session.geofence_radius_m = radius_meters
+    db.commit()
+    db.refresh(session)
+    
+    write_audit(
+        db,
+        "lecturer.update_geofence_radius",
+        current.id,
+        f"session_id={session_id},radius={radius_meters}"
+    )
+    
+    return {
+        "id": session.id,
+        "latitude": session.latitude,
+        "longitude": session.longitude,
+        "geofence_radius_m": session.geofence_radius_m,
+        "geofence_enabled": True
+    }
+
+
+@router.get("/sessions/{session_id}/geofence", response_model=dict)
+def get_geofence(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer)
+):
+    """Get current geofence settings for a session"""
+    session = db.get(AttendanceSession, session_id)
+    if not session or session.lecturer_id != current.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    write_audit(db, "lecturer.get_geofence", current.id, f"session_id={session_id}")
+    
+    return {
+        "id": session.id,
+        "latitude": session.latitude,
+        "longitude": session.longitude,
+        "geofence_radius_m": session.geofence_radius_m,
+        "geofence_enabled": session.latitude is not None and session.longitude is not None and session.geofence_radius_m is not None
+    }
 
 
 @router.get("/sessions", response_model=List[dict])
@@ -544,7 +666,7 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
         raise HTTPException(status_code=400, detail="Session inactive")
     
     # Automatically ensure QR is valid (generates if missing, rotates if expired)
-    ensure_qr_valid(session, db, ttl_seconds=60)
+    ensure_qr_valid(session, db, ttl_seconds=30)
     db.refresh(session)
     
     # Calculate time remaining

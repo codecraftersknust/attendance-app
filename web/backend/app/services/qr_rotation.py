@@ -125,7 +125,7 @@ class QRRotationService:
         try:
             # Generate new QR data
             session.qr_nonce = generate_session_nonce()
-            session.qr_expires_at = datetime.utcnow() + timedelta(seconds=60)
+            session.qr_expires_at = datetime.utcnow() + timedelta(seconds=30)
             
             db.commit()
             
@@ -214,7 +214,7 @@ def remove_session_from_rotation(session_id: int):
             pass
 
 
-def ensure_qr_valid(session, db: Session, ttl_seconds: int = 60) -> bool:
+def ensure_qr_valid(session, db: Session, ttl_seconds: int = 30) -> bool:
     """
     Ensure session has a valid QR code (generate if missing, rotate if expired).
     Returns True if QR was generated/rotated, False if already valid.
