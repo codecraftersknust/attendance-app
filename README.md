@@ -4,27 +4,36 @@ A comprehensive mobile attendance tracking system with biometric verification, g
 
 ## Quick Start
 
-To test the system, simply run:
+### Option 1: Docker (Recommended)
+
+The backend runs in Docker containers for production-like environment:
 
 ```bash
 ./start-dev.sh
 ```
 
-This will start both the backend and frontend development servers:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+This will start:
+- **Frontend**: http://localhost:3000 (local npm dev server)
+- **Backend API**: http://localhost:8001 (Docker container)
+- **API Documentation**: http://localhost:8001/docs
+- **Database**: PostgreSQL on port 5434 (Docker)
+- **Redis**: On port 6379 (Docker)
 
-Press `Ctrl+C` to stop both servers.
+Press `Ctrl+C` to stop all servers.
+
+### Option 2: Manual Backend
+
+See `web/backend/README.md` for manual setup instructions.
 
 ## Project Structure
 
 ### `/web/backend/`
 FastAPI backend server with:
 - **Authentication**: JWT-based auth with email/student ID login support
-- **Database**: SQLAlchemy with Alembic migrations
-- **Features**: Face verification, QR codes, geolocation, device binding
+- **Database**: PostgreSQL (Docker) with SQLAlchemy and Alembic migrations
+- **Features**: Face verification, 30-second QR rotation, GPS geofencing, device binding
 - **API**: RESTful endpoints for students, lecturers, and admins
+- **Deployment**: Docker Compose for production-ready setup
 
 ### `/web/frontend/`
 Next.js frontend application with:
@@ -46,18 +55,28 @@ Development and deployment scripts:
 
 ---
 
-## Local Development Notes (updated)
+## Local Development Notes
 
-- On this machine we are currently running the backend on port 8000.
-  - Frontend: http://localhost:3000
-  - Backend API: http://localhost:8000
-  - Configure the frontend API base via: `web/frontend/.env.local`
+### Docker Backend (Current Setup)
+- **Frontend**: http://localhost:3000 (local npm)
+- **Backend API**: http://localhost:8001 (Docker)
+- **PostgreSQL**: localhost:5434 (Docker)
+- **Redis**: localhost:6379 (Docker)
 
-Example `web/frontend/.env.local`:
+### Configuration
 
+Frontend environment (`web/frontend/.env.local`):
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
 NEXT_PUBLIC_ADMIN_PORTAL_CODE=AdminPortal123!
+```
+
+Backend environment (`web/backend/.env`):
+```
+SECRET_KEY=your-secret-key
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/absense
+REDIS_URL=redis://redis:6379/0
+CORS_ALLOW_ORIGINS=http://localhost:3000,http://localhost:8001
 ```
 
 Admin Portal (web) requires a second verification password set by `NEXT_PUBLIC_ADMIN_PORTAL_CODE`. Default is `AdminPortal123!` if not provided.
@@ -86,7 +105,12 @@ python scripts/seed.py
 
 ## REST API Endpoints (v1)
 
-Base URL: `http://localhost:8000/api/v1` (use `8001` if you choose an alternate port)
+Base URL: `http://localhost:8001/api/v1` (Docker deployment)
+
+### New Features
+- **GPS Geofencing**: Sessions can capture lecturer's GPS location automatically
+- **30-Second QR Rotation**: QR codes rotate every 30 seconds for enhanced security
+- **Geofence Control**: Lecturers can adjust the allowable radius (1-10,000m)
 
 - Health
   - GET `/health`
@@ -113,8 +137,8 @@ Base URL: `http://localhost:8000/api/v1` (use `8001` if you choose an alternate 
   - POST `/lecturer/courses`
   - GET `/lecturer/courses/{course_id}`
   - PUT `/lecturer/courses/{course_id}`
-  - POST `/lecturer/sessions`
-  - POST `/lecturer/sessions/{session_id}/qr/rotate`
+  - POST `/lecturer/sessions` - **NEW**: Accepts `latitude` and `longitude` for GPS auto-capture
+  - POST `/lecturer/sessions/{session_id}/qr/rotate` - **UPDATED**: 30-second TTL (was 60s)
   - GET `/lecturer/sessions/{session_id}/qr/status`
   - GET `/lecturer/sessions/{session_id}/qr`
   - POST `/lecturer/sessions/{session_id}/regenerate`
@@ -125,7 +149,9 @@ Base URL: `http://localhost:8000/api/v1` (use `8001` if you choose an alternate 
   - POST `/lecturer/attendance/{record_id}/confirm`
   - GET `/lecturer/dashboard`
   - GET `/lecturer/sessions/{session_id}/analytics`
-  - GET `/lecturer/qr/{session_id}/display`
+  - GET `/lecturer/qr/{session_id}/display` - **UPDATED**: Returns 30-second TTL
+  - **NEW** PUT `/lecturer/sessions/{session_id}/geofence` - Update geofence radius
+  - **NEW** GET `/lecturer/sessions/{session_id}/geofence` - Get geofence settings
 
 - Admin (requires role=admin)
   - POST `/admin/imei/approve-reset`
