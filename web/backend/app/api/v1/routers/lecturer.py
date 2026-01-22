@@ -86,7 +86,9 @@ def create_course(
 
 @router.get("/courses/{course_id}", response_model=dict)
 def get_course_details(course_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
-    """Get detailed information about a specific course"""
+    """Get detailed information about a specific course including enrolled students"""
+    from ....models.student_course_enrollment import StudentCourseEnrollment
+    
     course = db.query(Course).filter(
         Course.id == course_id,
         Course.lecturer_id == current.id
@@ -100,6 +102,11 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
         AttendanceSession.course_id == course_id
     ).order_by(AttendanceSession.created_at.desc()).limit(5).all()
     
+    # Get enrolled students
+    enrollments = db.query(StudentCourseEnrollment).filter(
+        StudentCourseEnrollment.course_id == course_id
+    ).join(User, StudentCourseEnrollment.student_id == User.id).order_by(StudentCourseEnrollment.enrolled_at.desc()).all()
+    
     write_audit(db, "lecturer.get_course_details", current.id, f"course_id={course_id}")
     return {
         "id": course.id,
@@ -109,6 +116,17 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
         "semester": course.semester,
         "is_active": course.is_active,
         "created_at": course.created_at.isoformat(),
+        "enrolled_students": [
+            {
+                "id": enrollment.student.id,
+                "user_id": enrollment.student.user_id,
+                "full_name": enrollment.student.full_name,
+                "email": enrollment.student.email,
+                "enrolled_at": enrollment.enrolled_at.isoformat()
+            }
+            for enrollment in enrollments
+        ],
+        "enrolled_count": len(enrollments),
         "recent_sessions": [
             {
                 "id": session.id,
@@ -454,18 +472,31 @@ def get_geofence(
 
 @router.get("/sessions", response_model=List[dict])
 def list_sessions(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    from datetime import datetime
     sessions = db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == current.id).order_by(AttendanceSession.id.desc()).all()
     write_audit(db, "lecturer.list_sessions", current.id)
-    return [
-        {
+    
+    now = datetime.utcnow()
+    result = []
+    for s in sessions:
+        # Check if session has expired based on ends_at
+        is_actually_active = s.is_active
+        if s.ends_at and s.ends_at < now:
+            is_actually_active = False
+            # Auto-close expired sessions
+            if s.is_active:
+                s.is_active = False
+                db.commit()
+        
+        result.append({
             "id": s.id, 
             "code": s.code, 
-            "is_active": s.is_active,
+            "is_active": is_actually_active,
             "starts_at": s.starts_at.isoformat() if s.starts_at else None,
             "ends_at": s.ends_at.isoformat() if s.ends_at else None
-        } 
-        for s in sessions
-    ]
+        })
+    
+    return result
 
 
 @router.get("/sessions/{session_id}/attendance", response_model=List[dict])

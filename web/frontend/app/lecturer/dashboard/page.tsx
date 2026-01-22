@@ -8,12 +8,15 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { CreateCourseDialog } from '@/components/lecturer/create-course-dialog';
+import { CourseDetailsDialog } from '@/components/lecturer/course-details-dialog';
 
 export default function LecturerDashboard() {
 	const { user } = useAuth();
 	const [courses, setCourses] = useState<Array<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean }>>([]);
 	const [loading, setLoading] = useState<boolean>(true);
 	const [showCreate, setShowCreate] = useState<boolean>(false);
+	const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+	const [showCourseDetails, setShowCourseDetails] = useState<boolean>(false);
 
 	useEffect(() => {
 		const load = async () => {
@@ -63,8 +66,15 @@ export default function LecturerDashboard() {
 					) : (
 						<ul className="divide-y">
 							{courses.map((c) => (
-								<li key={c.id} className="py-3 flex items-center justify-between">
-									<div>
+								<li 
+									key={c.id} 
+									className="py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md px-2 -mx-2"
+									onClick={() => {
+										setSelectedCourseId(c.id);
+										setShowCourseDetails(true);
+									}}
+								>
+									<div className="flex-1">
 										<div className="font-medium">{c.code} - {c.name}</div>
 										{c.description ? (
 											<div className="text-sm text-gray-600">{c.description}</div>
@@ -79,6 +89,11 @@ export default function LecturerDashboard() {
 			</div>
 
 			<CreateCourseDialog open={showCreate} onOpenChange={setShowCreate} onCreated={refreshCourses} />
+			<CourseDetailsDialog 
+				open={showCourseDetails} 
+				onOpenChange={setShowCourseDetails} 
+				courseId={selectedCourseId} 
+			/>
 		</ProtectedRoute>
 	);
 }

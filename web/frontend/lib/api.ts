@@ -192,6 +192,34 @@ class ApiClient {
         return this.request('/lecturer/courses');
     }
 
+    async lecturerCourseDetails(courseId: number): Promise<{
+        id: number;
+        code: string;
+        name: string;
+        description: string | null;
+        semester: string;
+        is_active: boolean;
+        created_at: string;
+        enrolled_students: Array<{
+            id: number;
+            user_id: string | null;
+            full_name: string | null;
+            email: string;
+            enrolled_at: string;
+        }>;
+        enrolled_count: number;
+        recent_sessions: Array<{
+            id: number;
+            code: string;
+            is_active: boolean;
+            starts_at: string | null;
+            ends_at: string | null;
+            attendance_count: number;
+        }>;
+    }> {
+        return this.request(`/lecturer/courses/${courseId}`);
+    }
+
     async lecturerCreateCourse(payload: { code: string; name: string; description?: string; semester?: string }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean }> {
         const qs = new URLSearchParams();
         qs.set('code', payload.code);
