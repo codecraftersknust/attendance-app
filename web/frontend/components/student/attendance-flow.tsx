@@ -138,54 +138,18 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
             toast.error("Geolocation not supported");
             return;
         }
-
         setLocating(true);
-
-        const handleSuccess = (pos: GeolocationPosition) => {
-            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            setLocating(false);
-        };
-
-        const handleError = (err: GeolocationPositionError, isRetry: boolean) => {
-            console.error(`Geolocation error (retry=${isRetry}):`, err.code, err.message);
-
-            // If this was the first attempt (High Accuracy) and it was a timeout or unavailable,
-            // try again with low accuracy.
-            if (!isRetry && (err.code === err.TIMEOUT || err.code === err.POSITION_UNAVAILABLE)) {
-                toast("High accuracy failed, switching to low accuracy...", { icon: '⚠️' });
-                navigator.geolocation.getCurrentPosition(
-                    handleSuccess,
-                    (retryErr) => handleError(retryErr, true),
-                    { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
-                );
-                return;
-            }
-
-            // Final error handling
-            let msg = "Failed to get location.";
-            switch (err.code) {
-                case err.PERMISSION_DENIED:
-                    msg = "Location permission denied. Please allow location access in your browser settings.";
-                    break;
-                case err.POSITION_UNAVAILABLE:
-                    msg = "Location information is unavailable.";
-                    break;
-                case err.TIMEOUT:
-                    msg = "Location request timed out. Please check your connection.";
-                    break;
-                default:
-                    msg = "An unknown error occurred getting location.";
-                    break;
-            }
-            toast.error(msg);
-            setLocating(false);
-        };
-
-        // First attempt: High Accuracy, 15s timeout
         navigator.geolocation.getCurrentPosition(
-            handleSuccess,
-            (err) => handleError(err, false),
-            { enableHighAccuracy: true, timeout: 15000 }
+            (pos) => {
+                setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocating(false);
+            },
+            (err) => {
+                console.error(err);
+                toast.error("Failed to get location");
+                setLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 },
         );
     }, []);
 

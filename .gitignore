@@ -12,10 +12,9 @@ ENV/
 
 # Backend
 backend/.env
-/web/backend/uploads/
+backend/uploads/
 *.db
 *.sqlite3
-
 
 # Node
 node_modules/

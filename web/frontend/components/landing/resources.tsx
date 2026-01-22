@@ -57,7 +57,7 @@ export function Resources() {
                             </div>
                             <h3 className="font-semibold text-base sm:text-lg">Implementation Guide</h3>
                             <p className="text-sm sm:text-base font-medium">
-                                A step-by-step setup guide for IT administrators to deploy Absence on
+                                A step-by-step setup guide for IT administrators to deploy SmartAttend on
                                 campus infrastructure with minimal effort.
                             </p>
                         </div>

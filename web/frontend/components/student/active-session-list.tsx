@@ -48,11 +48,7 @@ export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => v
                                 <div className="font-medium">{s.course_code} — {s.course_name}</div>
                                 <div className="text-xs text-gray-500">Session #{s.id} • Code {s.code}</div>
                             </div>
-                            {s.is_attended ? (
-                                <span className="text-xs font-semibold px-2 py-1 bg-green-100 text-green-800 rounded">Attended</span>
-                            ) : (
-                                <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={() => onOpen(s)}>Mark</Button>
-                            )}
+                            <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={() => onOpen(s)}>Open</Button>
                         </li>
                     ))}
                 </ul>

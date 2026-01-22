@@ -31,6 +31,11 @@ fi
 
 # Navigate to backend directory
 cd web/backend
+<<<<<<< HEAD
+=======
+source .venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+BACKEND_PID=$!
+>>>>>>> parent of 257bb11 (Fix scanning issues and enhance flow and reports)
 
 # Check if Docker containers are already running
 echo "Checking Docker container status..."
@@ -38,6 +43,7 @@ BACKEND_RUNNING=$(docker ps --filter "name=absense-backend-prod" --filter "statu
 DB_RUNNING=$(docker ps --filter "name=absense-postgres-prod" --filter "status=running" -q)
 REDIS_RUNNING=$(docker ps --filter "name=absense-redis-prod" --filter "status=running" -q)
 
+<<<<<<< HEAD
 if [ -n "$BACKEND_RUNNING" ] && [ -n "$DB_RUNNING" ] && [ -n "$REDIS_RUNNING" ]; then
     echo "Backend containers are already running"
 else
@@ -74,6 +80,8 @@ if [ $COUNTER -ge $MAX_WAIT ]; then
     echo "Warning: Backend may not be fully ready yet, but continuing..."
 fi
 
+=======
+>>>>>>> parent of 257bb11 (Fix scanning issues and enhance flow and reports)
 # Start frontend
 echo "Starting frontend server..."
 cd ../frontend
