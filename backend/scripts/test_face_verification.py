@@ -25,7 +25,7 @@ def check_backend():
             return True
     except Exception as e:
         print(f"❌ Backend is not running: {e}")
-        print(f"   Please start the backend first: cd web/backend && ./scripts/dev.sh")
+        print(f"   Please start the backend first: cd backend && ./scripts/dev.sh")
         return False
     return False
 

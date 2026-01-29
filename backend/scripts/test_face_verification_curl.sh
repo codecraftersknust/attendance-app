@@ -17,7 +17,7 @@ echo ""
 echo "🔍 Checking backend..."
 if ! curl -sf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
     echo "❌ Backend is not running!"
-    echo "   Please start: cd web/backend && ./scripts/dev.sh"
+    echo "   Please start: cd backend && ./scripts/dev.sh"
     exit 1
 fi
 echo "✅ Backend is running"
