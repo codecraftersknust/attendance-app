@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 
 export function WhatWeDo() {
     return (
-        <div className="relative bg-[url(/board.jpg)] bg-cover bg-center bg-no-repeat h-auto flex justify-center items-start py-12 sm:py-16 lg:py-20 border-b-4 border-white">
+        <div id="what-we-do" className="relative bg-[url(/board.jpg)] bg-cover bg-center bg-no-repeat h-auto flex justify-center items-start py-12 sm:py-16 lg:py-20 border-b-4 border-white">
             <div className="absolute inset-0 bg-black/50" />
             <div className="z-10 max-w-7xl mx-auto text-white text-center gap-4 flex flex-col px-4 sm:px-6 lg:px-8">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Absence is more than just an attendance tracking tool</h1>

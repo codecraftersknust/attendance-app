@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -14,6 +21,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+
+const SEMESTER_OPTIONS = [
+    "1st Semester",
+    "2nd Semester",
+] as const;
+
+const NONE_VALUE = "__none__";
 
 type CreateCoursePayload = {
     code: string;
@@ -87,7 +101,22 @@ export function CreateCourseDialog({
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="semester">Semester</Label>
-                        <Input id="semester" value={form.semester} onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))} placeholder="e.g., 1st Semester" />
+                        <Select
+                            value={form.semester || NONE_VALUE}
+                            onValueChange={(v) => setForm((f) => ({ ...f, semester: v === NONE_VALUE ? undefined : v }))}
+                        >
+                            <SelectTrigger id="semester" className="w-full">
+                                <SelectValue placeholder="Select semester (optional)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={NONE_VALUE}>None</SelectItem>
+                                {SEMESTER_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>
+                                        {opt}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => !submitting && onOpenChange(false)}>Cancel</Button>

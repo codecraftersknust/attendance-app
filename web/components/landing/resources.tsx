@@ -46,7 +46,7 @@ export function Resources() {
                             <h3 className="font-semibold text-base sm:text-lg">Case Study</h3>
                             <p className="text-sm sm:text-base font-medium">
                                 Read how a university improved attendance tracking efficiency by 60% using
-                                SmartAttend.
+                                Absence.
                             </p>
                         </div>
                     </div>
@@ -57,7 +57,7 @@ export function Resources() {
                             </div>
                             <h3 className="font-semibold text-base sm:text-lg">Implementation Guide</h3>
                             <p className="text-sm sm:text-base font-medium">
-                                A step-by-step setup guide for IT administrators to deploy SmartAttend on
+                                A step-by-step setup guide for IT administrators to deploy Absence on
                                 campus infrastructure with minimal effort.
                             </p>
                         </div>
