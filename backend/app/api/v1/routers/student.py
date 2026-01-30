@@ -16,6 +16,7 @@ from ....models.verification_log import VerificationLog
 from ....models.course import Course
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....services.audit import write_audit
+from ....services.utils import hash_device_id
 from ....storage.base import get_storage
 from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
@@ -42,24 +43,35 @@ async def submit_attendance(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
 ):
+    """Submit attendance with QR verification, geolocation, and face verification"""
+    from datetime import datetime
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Attendance submission attempt - user_id={current.id}, qr_session_id={qr_session_id}, qr_nonce={qr_nonce}")
+    
     # Get session directly from QR session ID (no manual code needed)
     session = db.get(AttendanceSession, qr_session_id)
     if not session or not session.is_active:
+        logger.warning(f"Invalid or inactive session - session_id={qr_session_id}")
         raise HTTPException(status_code=404, detail="Invalid or inactive session")
 
     # Validate rotating QR nonce window
-    from datetime import datetime
     if not session.qr_nonce or not session.qr_expires_at:
+        logger.error(f"QR not generated for session {qr_session_id}")
         raise HTTPException(status_code=400, detail="QR code not generated for this session")
     
     if session.qr_expires_at < datetime.utcnow():
+        logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
         raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
     
     # Enforce session duration
     if session.ends_at and session.ends_at < datetime.utcnow():
+        logger.warning(f"Session ended - session_id={qr_session_id}, ends_at={session.ends_at}")
         raise HTTPException(status_code=400, detail="Session has ended")
 
     if qr_nonce != session.qr_nonce:
+        logger.warning(f"Invalid QR nonce - expected={session.qr_nonce}, received={qr_nonce}")
         raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
 
     # Optional geofence check if session has location configured
