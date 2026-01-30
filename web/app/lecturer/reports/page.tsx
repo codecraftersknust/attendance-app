@@ -31,8 +31,17 @@ type Analytics = {
 type AttendanceRecord = {
     id: number;
     student_id: number;
+    student_name?: string | null;
+    student_email?: string | null;
     status: string;
     device_id_hash: string | null;
+    flag_reasons?: string[];
+};
+
+const FLAG_REASON_LABELS: Record<string, string> = {
+    device_mismatch: 'Device not registered',
+    outside_geofence: 'Outside class location',
+    face_not_verified: 'Face verification failed',
 };
 
 export default function ReportsPage() {
@@ -44,6 +53,7 @@ export default function ReportsPage() {
     const [analytics, setAnalytics] = useState<Analytics | null>(null);
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [loadingReport, setLoadingReport] = useState<boolean>(false);
+    const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
     useEffect(() => {
         loadSessions();
@@ -73,11 +83,12 @@ export default function ReportsPage() {
     const loadReport = async (sessionId: number) => {
         try {
             setLoadingReport(true);
-            const [analyticsData, recordsData] = await Promise.all([
+            const [analyticsResponse, recordsData] = await Promise.all([
                 apiClient.lecturerSessionAnalytics(sessionId),
                 apiClient.lecturerSessionAttendance(sessionId)
             ]);
-            setAnalytics(analyticsData);
+            const data = analyticsResponse as { analytics?: Analytics; session?: unknown; recent_attendance?: unknown };
+            setAnalytics(data.analytics ?? (data as unknown as Analytics));
             setRecords(recordsData);
         } catch (e: any) {
             toast.error(e?.message || 'Failed to load report data');
@@ -89,6 +100,19 @@ export default function ReportsPage() {
     const formatTime = (isoString?: string) => {
         if (!isoString) return 'N/A';
         return new Date(isoString).toLocaleString();
+    };
+
+    const handleConfirmFlagged = async (recordId: number) => {
+        try {
+            setConfirmingId(recordId);
+            await apiClient.lecturerConfirmFlagged(recordId);
+            toast.success('Attendance confirmed');
+            if (selectedSessionId) loadReport(Number(selectedSessionId));
+        } catch (e: any) {
+            toast.error(e?.message || 'Failed to confirm attendance');
+        } finally {
+            setConfirmingId(null);
+        }
     };
 
     return (
@@ -179,9 +203,9 @@ export default function ReportsPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Student ID</TableHead>
+                                        <TableHead>Student</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead>Device ID (Hash)</TableHead>
+                                        <TableHead>Why flagged</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -195,22 +219,45 @@ export default function ReportsPage() {
                                     ) : (
                                         records.map((record) => (
                                             <TableRow key={record.id}>
-                                                <TableCell className="font-medium">#{record.student_id}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <span className="text-gray-900">{record.student_name || record.student_email || `#${record.student_id}`}</span>
+                                                    {record.student_email && record.student_name && (
+                                                        <span className="block text-xs text-gray-500">{record.student_email}</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                                                        ${record.status === 'present' ? 'bg-emerald-100 text-emerald-800' :
+                                                        ${record.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
                                                             record.status === 'flagged' ? 'bg-amber-100 text-amber-800' :
-                                                                record.status === 'absent' ? 'bg-red-100 text-red-800' :
-                                                                    'bg-gray-100 text-gray-800'}`}>
+                                                                'bg-gray-100 text-gray-800'}`}>
                                                         {record.status}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell className="font-mono text-xs text-gray-500">
-                                                    {record.device_id_hash || 'N/A'}
+                                                <TableCell className="text-sm text-gray-600">
+                                                    {record.status === 'flagged' && record.flag_reasons && record.flag_reasons.length > 0 ? (
+                                                        <ul className="list-disc list-inside space-y-0.5">
+                                                            {record.flag_reasons.map((code) => (
+                                                                <li key={code}>{FLAG_REASON_LABELS[code] ?? code}</li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : (
+                                                        <span className="text-gray-400">—</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {/* Placeholder for future actions like manual override */}
-                                                    <span className="text-xs text-gray-400">--</span>
+                                                    {record.status === 'flagged' ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                                            onClick={() => handleConfirmFlagged(record.id)}
+                                                            disabled={confirmingId === record.id}
+                                                        >
+                                                            {confirmingId === record.id ? 'Confirming…' : 'Confirm attendance'}
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">—</span>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))

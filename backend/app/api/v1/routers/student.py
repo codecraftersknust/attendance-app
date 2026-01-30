@@ -74,7 +74,9 @@ async def submit_attendance(
         logger.warning(f"Invalid QR nonce - expected={session.qr_nonce}, received={qr_nonce}")
         raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
 
-    # Optional geofence check if session has location configured
+    # Geofence check: student must be within radius of lecturer's set location
+    within_geofence = True
+    distance_m = None
     if session.latitude is not None and session.longitude is not None and session.geofence_radius_m:
         def haversine(lat1, lon1, lat2, lon2):
             # Earth radius in meters
@@ -87,8 +89,7 @@ async def submit_attendance(
 
         distance_m = haversine(latitude, longitude, session.latitude, session.longitude)
         if distance_m > session.geofence_radius_m:
-            # Do not reject outright; flag instead
-            pass
+            within_geofence = False
 
     cfg = Settings()
     max_size_bytes = cfg.upload_max_image_mb * 1024 * 1024
@@ -125,6 +126,10 @@ async def submit_attendance(
     )
     status = AttendanceStatus.confirmed if device else AttendanceStatus.flagged
 
+    # Flag if student is outside the session's geofence radius
+    if not within_geofence:
+        status = AttendanceStatus.flagged
+
     # If we have a selfie and a reference, perform face verification (guarded by settings inside service)
     verification = None
     ref_path = current.face_reference_path or face_service.get_reference_path(current.id)
@@ -147,6 +152,16 @@ async def submit_attendance(
         except Exception:
             db.rollback()
 
+    # Build flag reasons for lecturer visibility (only when status is flagged)
+    flag_reasons: List[str] = []
+    if status == AttendanceStatus.flagged:
+        if not device:
+            flag_reasons.append("device_mismatch")
+        if not within_geofence and distance_m is not None:
+            flag_reasons.append("outside_geofence")
+        if verification is not None and not verification.get("verified"):
+            flag_reasons.append("face_not_verified")
+
     record = AttendanceRecord(
         session_id=session.id,
         student_id=current.id,
@@ -154,6 +169,7 @@ async def submit_attendance(
         selfie_image_path=selfie_url,
         presence_image_path=None,  # No longer required - GPS + QR is sufficient
         status=status,
+        flag_reasons=flag_reasons if flag_reasons else None,
     )
     db.add(record)
     db.commit()
@@ -166,6 +182,9 @@ async def submit_attendance(
     )
 
     response = {"record_id": record.id, "status": record.status.value}
+    if distance_m is not None:
+        response["within_geofence"] = within_geofence
+        response["distance_m"] = round(distance_m, 1)
     if verification is not None:
         response.update({
             "face_verified": verification.get("verified", False),
@@ -313,6 +332,35 @@ def search_courses(
     ]
 
 
+@router.get("/dashboard", response_model=dict)
+def student_dashboard(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Get dashboard stats for the current student."""
+    enrolled_count = (
+        db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .join(Course)
+        .filter(Course.is_active == True)
+        .count()
+    )
+    attendance_marked_count = (
+        db.query(AttendanceRecord).filter(AttendanceRecord.student_id == current.id).count()
+    )
+    confirmed_count = (
+        db.query(AttendanceRecord)
+        .filter(AttendanceRecord.student_id == current.id, AttendanceRecord.status == AttendanceStatus.confirmed)
+        .count()
+    )
+    write_audit(db, "student.dashboard", current.id)
+    return {
+        "enrolled_courses": enrolled_count,
+        "attendance_marked_count": attendance_marked_count,
+        "confirmed_count": confirmed_count,
+    }
+
+
 @router.get("/courses")
 def get_enrolled_courses(
     db: Session = Depends(get_db),
@@ -385,6 +433,25 @@ def enroll_in_course(
     }
 
 
+@router.delete("/courses/{course_id}/enroll")
+def unenroll_from_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Unenroll (drop) from a course."""
+    enrollment = db.query(StudentCourseEnrollment).filter(
+        StudentCourseEnrollment.student_id == current.id,
+        StudentCourseEnrollment.course_id == course_id,
+    ).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Not enrolled in this course")
+    db.delete(enrollment)
+    db.commit()
+    write_audit(db, "student.unenroll_course", current.id, f"course_id={course_id}")
+    return {"unenrolled": True, "course_id": course_id}
+
+
 @router.get("/sessions/active")
 def list_active_sessions(
     db: Session = Depends(get_db),
@@ -418,6 +485,17 @@ def list_active_sessions(
     result = []
     for s in sessions:
         course = db.get(Course, s.course_id) if s.course_id else None
+        # Check if student already has an attendance record for this session (confirmed or flagged)
+        existing = (
+            db.query(AttendanceRecord)
+            .filter(
+                AttendanceRecord.session_id == s.id,
+                AttendanceRecord.student_id == current.id,
+            )
+            .first()
+        )
+        already_marked = existing is not None
+        attendance_status = existing.status.value if existing else None
         result.append({
             "id": s.id,
             "code": s.code,
@@ -426,6 +504,8 @@ def list_active_sessions(
             "course_name": course.name if course else None,
             "starts_at": s.starts_at.isoformat() if s.starts_at else None,
             "ends_at": s.ends_at.isoformat() if s.ends_at else None,
+            "already_marked": already_marked,
+            "attendance_status": attendance_status,
         })
 
     write_audit(db, "student.list_active_sessions", current.id, f"count={len(result)}")

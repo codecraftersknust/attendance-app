@@ -243,6 +243,10 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
                 selfie: selfieFile,
             });
             toast.success(`Attendance marked (${res.status})`);
+            if (res.within_geofence === false) {
+                const dist = res.distance_m != null ? ` (${Math.round(res.distance_m)} m away)` : "";
+                toast.error(`You were outside the class location${dist}. Your attendance may be flagged for review.`, { duration: 6000 });
+            }
             setSelfieFile(null);
             setSelfieCaptureKey((key) => key + 1);
             setQrPayload(null);

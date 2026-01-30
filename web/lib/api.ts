@@ -229,14 +229,32 @@ class ApiClient {
         return this.request(`/lecturer/courses?${qs.toString()}`, { method: 'POST' });
     }
 
+    async lecturerDeleteCourse(courseId: number): Promise<{ deleted: boolean; course_id: number }> {
+        return this.request(`/lecturer/courses/${courseId}`, { method: 'DELETE' });
+    }
+
+    async lecturerDashboard(): Promise<{
+        total_courses: number;
+        total_sessions: number;
+        active_sessions: number;
+        total_attendance_records: number;
+        confirmed_records: number;
+        flagged_records: number;
+    }> {
+        return this.request('/lecturer/dashboard');
+    }
+
     async lecturerSessions(): Promise<Array<{ id: number; code: string; is_active: boolean }>> {
         return this.request('/lecturer/sessions');
     }
 
-    async lecturerCreateSession(payload: { course_id: number; duration_minutes?: number }): Promise<{ id: number; code: string; course: { id: number; code: string; name: string }; starts_at: string; ends_at: string }> {
+    async lecturerCreateSession(payload: { course_id: number; duration_minutes?: number; latitude?: number; longitude?: number; geofence_radius_m?: number }): Promise<{ id: number; code: string; course: { id: number; code: string; name: string }; starts_at: string; ends_at: string }> {
         const qs = new URLSearchParams();
         qs.set('course_id', String(payload.course_id));
         if (payload.duration_minutes != null) qs.set('duration_minutes', String(payload.duration_minutes));
+        if (payload.latitude != null) qs.set('latitude', String(payload.latitude));
+        if (payload.longitude != null) qs.set('longitude', String(payload.longitude));
+        if (payload.geofence_radius_m != null) qs.set('geofence_radius_m', String(payload.geofence_radius_m));
         return this.request(`/lecturer/sessions?${qs.toString()}`, { method: 'POST' });
     }
 
@@ -262,8 +280,20 @@ class ApiClient {
         return this.request(`/lecturer/sessions/${sessionId}/qr`);
     }
 
-    async lecturerSessionAttendance(sessionId: number): Promise<Array<{ id: number; student_id: number; status: string; device_id_hash: string | null }>> {
+    async lecturerSessionAttendance(sessionId: number): Promise<Array<{
+        id: number;
+        student_id: number;
+        student_name?: string | null;
+        student_email?: string | null;
+        status: string;
+        device_id_hash: string | null;
+        flag_reasons?: string[];
+    }>> {
         return this.request(`/lecturer/sessions/${sessionId}/attendance`);
+    }
+
+    async lecturerConfirmFlagged(recordId: number): Promise<{ record_id: number; status: string }> {
+        return this.request(`/lecturer/attendance/${recordId}/confirm`, { method: "POST" });
     }
 
     async lecturerSessionAnalytics(sessionId: number): Promise<{
@@ -308,8 +338,20 @@ class ApiClient {
         return this.request(`/student/courses/${courseId}/enroll`, { method: 'POST' });
     }
 
+    async studentUnenrollFromCourse(courseId: number): Promise<{ unenrolled: boolean; course_id: number }> {
+        return this.request(`/student/courses/${courseId}/enroll`, { method: 'DELETE' });
+    }
+
+    async studentDashboard(): Promise<{
+        enrolled_courses: number;
+        attendance_marked_count: number;
+        confirmed_count: number;
+    }> {
+        return this.request('/student/dashboard');
+    }
+
     // Student attendance endpoints
-    async studentActiveSessions(): Promise<Array<{ id: number; code: string; course_id: number; course_code?: string; course_name?: string; starts_at?: string; ends_at?: string }>> {
+    async studentActiveSessions(): Promise<Array<{ id: number; code: string; course_id: number; course_code?: string; course_name?: string; starts_at?: string; ends_at?: string; already_marked?: boolean; attendance_status?: string }>> {
         return this.request('/student/sessions/active');
     }
 

@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Enum
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Enum, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 import enum
@@ -20,6 +20,7 @@ class AttendanceRecord(Base):
     selfie_image_path: Mapped[str] = mapped_column(String(255), nullable=True)
     presence_image_path: Mapped[str] = mapped_column(String(255), nullable=True)
     status: Mapped[AttendanceStatus] = mapped_column(Enum(AttendanceStatus), nullable=False, default=AttendanceStatus.confirmed)
+    flag_reasons: Mapped[list | None] = mapped_column(JSON, nullable=True)  # e.g. ["device_mismatch", "outside_geofence", "face_not_verified"]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     session: Mapped["AttendanceSession"] = relationship(back_populates="records")

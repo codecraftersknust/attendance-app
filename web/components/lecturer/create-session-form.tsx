@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -8,6 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QRDisplayDialog } from "./qr-display-dialog";
+import type { SessionLocation } from "./session-location-map";
+
+const SessionLocationMap = dynamic(
+    () => import("./session-location-map").then((m) => ({ default: m.SessionLocationMap })),
+    { ssr: false, loading: () => <div className="h-64 rounded-lg border border-gray-200 bg-gray-50 animate-pulse" /> }
+);
 
 type Course = { id: number; code: string; name: string };
 
@@ -18,6 +25,7 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
     const [creating, setCreating] = useState<boolean>(false);
     const [courseId, setCourseId] = useState<string>("");
     const [duration, setDuration] = useState<string>("15");
+    const [location, setLocation] = useState<SessionLocation | null>(null);
 
     useEffect(() => {
         const load = async () => {
@@ -45,7 +53,15 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
         const dur = parseInt(duration || "15", 10);
         try {
             setCreating(true);
-            const created = await apiClient.lecturerCreateSession({ course_id: Number(courseId), duration_minutes: dur });
+            const created = await apiClient.lecturerCreateSession({
+                course_id: Number(courseId),
+                duration_minutes: dur,
+                ...(location && {
+                    latitude: location.lat,
+                    longitude: location.lng,
+                    geofence_radius_m: location.radiusMeters ?? 100,
+                }),
+            });
             toast.success("Session created");
             setCreatedSessionId(created.id);
             onCreated?.({ id: created.id, code: created.code });
@@ -84,6 +100,15 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
                     </Button>
                 </div>
             </div>
+
+            {courseId && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        Class location
+                    </h3>
+                    <SessionLocationMap value={location} onChange={setLocation} />
+                </div>
+            )}
 
             <QRDisplayDialog
                 sessionId={createdSessionId}

@@ -141,6 +141,29 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
     }
 
 
+@router.delete("/courses/{course_id}", response_model=dict)
+def delete_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer),
+):
+    """Delete a course (and its sessions). Enrollments are removed. Only the owning lecturer can delete."""
+    from ....models.student_course_enrollment import StudentCourseEnrollment
+
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.lecturer_id == current.id,
+    ).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    # Remove enrollments first (no cascade from Course to enrollments)
+    db.query(StudentCourseEnrollment).filter(StudentCourseEnrollment.course_id == course_id).delete()
+    db.delete(course)
+    db.commit()
+    write_audit(db, "lecturer.delete_course", current.id, f"course_id={course_id}")
+    return {"deleted": True, "course_id": course_id}
+
+
 @router.put("/courses/{course_id}", response_model=dict)
 def update_course(
     course_id: int,
@@ -199,6 +222,7 @@ def create_session(
     duration_minutes: int = 15,
     latitude: float | None = None,
     longitude: float | None = None,
+    geofence_radius_m: float | None = None,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_lecturer)
 ):
@@ -209,9 +233,10 @@ def create_session(
         duration_minutes: Session duration in minutes (default: 15)
         latitude: Lecturer's current latitude (optional, auto-captured from frontend)
         longitude: Lecturer's current longitude (optional, auto-captured from frontend)
+        geofence_radius_m: Allowable radius in meters for student location (1-10000). Default 100 when location is set.
     
     Note:
-        If latitude and longitude are provided, a default geofence radius of 100 meters is set.
+        If latitude and longitude are provided, a default geofence radius of 100 meters is set unless geofence_radius_m is given.
         The radius can be adjusted later using the geofence endpoint.
     """
     # Verify the course belongs to the lecturer
@@ -234,13 +259,22 @@ def create_session(
     # Both lat and lon must be provided together
     if (latitude is not None and longitude is None) or (latitude is None and longitude is not None):
         raise HTTPException(status_code=400, detail="Both latitude and longitude must be provided together")
-    
+
+    # Geofence radius: only when location is set; validate 1-10000m
+    if geofence_radius_m is not None:
+        if latitude is None:
+            raise HTTPException(status_code=400, detail="Geofence radius requires latitude and longitude")
+        if geofence_radius_m < 1 or geofence_radius_m > 10000:
+            raise HTTPException(status_code=400, detail="Geofence radius must be between 1 and 10000 meters")
+
     code = generate_session_code()
     from datetime import datetime, timedelta
     now = datetime.utcnow()
-    
-    # Set default geofence radius if location is provided
-    default_radius = 100.0 if latitude is not None else None
+
+    # Set geofence radius when location is provided (explicit or default 100m)
+    default_radius = None
+    if latitude is not None:
+        default_radius = geofence_radius_m if geofence_radius_m is not None else 100.0
     
     session = AttendanceSession(
         lecturer_id=current.id,
@@ -506,15 +540,19 @@ def get_attendance(session_id: int, db: Session = Depends(get_db), current: User
         raise HTTPException(status_code=404, detail="Session not found")
     records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
     write_audit(db, "lecturer.get_attendance", current.id, f"session_id={session_id}")
-    return [
-        {
+    result = []
+    for r in records:
+        student = db.get(User, r.student_id)
+        result.append({
             "id": r.id,
             "student_id": r.student_id,
+            "student_name": student.full_name or student.email if student else None,
+            "student_email": student.email if student else None,
             "status": r.status.value,
-            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
-        }
-        for r in records
-    ]
+            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,
+            "flag_reasons": r.flag_reasons or [],
+        })
+    return result
 @router.get("/sessions/{session_id}/flagged", response_model=List[dict])
 def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     session = db.get(AttendanceSession, session_id)
@@ -529,9 +567,9 @@ def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), curr
         )
         .all()
     )
-    # Join latest verification log per student if present
     result = []
     for r in records:
+        student = db.get(User, r.student_id)
         v = (
             db.query(VerificationLog)
             .filter(VerificationLog.session_id == session_id, VerificationLog.user_id == r.student_id)
@@ -541,7 +579,10 @@ def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), curr
         result.append({
             "record_id": r.id,
             "student_id": r.student_id,
-            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,  # Show partial hash for debugging
+            "student_name": student.full_name or student.email if student else None,
+            "student_email": student.email if student else None,
+            "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,
+            "flag_reasons": r.flag_reasons or [],
             "face_verified": None if not v else v.verified,
             "face_distance": None if not v else v.distance,
             "face_threshold": None if not v else v.threshold,
@@ -567,7 +608,19 @@ def confirm_flagged_attendance(record_id: int, db: Session = Depends(get_db), cu
 
 @router.get("/dashboard", response_model=dict)
 def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    from datetime import datetime
+    now = datetime.utcnow()
+    total_courses = db.query(Course).filter(Course.lecturer_id == current.id, Course.is_active == True).count()
     total_sessions = db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == current.id).count()
+    active_sessions = (
+        db.query(AttendanceSession)
+        .filter(
+            AttendanceSession.lecturer_id == current.id,
+            AttendanceSession.is_active == True,
+            AttendanceSession.ends_at > now,
+        )
+        .count()
+    )
     total_records = (
         db.query(AttendanceRecord)
         .join(AttendanceSession, AttendanceRecord.session_id == AttendanceSession.id)
@@ -580,10 +633,14 @@ def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current
         .filter(AttendanceSession.lecturer_id == current.id, AttendanceRecord.status == AttendanceStatus.flagged)
         .count()
     )
+    confirmed_records = total_records - flagged_records
     write_audit(db, "lecturer.dashboard", current.id)
     return {
+        "total_courses": total_courses,
         "total_sessions": total_sessions,
+        "active_sessions": active_sessions,
         "total_attendance_records": total_records,
+        "confirmed_records": confirmed_records,
         "flagged_records": flagged_records,
     }
 
@@ -598,10 +655,10 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
     # Get attendance records for this session
     records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
     
-    # Calculate analytics
+    # Calculate analytics (status is confirmed or flagged only)
     total_students = len(records)
-    present_count = len([r for r in records if r.status == AttendanceStatus.present])
-    absent_count = len([r for r in records if r.status == AttendanceStatus.absent])
+    present_count = len([r for r in records if r.status == AttendanceStatus.confirmed])
+    absent_count = 0  # Absent = no record; we only have records for students who submitted
     flagged_count = len([r for r in records if r.status == AttendanceStatus.flagged])
     
     # Attendance rate
@@ -652,6 +709,7 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
         "analytics": {
             "total_students": total_students,
             "present_count": present_count,
+            "late_count": 0,
             "absent_count": absent_count,
             "flagged_count": flagged_count,
             "attendance_rate": round(attendance_rate, 2)
