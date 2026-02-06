@@ -5,25 +5,67 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#10b981';
+const tintColorDark = '#10b981';
+
+// Emerald Color Palette (matching Tailwind)
+export const Emerald = {
+  50: '#ecfdf5',
+  100: '#d1fae5',
+  200: '#a7f3d0',
+  300: '#6ee7b7',
+  400: '#34d399',
+  500: '#10b981',
+  600: '#059669',
+  700: '#047857',
+  800: '#065f46',
+  900: '#064e3b',
+};
 
 export const Colors = {
   light: {
     text: '#11181C',
     background: '#fff',
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: Emerald[500],
+    tabIconDefault: '#9ca3af',
     tabIconSelected: tintColorLight,
+    card: '#ffffff',
+    surface: '#f8fafc',
+    border: '#e5e7eb',
+    primary: Emerald[900],
+    primaryLight: Emerald[700],
+    success: Emerald[600],
+    successLight: Emerald[100],
+    // Additional semantic colors
+    error: '#ef4444',
+    errorLight: '#fee2e2',
+    warning: '#f59e0b',
+    warningLight: '#fef3c7',
+    info: '#3b82f6',
+    infoLight: '#dbeafe',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: '#f1f5f9',
+    background: '#0f1419',
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: Emerald[400],
+    tabIconDefault: '#94a3b8',
     tabIconSelected: tintColorDark,
+    card: 'rgba(30, 35, 40, 0.95)',
+    surface: 'rgba(40, 46, 52, 0.9)',
+    border: 'rgba(71, 85, 105, 0.3)',
+    primary: Emerald[500],
+    primaryLight: Emerald[400],
+    success: Emerald[500],
+    successLight: 'rgba(16, 185, 129, 0.2)',
+    // Additional semantic colors
+    error: '#f87171',
+    errorLight: 'rgba(248, 113, 113, 0.2)',
+    warning: '#fbbf24',
+    warningLight: 'rgba(251, 191, 36, 0.2)',
+    info: '#60a5fa',
+    infoLight: 'rgba(96, 165, 250, 0.2)',
   },
 };
 
