@@ -71,14 +71,6 @@ NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
 NEXT_PUBLIC_ADMIN_PORTAL_CODE=AdminPortal123!
 ```
 
-Backend environment (`web/backend/.env`):
-```
-SECRET_KEY=your-secret-key
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/absense
-REDIS_URL=redis://redis:6379/0
-CORS_ALLOW_ORIGINS=http://localhost:3000,http://localhost:8001
-```
-
 Admin Portal (web) requires a second verification password set by `NEXT_PUBLIC_ADMIN_PORTAL_CODE`. Default is `AdminPortal123!` if not provided.
 
 ## Seeded Accounts (development)
