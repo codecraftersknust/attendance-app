@@ -202,36 +202,26 @@ export default function DashboardScreen() {
           {/* Statistics Section */}
           {stats && (
             <View style={styles.statsSection}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.statsScrollContent}
-              >
+              <View style={styles.statsRow}>
                 <StatCard
                   title="Enrolled"
                   value={stats.enrolled_courses}
                   subtitle="courses"
-                  icon="book.fill"
-                  iconColor="#10b981"
                   colorScheme={colorScheme}
                 />
                 <StatCard
                   title="Attendance"
                   value={stats.attendance_marked_count}
                   subtitle="marked"
-                  icon="checkmark.circle"
-                  iconColor="#3b82f6"
                   colorScheme={colorScheme}
                 />
                 <StatCard
                   title="Confirmed"
                   value={stats.confirmed_count}
                   subtitle="approved"
-                  icon="checkmark.circle.fill"
-                  iconColor="#10b981"
                   colorScheme={colorScheme}
                 />
-              </ScrollView>
+              </View>
             </View>
           )}
 
@@ -428,6 +418,11 @@ const styles = StyleSheet.create({
   },
   statsScrollContent: {
     paddingRight: 8,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   gaugeSection: {
     marginBottom: 20,

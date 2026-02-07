@@ -193,13 +193,13 @@ export default function StudentDashboard() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-4">
-                                <div className="relative h-12 flex-1 max-w-xs rounded-full bg-gray-100 overflow-hidden">
+                                <div className="relative h-1 flex-1 max-w-xs rounded-full bg-gray-100 overflow-hidden">
                                     <div
                                         className="absolute inset-y-0 left-0 rounded-full bg-emerald-600 transition-all duration-500"
                                         style={{ width: `${confirmedRate}%` }}
                                     />
                                 </div>
-                                <span className="text-2xl font-bold text-gray-900 tabular-nums">{confirmedRate}%</span>
+                                <span className="font-bold text-gray-900 tabular-nums">{confirmedRate}%</span>
                             </div>
                         </CardContent>
                     </Card>

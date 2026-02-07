@@ -1,14 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import type { ColorSchemeName } from '@/hooks/use-color-scheme';
+import { View, Text, StyleSheet, useWindowDimensions, ColorSchemeName } from 'react-native';
 
 interface StatCardProps {
     title: string;
     value: number | string;
     subtitle: string;
-    icon: string;
-    iconColor: string;
     colorScheme: ColorSchemeName;
 }
 
@@ -16,29 +12,31 @@ export default function StatCard({
     title,
     value,
     subtitle,
-    icon,
-    iconColor,
     colorScheme
 }: StatCardProps) {
     const isDark = colorScheme === 'dark';
+    const { width } = useWindowDimensions();
+
+    // Calculate card width: 3 cards with gaps, accounting for screen padding
+    const containerPadding = 40; // 20px on each side from parent container
+    const gap = 12;
+    const cardWidth = (width - containerPadding - (gap * 2)) / 3;
 
     return (
         <View style={[
             styles.card,
             {
+                width: cardWidth,
                 backgroundColor: isDark ? '#252829' : '#ffffff',
                 borderColor: isDark ? '#383b3d' : '#e5e5e5',
             }
         ]}>
-            <View style={styles.header}>
-                <Text style={[
-                    styles.title,
-                    { color: isDark ? '#8e8e93' : '#6b7280' }
-                ]}>
-                    {title}
-                </Text>
-                <IconSymbol name={icon} size={20} color={iconColor} />
-            </View>
+            <Text style={[
+                styles.title,
+                { color: isDark ? '#8e8e93' : '#6b7280' }
+            ]}>
+                {title}
+            </Text>
 
             <Text style={[
                 styles.value,
@@ -59,13 +57,14 @@ export default function StatCard({
 
 const styles = StyleSheet.create({
     card: {
-        width: 110,
-        height: 120,
+        minWidth: 90,
+        maxWidth: 140,
+        height: 100,
         borderRadius: 12,
         borderWidth: 1,
         padding: 12,
-        marginRight: 12,
         justifyContent: 'space-between',
+        alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
@@ -75,22 +74,18 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
         elevation: 2,
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
     title: {
-        fontSize: 11,
-        fontWeight: '500',
+        fontSize: 12,
+        fontWeight: '600',
+        textAlign: 'center',
     },
     value: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: 'bold',
-        marginTop: -4,
+        textAlign: 'center',
     },
     subtitle: {
-        fontSize: 10,
-        lineHeight: 14,
+        fontSize: 11,
+        textAlign: 'center',
     },
 });
