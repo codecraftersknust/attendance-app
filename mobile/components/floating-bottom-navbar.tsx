@@ -20,14 +20,20 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
         return 'checkmark.circle.fill';
       case 'search':
         return 'magnifyingglass';
+      case 'profile':
+        return 'person.fill';
       default:
         return 'circle.fill';
     }
   };
 
+  // Get route indices for layout - main routes (0-2,4) and search (3)
+  const mainRouteIndices = [0, 1, 2, 4]; // index, courses, attendance, profile
+  const searchRouteIndex = 3; // search
+
   return (
     <View style={styles.container}>
-      {/* Main floating navbar with first 3 items */}
+      {/* Main floating navbar with 4 items */}
       <View
         style={[
           styles.navbar,
@@ -39,9 +45,12 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
           },
         ]}
       >
-        {state.routes.slice(0, 3).map((route, index) => {
+        {mainRouteIndices.map((routeIndex) => {
+          const route = state.routes[routeIndex];
+          if (!route) return null;
+
           const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+          const isFocused = state.index === routeIndex;
 
           const onPress = () => {
             if (Platform.OS !== 'web') {
@@ -88,13 +97,13 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
       </View>
 
       {/* Separate circular search button */}
-      {state.routes[3] && (
+      {state.routes[searchRouteIndex] && (
         <TouchableOpacity
           onPress={() => {
             if (Platform.OS !== 'web') {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
-            navigation.navigate(state.routes[3].name);
+            navigation.navigate(state.routes[searchRouteIndex].name);
           }}
           style={[
             styles.searchButton,

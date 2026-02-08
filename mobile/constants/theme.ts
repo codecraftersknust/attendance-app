@@ -5,8 +5,9 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#10b981';
-const tintColorDark = '#10b981';
+// Using emerald-900 as primary to match web app
+const tintColorLight = '#064e3b';  // emerald-900
+const tintColorDark = '#10b981';   // emerald-500 for dark mode (better visibility)
 
 // Emerald Color Palette (matching Tailwind)
 export const Emerald = {
@@ -27,7 +28,7 @@ export const Colors = {
     text: '#11181C',
     background: '#fff',
     tint: tintColorLight,
-    icon: Emerald[500],
+    icon: Emerald[900],
     tabIconDefault: '#9ca3af',
     tabIconSelected: tintColorLight,
     card: '#ffffff',

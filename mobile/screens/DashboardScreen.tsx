@@ -2,20 +2,29 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Colors } from '@/constants/theme';
+import { Colors, Emerald } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import apiClientService from '@/services/apiClient.service';
-import StatCard from '@/components/dashboard/StatCard';
-import ConfirmationGauge from '@/components/dashboard/ConfirmationGauge';
-import QuickActionButton from '@/components/dashboard/QuickActionButton';
 import type { DashboardStats, Course } from '@/types/api.types';
+
+// Mock recent sessions data (in a real app, this would come from the API)
+interface RecentSession {
+  id: number;
+  courseName: string;
+  courseCode: string;
+  location: string;
+  professor: string;
+  startTime: string;
+  endTime: string;
+  status: 'PRESENT' | 'ABSENT' | 'UPCOMING';
+}
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   // State
@@ -23,6 +32,23 @@ export default function DashboardScreen() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Mock recent sessions (derived from courses for now)
+  const getRecentSessions = (): RecentSession[] => {
+    if (courses.length === 0) return [];
+
+    const statuses: Array<'PRESENT' | 'ABSENT' | 'UPCOMING'> = ['PRESENT', 'UPCOMING', 'ABSENT'];
+    return courses.slice(0, 3).map((course, index) => ({
+      id: course.id,
+      courseName: course.name,
+      courseCode: course.code,
+      location: `Room ${100 + index * 10}`,
+      professor: course.lecturer_name || 'Prof. TBA',
+      startTime: `${9 + index}:00`,
+      endTime: `${10 + index}:30`,
+      status: statuses[index % 3],
+    }));
+  };
 
   // Get user initials
   const getInitials = (name: string | undefined) => {
@@ -32,24 +58,29 @@ export default function DashboardScreen() {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
-  // Get current day and date
-  const getCurrentDate = () => {
-    const now = new Date();
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // Calculate attendance percentage
+  const getAttendancePercentage = () => {
+    if (!stats || stats.attendance_marked_count === 0) return 0;
+    return Math.round((stats.confirmed_count / stats.attendance_marked_count) * 100 * 10) / 10;
+  };
 
-    const dayName = days[now.getDay()];
-    const monthName = months[now.getMonth()];
-    const date = now.getDate();
-    const year = now.getFullYear();
+  // Get status label
+  const getStatusLabel = (percentage: number) => {
+    if (percentage >= 80) return 'Good';
+    if (percentage >= 60) return 'Average';
+    return 'At Risk';
+  };
 
-    return `${dayName}, ${monthName} ${date}, ${year}`;
+  // Get status color
+  const getStatusColor = (percentage: number) => {
+    if (percentage >= 80) return colors.tint;
+    if (percentage >= 60) return colors.warning;
+    return colors.error;
   };
 
   // Load dashboard data
   const loadDashboardData = async () => {
     try {
-      // Load stats first
       let dashboardStats: DashboardStats | null = null;
       try {
         dashboardStats = await apiClientService.studentDashboard();
@@ -58,7 +89,6 @@ export default function DashboardScreen() {
         throw new Error(`Dashboard stats: ${statsError?.message || 'Unknown error'}`);
       }
 
-      // Then load courses
       let enrolledCourses: Course[] = [];
       try {
         enrolledCourses = await apiClientService.studentGetCourses();
@@ -79,64 +109,43 @@ export default function DashboardScreen() {
     }
   };
 
-  // Load on mount
   useEffect(() => {
     loadDashboardData();
   }, []);
 
-  // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
     }, [])
   );
 
-  // Pull to refresh handler
   const onRefresh = () => {
     setRefreshing(true);
     loadDashboardData();
   };
 
-  // Logout handler
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              router.replace('/(auth)/login');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to logout. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  // Navigate to attendance flow
   const handleMarkAttendance = () => {
-    router.push('/attendance-flow');
+    router.push('/(tabs)/attendance');
   };
 
-  // Navigate to courses screen
-  const handleViewAllCourses = () => {
-    router.push('/(tabs)/courses');
+  const handleViewHistory = () => {
+    router.push('/(tabs)/attendance');
   };
 
-  // Navigate to search screen
-  const handleSearchCourses = () => {
-    router.push('/(tabs)/search');
+  const getSessionStatusStyle = (status: 'PRESENT' | 'ABSENT' | 'UPCOMING') => {
+    switch (status) {
+      case 'PRESENT':
+        return { backgroundColor: Emerald[100], color: Emerald[700] };
+      case 'ABSENT':
+        return { backgroundColor: '#fee2e2', color: '#dc2626' };
+      case 'UPCOMING':
+        return { backgroundColor: '#dbeafe', color: '#2563eb' };
+    }
   };
+
+  const recentSessions = getRecentSessions();
+  const attendancePercentage = getAttendancePercentage();
+  const statusLabel = getStatusLabel(attendancePercentage);
 
   return (
     <ScrollView
@@ -150,17 +159,14 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.userSection}>
-            {/* Initials Icon */}
             <View style={[styles.initialsCircle, { backgroundColor: colors.tint }]}>
               <Text style={styles.initialsText}>
                 {getInitials(user?.full_name || user?.email)}
               </Text>
             </View>
-
-            {/* Welcome and Username */}
             <View style={styles.userInfo}>
               <Text style={[styles.welcomeText, { color: colors.tabIconDefault }]}>
-                Welcome back
+                Welcome back,
               </Text>
               {user && (
                 <Text style={[styles.userName, { color: colors.text }]}>
@@ -170,26 +176,14 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Logout Button */}
           <TouchableOpacity
-            onPress={handleLogout}
-            style={[styles.logoutButton, { backgroundColor: colors.tint + '15' }]}
+            style={[styles.notificationButton, { backgroundColor: colors.tint + '15' }]}
           >
-            <IconSymbol name="rectangle.portrait.and.arrow.right" size={24} color={colors.tint} />
+            <IconSymbol name="bell.fill" size={22} color={colors.tint} />
           </TouchableOpacity>
         </View>
-
-        {/* Date Display */}
-        <Text style={[styles.dateText, { color: colors.tabIconDefault }]}>
-          {getCurrentDate()}
-        </Text>
-
-        <Text style={[styles.subtitle, { color: colors.tabIconDefault }]}>
-          Your attendance dashboard
-        </Text>
       </View>
 
-      {/* Loading State */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.tint} />
@@ -199,141 +193,101 @@ export default function DashboardScreen() {
         </View>
       ) : (
         <>
-          {/* Statistics Section */}
-          {stats && (
-            <View style={styles.statsSection}>
-              <View style={styles.statsRow}>
-                <StatCard
-                  title="Enrolled"
-                  value={stats.enrolled_courses}
-                  subtitle="courses"
-                  colorScheme={colorScheme}
-                />
-                <StatCard
-                  title="Attendance"
-                  value={stats.attendance_marked_count}
-                  subtitle="marked"
-                  colorScheme={colorScheme}
-                />
-                <StatCard
-                  title="Confirmed"
-                  value={stats.confirmed_count}
-                  subtitle="approved"
-                  colorScheme={colorScheme}
-                />
+          {/* Overall Attendance Card */}
+          <View style={[styles.attendanceCard, { backgroundColor: colors.tint }]}>
+            <View style={styles.attendanceCardContent}>
+              <View style={styles.attendanceInfo}>
+                <Text style={styles.attendanceLabel}>Overall Attendance</Text>
+                <Text style={styles.attendancePercentage}>{attendancePercentage}%</Text>
+                <Text style={styles.attendanceSubtitle}>
+                  {stats?.confirmed_count || 0}/{stats?.attendance_marked_count || 0} Classes Attended
+                </Text>
+              </View>
+
+              {/* Status Badge */}
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>{statusLabel}</Text>
               </View>
             </View>
-          )}
 
-          {/* Confirmation Gauge Section */}
-          {stats && stats.attendance_marked_count > 0 && (
-            <View style={styles.gaugeSection}>
-              <ConfirmationGauge
-                confirmedCount={stats.confirmed_count}
-                totalCount={stats.attendance_marked_count}
-                colorScheme={colorScheme}
-              />
+            {/* Quick Action Buttons */}
+            <View style={styles.attendanceButtons}>
+              <TouchableOpacity
+                style={styles.attendanceActionButton}
+                onPress={handleMarkAttendance}
+              >
+                <IconSymbol name="qrcode" size={16} color={colors.tint} />
+                <Text style={[styles.attendanceActionText, { color: colors.tint }]}>Check In</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.attendanceActionButtonReports}
+                onPress={handleViewHistory}
+              >
+                <IconSymbol name="chart.bar.fill" size={16} color='#ffffff' />
+                <Text style={styles.attendanceActionText}>Reports</Text>
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Quick Action Section */}
-          <View style={styles.quickActionSection}>
-            <QuickActionButton
-              label="Mark Attendance"
-              onPress={handleMarkAttendance}
-              icon="qrcode"
-            />
           </View>
 
-          {/* My Courses Section */}
-          <View style={styles.coursesSection}>
+          {/* Recent Sessions Section */}
+          <View style={styles.sessionsSection}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                My Courses
+                Recent Sessions
               </Text>
-              {courses.length > 3 && (
-                <TouchableOpacity onPress={handleViewAllCourses}>
-                  <Text style={[styles.seeAllText, { color: colors.tint }]}>
-                    See All
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity onPress={handleViewHistory}>
+                <Text style={[styles.viewAllText, { color: colors.tint }]}>
+                  View All
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {courses.length === 0 ? (
-              <View style={styles.emptyCoursesContainer}>
-                <IconSymbol name="book.fill" size={48} color={colors.tabIconDefault} />
-                <Text style={[styles.emptyCoursesText, { color: colors.text }]}>
-                  No courses yet
+            {recentSessions.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <IconSymbol name="calendar" size={48} color={colors.tabIconDefault} />
+                <Text style={[styles.emptyText, { color: colors.text }]}>
+                  No recent sessions
                 </Text>
-                <Text style={[styles.emptyCoursesSubtext, { color: colors.tabIconDefault }]}>
-                  Use the search tab to find and enroll in courses
+                <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
+                  Your attendance history will appear here
                 </Text>
-                <TouchableOpacity
-                  style={[styles.searchButton, { backgroundColor: colors.tint }]}
-                  onPress={handleSearchCourses}
-                >
-                  <IconSymbol name="magnifyingglass" size={16} color="#ffffff" />
-                  <Text style={styles.searchButtonText}>Search Courses</Text>
-                </TouchableOpacity>
               </View>
             ) : (
               <>
-                {courses.slice(0, 3).map((course) => (
-                  <TouchableOpacity
-                    key={course.id}
-                    style={[
-                      styles.courseCard,
-                      {
-                        backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                        borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
-                      },
-                    ]}
-                    onPress={handleViewAllCourses}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.courseContent}>
-                      <View style={styles.courseInfo}>
-                        <Text style={[styles.courseCode, { color: colors.tint }]}>
-                          {course.code}
-                        </Text>
-                        <Text style={[styles.courseName, { color: colors.text }]} numberOfLines={1}>
-                          {course.name}
-                        </Text>
-                        <View style={styles.courseMeta}>
-                          <IconSymbol name="calendar" size={12} color={colors.tabIconDefault} />
-                          <Text style={[styles.courseMetaText, { color: colors.tabIconDefault }]}>
-                            {course.semester}
+                {recentSessions.map((session) => {
+                  const statusStyle = getSessionStatusStyle(session.status);
+                  return (
+                    <View
+                      key={session.id}
+                      style={[
+                        styles.sessionCard,
+                        {
+                          backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
+                          borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                        },
+                      ]}
+                    >
+                      <View style={styles.sessionContent}>
+                        <View style={styles.sessionDetails}>
+                          <Text style={[styles.sessionName, { color: colors.text }]} numberOfLines={1}>
+                            {session.courseName}
                           </Text>
-                          {course.lecturer_name && (
-                            <>
-                              <Text style={[styles.metaDivider, { color: colors.tabIconDefault }]}>
-                                •
-                              </Text>
-                              <IconSymbol name="person.fill" size={12} color={colors.tabIconDefault} />
-                              <Text style={[styles.courseMetaText, { color: colors.tabIconDefault }]} numberOfLines={1}>
-                                {course.lecturer_name}
-                              </Text>
-                            </>
-                          )}
+                          <View style={styles.sessionMeta}>
+                            <Text style={[styles.sessionProfessor, { color: colors.tabIconDefault }]}>
+                              {session.professor}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={[styles.sessionStatusBadge, { backgroundColor: statusStyle.backgroundColor }]}>
+                          <Text style={[styles.sessionStatusText, { color: statusStyle.color }]}>
+                            {session.status}
+                          </Text>
                         </View>
                       </View>
-                      <IconSymbol name="chevron.right" size={20} color={colors.tabIconDefault} />
                     </View>
-                  </TouchableOpacity>
-                ))}
-
-                {courses.length > 3 && (
-                  <TouchableOpacity
-                    style={styles.viewAllButton}
-                    onPress={handleViewAllCourses}
-                  >
-                    <Text style={[styles.viewAllButtonText, { color: colors.tint }]}>
-                      See All Courses
-                    </Text>
-                    <IconSymbol name="chevron.right" size={16} color={colors.tint} />
-                  </TouchableOpacity>
-                )}
+                  );
+                })}
               </>
             )}
           </View>
@@ -350,7 +304,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 100, // Space for bottom nav bar
+    paddingBottom: 100,
   },
   header: {
     marginBottom: 24,
@@ -359,7 +313,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
   userSection: {
     flexDirection: 'row',
@@ -367,9 +320,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   initialsCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -387,20 +340,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   userName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  dateText: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-  },
-  logoutButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -413,24 +359,99 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
   },
-  statsSection: {
-    marginBottom: 20,
-  },
-  statsScrollContent: {
-    paddingRight: 8,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  gaugeSection: {
-    marginBottom: 20,
-  },
-  quickActionSection: {
+  // Overall Attendance Card
+  attendanceCard: {
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 24,
   },
-  coursesSection: {
+  attendanceCardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  attendanceInfo: {
+    flex: 1,
+  },
+  attendanceLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  attendancePercentage: {
+    color: '#ffffff',
+    fontSize: 42,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  attendanceSubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+  },
+  statusBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statusBadgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  attendanceButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  attendanceActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  attendanceActionButtonReports: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  attendanceActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff'
+  },
+  // Quick Actions
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 28,
+  },
+  quickActionItem: {
+    alignItems: 'center',
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickActionLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  // Sessions Section
+  sessionsSection: {
     marginBottom: 20,
   },
   sectionHeader: {
@@ -440,99 +461,88 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  seeAllText: {
+  viewAllText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  emptyCoursesContainer: {
+  emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
     paddingHorizontal: 20,
   },
-  emptyCoursesText: {
+  emptyText: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: 16,
     marginBottom: 8,
   },
-  emptyCoursesSubtext: {
+  emptySubtext: {
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 20,
   },
-  searchButton: {
+  sessionCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  sessionTimeBar: {
+    width: 4,
+  },
+  sessionContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    padding: 16,
   },
-  searchButtonText: {
-    color: '#ffffff',
+  sessionTime: {
+    marginRight: 16,
+    alignItems: 'center',
+  },
+  sessionTimeText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  courseCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+  sessionTimeSeparator: {
+    fontSize: 10,
   },
-  courseContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  courseInfo: {
+  sessionDetails: {
     flex: 1,
     marginRight: 12,
   },
-  courseCode: {
-    fontSize: 12,
-    fontWeight: '700',
+  sessionName: {
+    fontSize: 15,
+    fontWeight: '600',
     marginBottom: 4,
   },
-  courseName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  courseMeta: {
+  sessionMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    flexWrap: 'wrap',
   },
-  courseMetaText: {
+  sessionLocation: {
     fontSize: 12,
   },
-  metaDivider: {
+  sessionDot: {
+    fontSize: 10,
+    marginHorizontal: 6,
+  },
+  sessionProfessor: {
     fontSize: 12,
-    marginHorizontal: 4,
   },
-  viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 12,
+  sessionStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  viewAllButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+  sessionStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
 });
