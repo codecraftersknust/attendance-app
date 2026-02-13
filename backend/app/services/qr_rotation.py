@@ -4,12 +4,12 @@ Handles automatic QR code rotation for active sessions
 """
 import asyncio
 import threading
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, Set
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
 from ..models.attendance_session import AttendanceSession
-from ..services.utils import generate_session_nonce
+from ..services.utils import generate_session_nonce, utcnow
 from ..services.audit import write_audit
 
 
@@ -101,7 +101,7 @@ class QRRotationService:
         db = SessionLocal()
         try:
             # Get sessions that need QR rotation (expired or about to expire)
-            now = datetime.utcnow()
+            now = utcnow()
             sessions_to_rotate = (
                 db.query(AttendanceSession)
                 .filter(
@@ -125,7 +125,7 @@ class QRRotationService:
         try:
             # Generate new QR data
             session.qr_nonce = generate_session_nonce()
-            session.qr_expires_at = datetime.utcnow() + timedelta(seconds=30)
+            session.qr_expires_at = utcnow() + timedelta(seconds=30)
             
             db.commit()
             
@@ -142,7 +142,7 @@ class QRRotationService:
         """Automatically close sessions whose ends_at has passed."""
         db = SessionLocal()
         try:
-            now = datetime.utcnow()
+            now = utcnow()
             expired = (
                 db.query(AttendanceSession)
                 .filter(
@@ -220,9 +220,7 @@ def ensure_qr_valid(session, db: Session, ttl_seconds: int = 30) -> bool:
     Returns True if QR was generated/rotated, False if already valid.
     This makes QR management fully automatic for the frontend.
     """
-    from datetime import datetime, timedelta
-    
-    now = datetime.utcnow()
+    now = utcnow()
     needs_generation = not session.qr_nonce or not session.qr_expires_at
     is_expired = session.qr_expires_at and session.qr_expires_at < now
     

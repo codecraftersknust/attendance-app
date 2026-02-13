@@ -3,6 +3,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="${SCRIPT_DIR%/scripts}"
 cd "$BACKEND_DIR"
-export PYTHONPATH=app
-export DATABASE_URL="sqlite:///./absense_dev.db"
+export PYTHONPATH=.
+
+# Load env vars from .env (DATABASE_URL, SUPABASE_* etc.)
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
 exec "$BACKEND_DIR/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000 --reload

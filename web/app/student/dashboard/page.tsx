@@ -46,6 +46,8 @@ export default function StudentDashboard() {
         confirmed_count: number;
     } | null>(null);
 
+    const [history, setHistory] = useState<any[]>([]);
+
     // Load enrolled courses (and dashboard stats) on mount
     useEffect(() => {
         loadEnrolledCourses();
@@ -67,14 +69,16 @@ export default function StudentDashboard() {
     const loadEnrolledCourses = async () => {
         try {
             setLoading(true);
-            const [courses, dashboardData] = await Promise.all([
+            const [courses, dashboardData, historyData] = await Promise.all([
                 apiClient.studentGetCourses(),
                 apiClient.studentDashboard(),
+                apiClient.studentGetAttendanceHistory(),
             ]);
             setEnrolledCourses(courses as Course[]);
             setStats(dashboardData);
+            setHistory(historyData);
         } catch (e: any) {
-            toast.error(e?.message || 'Failed to load enrolled courses');
+            toast.error(e?.message || 'Failed to load data');
         } finally {
             setLoading(false);
         }
@@ -214,6 +218,53 @@ export default function StudentDashboard() {
                     </Link>
                 </div>
 
+                {/* Attendance History */}
+                <div className="bg-white rounded-md shadow p-4 mb-4">
+                    <h2 className="text-lg font-semibold mb-3">Recent Attendance History</h2>
+                    {loading ? (
+                        <p className="text-gray-600">Loading history...</p>
+                    ) : history.length === 0 ? (
+                        <p className="text-gray-600">No attendance history available yet.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead>
+                                    <tr>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {history.map((record) => (
+                                        <tr key={record.session_id}>
+                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                {new Date(record.starts_at || '').toLocaleDateString()}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                {record.course_code}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                    ${record.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                                                        record.status === 'flagged' ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-red-100 text-red-800'}`}>
+                                                    {record.status === 'confirmed' ? 'Present' :
+                                                        record.status === 'flagged' ? 'Flagged' : 'Absent'}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                                                {record.session_code}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
                 {/* Search Section */}
                 <div className="bg-white rounded-md shadow p-4 mb-4">
                     <h2 className="text-lg font-semibold mb-3">Search Courses</h2>
@@ -314,9 +365,9 @@ export default function StudentDashboard() {
                         <DialogTitle>Drop course?</DialogTitle>
                         <DialogDescription>
                             {courseToDrop && (
-                               	<>
-                                   	You will be removed from <strong>{courseToDrop.code} – {courseToDrop.name}</strong>. You can search and re-enroll later if needed.
-                               	</>
+                                <>
+                                    You will be removed from <strong>{courseToDrop.code} – {courseToDrop.name}</strong>. You can search and re-enroll later if needed.
+                                </>
                             )}
                         </DialogDescription>
                     </DialogHeader>

@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .api.v1.routers import api_router
@@ -21,11 +20,9 @@ app = FastAPI(title="absense-backend", version="0.1.0", lifespan=lifespan)
 
 app.include_router(api_router, prefix="/api/v1")
 
-from .db.base import Base
-from .db.session import engine
-
-# Dev-only: create tables if they do not exist
-Base.metadata.create_all(bind=engine)
+# Tables are managed by Alembic migrations / init_supabase script.
+# No create_all() here — it would force a DB connection at startup
+# and crash the app if the network is momentarily unavailable.
 
 settings = Settings()
 app.add_middleware(
@@ -38,5 +35,3 @@ app.add_middleware(
 
 app.add_middleware(RequestIDLoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
-
-app.mount("/static", StaticFiles(directory="uploads"), name="static")

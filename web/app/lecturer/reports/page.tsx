@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Users, UserCheck, UserX, AlertTriangle } from 'lucide-react';
+import { AbsentStudentsTab } from '@/components/lecturer/absent-students-tab';
 
 type Session = {
     id: number;
@@ -264,6 +265,11 @@ export default function ReportsPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                        </div>
+
+                        {/* Absent Students Tab */}
+                        <div className="mt-8">
+                            <AbsentStudentsTab sessionId={Number(selectedSessionId)} />
                         </div>
                     </div>
                 )}

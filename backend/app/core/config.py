@@ -6,11 +6,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     algorithm: str = "HS256"
     database_url: str = "sqlite:///./absense_dev.db"
-    storage_backend: str = "local"  # local or s3
-    s3_bucket: str | None = None
-    s3_region: str | None = None
-    s3_access_key: str | None = None
-    s3_secret_key: str | None = None
+
+    # Supabase
+    supabase_url: str = ""  # e.g. https://<project-ref>.supabase.co
+    supabase_anon_key: str = ""  # public anon key from Supabase dashboard
+    supabase_service_role_key: str = ""  # service role key (server-side only)
+    supabase_storage_bucket: str = "uploads"  # bucket name in Supabase Storage
+
     cors_allow_origins: str = "*"  # comma-separated
     cors_allow_credentials: bool = True
     cors_allow_methods: str = "*"

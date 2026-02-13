@@ -3,11 +3,21 @@ set -e
 
 echo "Running database migrations..."
 
-# Set database URL if not provided
-export DATABASE_URL=${DATABASE_URL:-"postgresql+psycopg2://postgres:postgres@localhost:5432/smavs"}
+cd "$(dirname "$0")/.."
+
+# Load env vars from .env (DATABASE_URL etc.)
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
+if [ -z "${DATABASE_URL:-}" ]; then
+    echo "Error: DATABASE_URL is not set. Check your .env file."
+    exit 1
+fi
 
 # Run migrations
-cd "$(dirname "$0")/.."
 python -m alembic upgrade head
 
 echo "Migrations completed!"

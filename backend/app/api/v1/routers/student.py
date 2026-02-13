@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
-import shutil
-import os
 
 from app.schemas.students import FaceVerificationResponse
 from app.services.face_verification import FaceVerificationService
@@ -16,7 +14,7 @@ from ....models.verification_log import VerificationLog
 from ....models.course import Course
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....services.audit import write_audit
-from ....services.utils import hash_device_id
+from ....services.utils import hash_device_id, utcnow
 from ....storage.base import get_storage
 from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
@@ -61,12 +59,12 @@ async def submit_attendance(
         logger.error(f"QR not generated for session {qr_session_id}")
         raise HTTPException(status_code=400, detail="QR code not generated for this session")
     
-    if session.qr_expires_at < datetime.utcnow():
+    if session.qr_expires_at < utcnow():
         logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
         raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
     
     # Enforce session duration
-    if session.ends_at and session.ends_at < datetime.utcnow():
+    if session.ends_at and session.ends_at < utcnow():
         logger.warning(f"Session ended - session_id={qr_session_id}, ends_at={session.ends_at}")
         raise HTTPException(status_code=400, detail="Session has ended")
 
@@ -98,9 +96,9 @@ async def submit_attendance(
     )
     storage = get_storage()
 
-    # Store URLs for DB and filesystem paths for verification
+    # Store URL for DB and raw bytes for verification
     selfie_url = None
-    selfie_fs_path = None
+    selfie_bytes: bytes | None = None
 
     # Enforce selfie when face verification is enabled
     if cfg.face_verification_enabled and selfie is None:
@@ -109,11 +107,11 @@ async def submit_attendance(
     if selfie is not None:
         if selfie.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail="Invalid selfie type")
-        data = await selfie.read()
-        if len(data) > max_size_bytes:
+        selfie_bytes = await selfie.read()
+        if len(selfie_bytes) > max_size_bytes:
             raise HTTPException(status_code=400, detail="Selfie too large")
         selfie_rel = f"selfies/{current.id}_{session.id}_{selfie.filename}"
-        selfie_fs_path = storage.save_bytes(data, selfie_rel)
+        storage.save_bytes(selfie_bytes, selfie_rel)
         selfie_url = storage.url_for(selfie_rel)
 
     # Hash device ID for comparison
@@ -132,9 +130,9 @@ async def submit_attendance(
 
     # If we have a selfie and a reference, perform face verification (guarded by settings inside service)
     verification = None
-    ref_path = current.face_reference_path or face_service.get_reference_path(current.id)
-    if selfie_fs_path and os.path.exists(ref_path):
-        verification = face_service.verify_face(current.id, selfie_fs_path)
+    has_reference = bool(current.face_reference_path) or face_service.has_reference_face(current.id)
+    if selfie_bytes and has_reference:
+        verification = face_service.verify_face(current.id, selfie_bytes)
         if not verification.get("verified"):
             # Flag but do not reject to avoid blocking legitimate attendance
             status = AttendanceStatus.flagged
@@ -217,10 +215,9 @@ def device_status(db: Session = Depends(get_db), current: User = Depends(get_cur
     """Return current student's bound device status (device ID hash and active flag)."""
     device = db.query(Device).filter(Device.user_id == current.id).first()
     
-    # Check if face is enrolled
+    # Check if face is enrolled (DB path or remote storage)
     has_face = bool(current.face_reference_path)
     if not has_face:
-        # Fallback to checking storage if path not in DB (legacy support)
         has_face = face_service.has_reference_face(current.id)
 
     return {
@@ -235,20 +232,16 @@ async def enroll_face(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Upload a selfie to store as reference face."""
-    os.makedirs("uploads", exist_ok=True)
-    temp_path = f"uploads/temp_{current_user.id}.jpg"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    """Upload a selfie to store as reference face in Supabase Storage."""
+    image_bytes = await file.read()
+    ref_key = face_service.save_reference_face(current_user.id, image_bytes)
 
-    ref_path = face_service.save_reference_face(current_user.id, temp_path)
-
-    # Persist reference path on user for future checks
-    current_user.face_reference_path = ref_path
+    # Persist reference key on user for future checks
+    current_user.face_reference_path = ref_key
     db.add(current_user)
     db.commit()
 
-    return {"message": "Reference face enrolled successfully", "path": ref_path}
+    return {"message": "Reference face enrolled successfully", "path": ref_key}
 
 
 @router.post("/verify-face", response_model=FaceVerificationResponse)
@@ -259,21 +252,11 @@ async def verify_face(
     current_user: User = Depends(get_current_user),
 ):
     """Compare uploaded face with enrolled reference face."""
-    os.makedirs("uploads", exist_ok=True)
-    temp_path = f"uploads/temp_verify_{current_user.id}.jpg"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    result = face_service.verify_face(current_user.id, temp_path)
-
-    try:
-        os.remove(temp_path)
-    except OSError:
-        pass
+    image_bytes = await file.read()
+    result = face_service.verify_face(current_user.id, image_bytes)
 
     if not result.get("verified"):
         if debug:
-            # Return result payload for debugging thresholds
             return FaceVerificationResponse(
                 verified=False,
                 distance=result.get("distance"),
@@ -470,7 +453,7 @@ def list_active_sessions(
         return []
 
     from datetime import datetime
-    now = datetime.utcnow()
+    now = utcnow()
     sessions = (
         db.query(AttendanceSession)
         .filter(
@@ -510,3 +493,67 @@ def list_active_sessions(
 
     write_audit(db, "student.list_active_sessions", current.id, f"count={len(result)}")
     return result
+
+@router.get("/attendance/history", response_model=List[dict])
+def get_attendance_history(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Get full attendance history including present, late, and absent sessions"""
+    # 1. Get all courses the student is currently enrolled in
+    enrollments = (
+        db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .all()
+    )
+    enrolled_course_ids = [e.course_id for e in enrollments]
+    
+    if not enrolled_course_ids:
+        return []
+
+    # 2. Get all sessions for these courses that have ENDED
+    # We only count absence if the session is over
+    from datetime import datetime
+    now = utcnow()
+    
+    past_sessions = (
+        db.query(AttendanceSession)
+        .filter(
+            AttendanceSession.course_id.in_(enrolled_course_ids),
+            AttendanceSession.ends_at < now
+        )
+        .order_by(AttendanceSession.ends_at.desc())
+        .all()
+    )
+    
+    # 3. Get all attendance records for this student
+    my_records = {
+        r.session_id: r
+        for r in db.query(AttendanceRecord)
+        .filter(AttendanceRecord.student_id == current.id)
+        .all()
+    }
+    
+    history = []
+    
+    for session in past_sessions:
+        record = my_records.get(session.id)
+        status = "absent"
+        if record:
+            status = record.status.value # confirmed or flagged
+            
+        course = db.get(Course, session.course_id)
+        
+        history.append({
+            "session_id": session.id,
+            "session_code": session.code,
+            "course_code": course.code if course else "Unknown",
+            "course_name": course.name if course else "Unknown",
+            "starts_at": session.starts_at.isoformat() if session.starts_at else None,
+            "ends_at": session.ends_at.isoformat() if session.ends_at else None,
+            "status": status,
+            "record_id": record.id if record else None
+        })
+        
+    write_audit(db, "student.get_attendance_history", current.id)
+    return history

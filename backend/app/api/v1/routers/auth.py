@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from ....schemas.auth import Token, UserCreate, UserRead
+from ....schemas.auth import Token, UserCreate, UserRead, UserProfileRead, UserUpdate, PasswordChange
 from ....services.security import (
     get_password_hash,
     verify_password,
@@ -11,11 +11,14 @@ from ....services.security import (
     is_refresh_token,
 )
 from ....db.deps import get_db
+from ....api.deps.auth import get_current_user
 from ....models.user import User, UserRole
+from ....services.face_verification import FaceVerificationService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+face_service = FaceVerificationService()
 
 
 @router.post("/register", response_model=UserRead)
@@ -65,14 +68,85 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 
 @router.get("/me", response_model=UserRead)
-def read_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    sub = decode_token(token)
-    if not sub:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.get(User, int(sub))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+def read_me(current: User = Depends(get_current_user)):
+    return current
+
+
+@router.get("/profile", response_model=UserProfileRead)
+def get_profile(current: User = Depends(get_current_user)):
+    """Get the full profile of the current user."""
+    has_face = bool(current.face_reference_path) or face_service.has_reference_face(current.id)
+    return UserProfileRead(
+        id=current.id,
+        email=current.email,
+        full_name=current.full_name,
+        user_id=current.user_id,
+        role=current.role.value if hasattr(current.role, "value") else current.role,
+        is_active=current.is_active,
+        has_face_enrolled=has_face,
+        created_at=current.created_at,
+        updated_at=current.updated_at,
+    )
+
+
+@router.put("/profile", response_model=UserProfileRead)
+def update_profile(
+    updates: UserUpdate,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """Update the current user's profile fields."""
+    # Check email uniqueness if changing
+    if updates.email and updates.email != current.email:
+        existing = db.query(User).filter(User.email == updates.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        current.email = updates.email
+
+    # Check user_id uniqueness if changing
+    if updates.user_id is not None and updates.user_id != current.user_id:
+        if updates.user_id:
+            existing = db.query(User).filter(User.user_id == updates.user_id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="User ID already in use")
+        current.user_id = updates.user_id
+
+    if updates.full_name is not None:
+        current.full_name = updates.full_name
+
+    db.commit()
+    db.refresh(current)
+
+    has_face = bool(current.face_reference_path) or face_service.has_reference_face(current.id)
+    return UserProfileRead(
+        id=current.id,
+        email=current.email,
+        full_name=current.full_name,
+        user_id=current.user_id,
+        role=current.role.value if hasattr(current.role, "value") else current.role,
+        is_active=current.is_active,
+        has_face_enrolled=has_face,
+        created_at=current.created_at,
+        updated_at=current.updated_at,
+    )
+
+
+@router.post("/change-password", response_model=dict)
+def change_password(
+    payload: PasswordChange,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """Change the current user's password."""
+    if not verify_password(payload.current_password, current.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    if len(payload.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+
+    current.hashed_password = get_password_hash(payload.new_password)
+    db.commit()
+    return {"message": "Password changed successfully"}
 
 
 @router.post("/refresh", response_model=Token)

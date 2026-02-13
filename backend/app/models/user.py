@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 import enum
 from ..db.session import Base
+from ..services.utils import utcnow
 
 
 class UserRole(str, enum.Enum):
@@ -22,8 +23,8 @@ class User(Base):
     face_reference_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False, default=UserRole.student)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     devices: Mapped[list["Device"]] = relationship(back_populates="user")
     lecturer_sessions: Mapped[list["AttendanceSession"]] = relationship(back_populates="lecturer")

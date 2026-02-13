@@ -6,6 +6,31 @@ export interface User {
     full_name: string | null;
     user_id: string | null;
     role: 'student' | 'lecturer' | 'admin';
+    is_active?: boolean;
+    created_at?: string;
+}
+
+export interface UserProfile {
+    id: number;
+    email: string;
+    full_name: string | null;
+    user_id: string | null;
+    role: 'student' | 'lecturer' | 'admin';
+    is_active: boolean;
+    has_face_enrolled: boolean;
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+export interface UserUpdateRequest {
+    full_name?: string;
+    email?: string;
+    user_id?: string;
+}
+
+export interface PasswordChangeRequest {
+    current_password: string;
+    new_password: string;
 }
 
 export interface AuthResponse {
@@ -102,6 +127,24 @@ class ApiClient {
 
     async getCurrentUser(): Promise<User> {
         return this.request<User>('/auth/me');
+    }
+
+    async getProfile(): Promise<UserProfile> {
+        return this.request<UserProfile>('/auth/profile');
+    }
+
+    async updateProfile(data: UserUpdateRequest): Promise<UserProfile> {
+        return this.request<UserProfile>('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async changePassword(data: PasswordChangeRequest): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
     }
 
     async refreshToken(): Promise<AuthResponse> {
@@ -399,6 +442,29 @@ class ApiClient {
             headers: {},
             body: form,
         });
+    }
+
+    async lecturerGetAbsentStudents(sessionId: number): Promise<Array<{
+        id: number;
+        user_id: string | null;
+        full_name: string | null;
+        email: string;
+        status: string;
+    }>> {
+        return this.request(`/lecturer/sessions/${sessionId}/absent`);
+    }
+
+    async studentGetAttendanceHistory(): Promise<Array<{
+        session_id: number;
+        session_code: string;
+        course_code: string;
+        course_name: string;
+        starts_at: string | null;
+        ends_at: string | null;
+        status: string;
+        record_id: number | null;
+    }>> {
+        return this.request('/student/attendance/history');
     }
 }
 

@@ -13,7 +13,7 @@ from ....models.audit_log import AuditLog
 from ....services.audit import write_audit
 from ....api.deps.auth import role_required
 from ....services.face_verification import FaceVerificationService
-from ....services.utils import hash_device_id
+from ....services.utils import hash_device_id, utcnow
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -288,7 +288,7 @@ def get_system_activity(
     current: User = Depends(get_current_admin)
 ):
     """Get recent system activity including sessions, attendance, and audit logs"""
-    since = datetime.utcnow() - timedelta(hours=hours)
+    since = utcnow() - timedelta(hours=hours)
     
     # Recent sessions
     recent_sessions = (
@@ -386,7 +386,7 @@ def admin_dashboard(db: Session = Depends(get_db), current: User = Depends(get_c
     flagged_attendance = db.query(AttendanceRecord).filter(AttendanceRecord.status == AttendanceStatus.flagged).count()
     
     # Recent activity (last 24 hours)
-    since = datetime.utcnow() - timedelta(hours=24)
+    since = utcnow() - timedelta(hours=24)
     recent_sessions = db.query(AttendanceSession).filter(AttendanceSession.created_at >= since).count()
     recent_attendance = db.query(AttendanceRecord).filter(AttendanceRecord.created_at >= since).count()
     

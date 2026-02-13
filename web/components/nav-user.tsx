@@ -3,6 +3,7 @@
 import {
     ChevronsUpDown,
     LogOut,
+    User,
 } from "lucide-react"
 
 import {
@@ -73,6 +74,11 @@ export function NavUser() {
                                 </div>
                             </div>
                         </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => router.push('/profile')}>
+                            <User />
+                            Profile
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={handleLogout}>
                             <LogOut />
