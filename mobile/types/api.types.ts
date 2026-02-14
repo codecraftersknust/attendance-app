@@ -25,6 +25,7 @@ export interface PaginatedResponse<T> {
 
 export interface DashboardStats {
     enrolled_courses: number;
+    total_sessions: number;
     attendance_marked_count: number;
     confirmed_count: number;
 }
@@ -65,4 +66,13 @@ export interface AttendanceSubmission {
     selfie?: any; // File or URI depending on platform
 }
 
-
+export interface AttendanceHistoryItem {
+    session_id: number;
+    session_code: string;
+    course_code: string;
+    course_name: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    status: 'confirmed' | 'flagged' | 'absent';
+    record_id: number | null;
+}

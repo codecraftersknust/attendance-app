@@ -7,7 +7,7 @@ export const USE_MOCK_BACKEND = false; // Set to false to use real backend
 // Replace this IP with your actual local IP address when it changes
 export const API_CONFIG = {
     BASE_URL: isDev
-        ? 'http://10.132.26.221:8000/api/v1'
+        ? 'http://172.20.10.2:8000/api/v1'
         : 'https://api.absense.com/api/v1',
 
     TIMEOUT: 10000,

@@ -5,7 +5,7 @@
  */
 
 import apiClient from './api';
-import type { DashboardStats, Course } from '@/types/api.types';
+import type { DashboardStats, Course, AttendanceHistoryItem } from '@/types/api.types';
 
 export interface UserProfile {
     id: number;
@@ -94,6 +94,14 @@ class ApiClientService {
      */
     async studentUnenrollFromCourse(courseId: number): Promise<any> {
         const response = await apiClient.delete(`/student/courses/${courseId}/enroll`);
+        return response.data;
+    }
+
+    /**
+     * Get attendance history (past sessions with status)
+     */
+    async getAttendanceHistory(): Promise<AttendanceHistoryItem[]> {
+        const response = await apiClient.get<AttendanceHistoryItem[]>('/student/attendance/history');
         return response.data;
     }
 }

@@ -36,7 +36,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="attendance"
         options={{
-          title: 'Mark Attendance',
+          title: 'Attendance',
         }}
       />
       <Tabs.Screen

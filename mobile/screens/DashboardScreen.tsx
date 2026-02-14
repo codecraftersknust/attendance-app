@@ -7,19 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import apiClientService from '@/services/apiClient.service';
-import type { DashboardStats, Course } from '@/types/api.types';
-
-// Mock recent sessions data (in a real app, this would come from the API)
-interface RecentSession {
-  id: number;
-  courseName: string;
-  courseCode: string;
-  location: string;
-  professor: string;
-  startTime: string;
-  endTime: string;
-  status: 'PRESENT' | 'ABSENT' | 'UPCOMING';
-}
+import type { DashboardStats, Course, AttendanceHistoryItem } from '@/types/api.types';
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
@@ -30,25 +18,9 @@ export default function DashboardScreen() {
   // State
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [recentSessions, setRecentSessions] = useState<AttendanceHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Mock recent sessions (derived from courses for now)
-  const getRecentSessions = (): RecentSession[] => {
-    if (courses.length === 0) return [];
-
-    const statuses: Array<'PRESENT' | 'ABSENT' | 'UPCOMING'> = ['PRESENT', 'UPCOMING', 'ABSENT'];
-    return courses.slice(0, 3).map((course, index) => ({
-      id: course.id,
-      courseName: course.name,
-      courseCode: course.code,
-      location: `Room ${100 + index * 10}`,
-      professor: course.lecturer_name || 'Prof. TBA',
-      startTime: `${9 + index}:00`,
-      endTime: `${10 + index}:30`,
-      status: statuses[index % 3],
-    }));
-  };
 
   // Get user initials
   const getInitials = (name: string | undefined) => {
@@ -58,10 +30,10 @@ export default function DashboardScreen() {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
-  // Calculate attendance percentage
+  // Calculate attendance percentage (confirmed out of total past sessions)
   const getAttendancePercentage = () => {
-    if (!stats || stats.attendance_marked_count === 0) return 0;
-    return Math.round((stats.confirmed_count / stats.attendance_marked_count) * 100 * 10) / 10;
+    if (!stats || stats.total_sessions === 0) return 0;
+    return Math.round((stats.confirmed_count / stats.total_sessions) * 100 * 10) / 10;
   };
 
   // Get status label
@@ -97,8 +69,17 @@ export default function DashboardScreen() {
         throw new Error(`Courses: ${coursesError?.message || 'Unknown error'}`);
       }
 
+      let history: AttendanceHistoryItem[] = [];
+      try {
+        history = await apiClientService.getAttendanceHistory();
+      } catch (historyError: any) {
+        console.error('Failed to load attendance history:', historyError);
+        // Non-critical: don't throw, just show empty recent sessions
+      }
+
       setStats(dashboardStats);
       setCourses(enrolledCourses);
+      setRecentSessions(history.slice(0, 5));
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
       const errorMessage = error?.message || 'Failed to load dashboard data. Please try again.';
@@ -129,21 +110,41 @@ export default function DashboardScreen() {
   };
 
   const handleViewHistory = () => {
-    router.push('/(tabs)/attendance');
+    router.push({ pathname: '/(tabs)/attendance', params: { tab: 'history' } });
   };
 
-  const getSessionStatusStyle = (status: 'PRESENT' | 'ABSENT' | 'UPCOMING') => {
+  const getSessionStatusStyle = (status: string) => {
     switch (status) {
-      case 'PRESENT':
+      case 'confirmed':
         return { backgroundColor: Emerald[100], color: Emerald[700] };
-      case 'ABSENT':
+      case 'flagged':
+        return { backgroundColor: '#fef3c7', color: '#d97706' };
+      case 'absent':
         return { backgroundColor: '#fee2e2', color: '#dc2626' };
-      case 'UPCOMING':
-        return { backgroundColor: '#dbeafe', color: '#2563eb' };
+      default:
+        return { backgroundColor: '#f3f4f6', color: '#6b7280' };
     }
   };
 
-  const recentSessions = getRecentSessions();
+  const getStatusDisplayLabel = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'PRESENT';
+      case 'flagged':
+        return 'FLAGGED';
+      case 'absent':
+        return 'ABSENT';
+      default:
+        return status.toUpperCase();
+    }
+  };
+
+  const formatSessionTime = (isoString: string | null) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
   const attendancePercentage = getAttendancePercentage();
   const statusLabel = getStatusLabel(attendancePercentage);
 
@@ -200,7 +201,7 @@ export default function DashboardScreen() {
                 <Text style={styles.attendanceLabel}>Overall Attendance</Text>
                 <Text style={styles.attendancePercentage}>{attendancePercentage}%</Text>
                 <Text style={styles.attendanceSubtitle}>
-                  {stats?.confirmed_count || 0}/{stats?.attendance_marked_count || 0} Classes Attended
+                  {stats?.confirmed_count || 0}/{stats?.total_sessions || 0} Classes Attended
                 </Text>
               </View>
 
@@ -258,7 +259,7 @@ export default function DashboardScreen() {
                   const statusStyle = getSessionStatusStyle(session.status);
                   return (
                     <View
-                      key={session.id}
+                      key={session.session_id}
                       style={[
                         styles.sessionCard,
                         {
@@ -270,18 +271,18 @@ export default function DashboardScreen() {
                       <View style={styles.sessionContent}>
                         <View style={styles.sessionDetails}>
                           <Text style={[styles.sessionName, { color: colors.text }]} numberOfLines={1}>
-                            {session.courseName}
+                            {session.course_name}
                           </Text>
                           <View style={styles.sessionMeta}>
                             <Text style={[styles.sessionProfessor, { color: colors.tabIconDefault }]}>
-                              {session.professor}
+                              {session.course_code} {session.ends_at ? `· ${formatSessionTime(session.ends_at)}` : ''}
                             </Text>
                           </View>
                         </View>
 
                         <View style={[styles.sessionStatusBadge, { backgroundColor: statusStyle.backgroundColor }]}>
                           <Text style={[styles.sessionStatusText, { color: statusStyle.color }]}>
-                            {session.status}
+                            {getStatusDisplayLabel(session.status)}
                           </Text>
                         </View>
                       </View>

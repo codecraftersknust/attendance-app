@@ -773,6 +773,8 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
 @router.get("/sessions/{session_id}/absent", response_model=List[dict])
 def get_absent_students(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     """Get list of students who are enrolled but have no attendance record for this session"""
+    from ....models.student_course_enrollment import StudentCourseEnrollment
+
     session = db.get(AttendanceSession, session_id)
     if not session or session.lecturer_id != current.id:
         raise HTTPException(status_code=404, detail="Session not found")

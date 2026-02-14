@@ -387,6 +387,7 @@ class ApiClient {
 
     async studentDashboard(): Promise<{
         enrolled_courses: number;
+        total_sessions: number;
         attendance_marked_count: number;
         confirmed_count: number;
     }> {

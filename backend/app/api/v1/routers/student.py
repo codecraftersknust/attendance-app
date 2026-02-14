@@ -328,6 +328,28 @@ def student_dashboard(
         .filter(Course.is_active == True)
         .count()
     )
+
+    # Get enrolled course IDs
+    enrolled_course_ids = [
+        e.course_id
+        for e in db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .all()
+    ]
+
+    # Total past sessions across all enrolled courses (true denominator)
+    now = utcnow()
+    total_sessions = 0
+    if enrolled_course_ids:
+        total_sessions = (
+            db.query(AttendanceSession)
+            .filter(
+                AttendanceSession.course_id.in_(enrolled_course_ids),
+                AttendanceSession.ends_at < now,
+            )
+            .count()
+        )
+
     attendance_marked_count = (
         db.query(AttendanceRecord).filter(AttendanceRecord.student_id == current.id).count()
     )
@@ -339,6 +361,7 @@ def student_dashboard(
     write_audit(db, "student.dashboard", current.id)
     return {
         "enrolled_courses": enrolled_count,
+        "total_sessions": total_sessions,
         "attendance_marked_count": attendance_marked_count,
         "confirmed_count": confirmed_count,
     }

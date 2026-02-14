@@ -42,6 +42,7 @@ export default function StudentDashboard() {
     const [dropping, setDropping] = useState<boolean>(false);
     const [stats, setStats] = useState<{
         enrolled_courses: number;
+        total_sessions: number;
         attendance_marked_count: number;
         confirmed_count: number;
     } | null>(null);
@@ -135,9 +136,9 @@ export default function StudentDashboard() {
         }
     };
 
-    const confirmedRate = stats && stats.attendance_marked_count > 0
-        ? Math.round((stats.confirmed_count / stats.attendance_marked_count) * 100)
-        : 100;
+    const attendanceRate = stats && stats.total_sessions > 0
+        ? Math.round((stats.confirmed_count / stats.total_sessions) * 100)
+        : 0;
 
     return (
         <ProtectedRoute allowedRoles={['student']}>
@@ -183,16 +184,16 @@ export default function StudentDashboard() {
                     </div>
                 )}
 
-                {/* Confirmed rate gauge */}
-                {stats && stats.attendance_marked_count > 0 && (
+                {/* Overall attendance rate gauge */}
+                {stats && stats.total_sessions > 0 && (
                     <Card className="border-gray-200/80 bg-white">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
                                 <Gauge className="h-4 w-4" />
-                                Attendance confirmed rate
+                                Overall attendance rate
                             </CardTitle>
                             <CardDescription className="text-xs text-gray-500">
-                                Share of your attendance marks that have been confirmed (vs pending review).
+                                {stats.confirmed_count} confirmed out of {stats.total_sessions} total sessions across your enrolled courses.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -200,10 +201,10 @@ export default function StudentDashboard() {
                                 <div className="relative h-1 flex-1 max-w-xs rounded-full bg-gray-100 overflow-hidden">
                                     <div
                                         className="absolute inset-y-0 left-0 rounded-full bg-emerald-600 transition-all duration-500"
-                                        style={{ width: `${confirmedRate}%` }}
+                                        style={{ width: `${attendanceRate}%` }}
                                     />
                                 </div>
-                                <span className="font-bold text-gray-900 tabular-nums">{confirmedRate}%</span>
+                                <span className="font-bold text-gray-900 tabular-nums">{attendanceRate}%</span>
                             </div>
                         </CardContent>
                     </Card>
