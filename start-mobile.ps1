@@ -149,8 +149,8 @@ Write-Host "Backend is running!" -ForegroundColor Green
 Write-Host "Starting Expo development server..." -ForegroundColor Yellow
 Write-Host "Using tunnel mode - works even if phone is on different network" -ForegroundColor Cyan
 
-$mobileProcess = Start-Process -FilePath "npx" `
-    -ArgumentList "expo", "start", "--tunnel" `
+$mobileProcess = Start-Process -FilePath "cmd.exe" `
+    -ArgumentList "/c", "npm", "start" `
     -WorkingDirectory "mobile" `
     -PassThru `
     -NoNewWindow
@@ -180,14 +180,18 @@ function Cleanup {
     Write-Host "Stopping servers..." -ForegroundColor Yellow
     foreach ($proc in $processes) {
         if ($proc -and -not $proc.HasExited) {
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            # Use taskkill to kill process tree (needed for npx/node)
+            Write-Host "Killing process tree for PID $($proc.Id)..." -ForegroundColor DarkGray
+            Start-Process -FilePath "taskkill" -ArgumentList "/F", "/T", "/PID", $proc.Id -NoNewWindow -Wait -ErrorAction SilentlyContinue
         }
     }
     Write-Host "Servers stopped" -ForegroundColor Green
 }
 
 # Set up cleanup on exit
-Register-EngineEvent PowerShell.Exiting -Action { Cleanup } | Out-Null
+$cleanupId = "MobileDevCleanup"
+Unregister-Event -SourceIdentifier $cleanupId -ErrorAction SilentlyContinue
+Register-EngineEvent PowerShell.Exiting -SourceIdentifier $cleanupId -Action { Cleanup } | Out-Null
 
 try {
     # Wait for processes

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function LoginScreen() {
@@ -21,12 +22,13 @@ export default function LoginScreen() {
     const [isLoading, setIsLoading] = useState(false);
 
     const { login } = useAuth();
+    const { showToast } = useToast();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
 
     const handleLogin = async () => {
         if (!username.trim() || !password.trim()) {
-            Alert.alert('Hold up', 'Enter your email and password');
+            showToast('Enter your email and password', 'error');
             return;
         }
 
@@ -34,14 +36,10 @@ export default function LoginScreen() {
 
         try {
             await login({ username: username.trim(), password });
-            Alert.alert('Success', 'Welcome back!', [
-                {
-                    text: 'OK',
-                    onPress: () => router.replace('/(tabs)')
-                }
-            ]);
+            showToast('Welcome back!', 'success');
+            router.replace('/(tabs)');
         } catch (error: any) {
-            Alert.alert('Oops', error.message || 'Wrong email or password');
+            showToast(error.message || 'Wrong email or password', 'error');
         } finally {
             setIsLoading(false);
         }

@@ -17,12 +17,14 @@ import { Colors, Emerald } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/ToastContext';
 import apiClientService, { UserProfile } from '@/services/apiClient.service';
 
 export default function ProfileScreen() {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
     const { logout, user } = useAuth();
+    const { showToast } = useToast();
     const router = useRouter();
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -48,7 +50,7 @@ export default function ProfileScreen() {
             const data = await apiClientService.getProfile();
             setProfile(data);
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to load profile');
+            showToast(err.message || 'Failed to load profile', 'error');
         } finally {
             setLoading(false);
         }
@@ -96,17 +98,17 @@ export default function ProfileScreen() {
             if (editUserId !== (profile.user_id || '')) updates.user_id = editUserId;
 
             if (Object.keys(updates).length === 0) {
-                Alert.alert('Info', 'No changes to save');
+                showToast('No changes to save', 'info');
                 setEditVisible(false);
                 return;
             }
 
             const updated = await apiClientService.updateProfile(updates);
             setProfile(updated);
-            Alert.alert('Success', 'Profile updated');
+            showToast('Profile updated', 'success');
             setEditVisible(false);
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to update profile');
+            showToast(err.message || 'Failed to update profile', 'error');
         } finally {
             setSaving(false);
         }
@@ -114,11 +116,11 @@ export default function ProfileScreen() {
 
     const handleChangePassword = async () => {
         if (newPassword !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            showToast('Passwords do not match', 'error');
             return;
         }
         if (newPassword.length < 6) {
-            Alert.alert('Error', 'Password must be at least 6 characters');
+            showToast('Password must be at least 6 characters', 'error');
             return;
         }
 
@@ -128,13 +130,13 @@ export default function ProfileScreen() {
                 current_password: currentPassword,
                 new_password: newPassword,
             });
-            Alert.alert('Success', 'Password changed successfully');
+            showToast('Password changed successfully', 'success');
             setPasswordVisible(false);
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to change password');
+            showToast(err.message || 'Failed to change password', 'error');
         } finally {
             setChangingPassword(false);
         }
@@ -151,7 +153,7 @@ export default function ProfileScreen() {
                         await logout();
                         router.replace('/(auth)/login');
                     } catch (error) {
-                        Alert.alert('Error', 'Failed to logout. Please try again.');
+                        showToast('Failed to logout. Please try again.', 'error');
                     }
                 },
             },

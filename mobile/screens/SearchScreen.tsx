@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Activi
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/ToastContext';
 import apiClientService from '@/services/apiClient.service';
 import type { Course } from '@/types/api.types';
 
 export default function SearchScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { showToast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Course[]>([]);
@@ -34,7 +36,7 @@ export default function SearchScreen() {
       const results = await apiClientService.studentSearchCourses(query);
       setSearchResults(results);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to search courses');
+      showToast(error.message || 'Failed to search courses', 'error');
       setSearchResults([]);
     } finally {
       setSearching(false);
@@ -47,14 +49,14 @@ export default function SearchScreen() {
     try {
       setEnrollingIds((prev) => new Set(prev).add(courseId));
       await apiClientService.studentEnrollInCourse(courseId);
-      Alert.alert('Success', 'Course added successfully');
+      showToast('Course added successfully', 'success');
 
       // Refresh search results to update enrollment status
       if (searchQuery.trim()) {
         await performSearch(searchQuery.trim());
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to enroll in course');
+      showToast(error.message || 'Failed to enroll in course', 'error');
     } finally {
       setEnrollingIds((prev) => {
         const next = new Set(prev);

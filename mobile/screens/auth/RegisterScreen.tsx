@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function RegisterScreen() {
@@ -24,28 +25,29 @@ export default function RegisterScreen() {
     const [isLoading, setIsLoading] = useState(false);
 
     const { register } = useAuth();
+    const { showToast } = useToast();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
 
     const handleRegister = async () => {
         if (!email.trim() || !password.trim() || !fullName.trim()) {
-            Alert.alert('Missing Fields', 'Fill in all required fields');
+            showToast('Fill in all required fields', 'error');
             return;
         }
 
         if (password !== confirmPassword) {
-            Alert.alert('Passwords don\'t match');
+            showToast('Passwords don\'t match', 'error');
             return;
         }
 
         if (password.length < 6) {
-            Alert.alert('Weak Password', 'Use at least 6 characters');
+            showToast('Use at least 6 characters for password', 'error');
             return;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            Alert.alert('Invalid Email', 'Check your email address');
+            showToast('Check your email address', 'error');
             return;
         }
 
@@ -59,14 +61,10 @@ export default function RegisterScreen() {
                 user_id: studentId.trim() || undefined,
                 role: 'student',
             });
-            Alert.alert('Success', 'Account created successfully! Welcome to Absense.', [
-                {
-                    text: 'Get Started',
-                    onPress: () => router.replace('/(tabs)')
-                }
-            ]);
+            showToast('Account created successfully!', 'success');
+            router.replace('/(tabs)');
         } catch (error: any) {
-            Alert.alert('Registration Failed', error.message || 'Could not create account');
+            showToast(error.message || 'Could not create account', 'error');
         } finally {
             setIsLoading(false);
         }

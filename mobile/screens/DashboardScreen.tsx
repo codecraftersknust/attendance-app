@@ -6,6 +6,7 @@ import { Colors, Emerald } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/ToastContext';
 import apiClientService from '@/services/apiClient.service';
 import type { DashboardStats, Course, AttendanceHistoryItem } from '@/types/api.types';
 
@@ -13,6 +14,7 @@ export default function DashboardScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
 
   // State
@@ -82,8 +84,7 @@ export default function DashboardScreen() {
       setRecentSessions(history.slice(0, 5));
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
-      const errorMessage = error?.message || 'Failed to load dashboard data. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToast('Failed to load dashboard data', 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -14,6 +14,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { useToast } from '@/contexts/ToastContext';
 import AttendanceService from '@/services/attendance.service';
 import apiClientService from '@/services/apiClient.service';
 import type { ActiveSession, AttendanceHistoryItem } from '@/types/api.types';
@@ -25,6 +26,7 @@ type TabType = 'checkin' | 'history';
 export default function AttendanceScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { showToast } = useToast();
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
 
@@ -73,9 +75,7 @@ export default function AttendanceScreen() {
       setHistory(data);
     } catch (error: any) {
       console.error('Failed to load attendance history:', error);
-      if (!historyRefreshing && history.length === 0) {
-        Alert.alert('Error', error.message || 'Failed to load attendance history');
-      }
+      showToast('Failed to load attendance history', 'error');
     } finally {
       setHistoryLoading(false);
       setHistoryRefreshing(false);

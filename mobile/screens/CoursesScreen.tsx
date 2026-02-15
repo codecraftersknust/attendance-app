@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusEffect } from '@react-navigation/native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useToast } from '@/contexts/ToastContext';
 import apiClientService from '@/services/apiClient.service';
 import type { Course } from '@/types/api.types';
 
 export default function CoursesScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { showToast } = useToast();
 
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,32 @@ export default function CoursesScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadEnrolledCourses();
+  };
+
+  const handleDeleteCourse = (courseId: number, courseName: string) => {
+    Alert.alert(
+      'Unenroll Course',
+      `Are you sure you want to unenroll from ${courseName}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Unenroll',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClientService.studentUnenrollFromCourse(courseId);
+              showToast('Unenrolled successfully', 'success');
+              loadEnrolledCourses();
+            } catch (error: any) {
+              showToast(error.message || 'Failed to unenroll', 'error');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatEnrollmentDate = (dateString: string) => {
@@ -92,12 +120,20 @@ export default function CoursesScreen() {
               ]}
             >
               <View style={styles.courseHeader}>
-                <Text style={[styles.courseCode, { color: colors.tint }]}>{course.code}</Text>
-                {course.enrolled_at && (
-                  <Text style={[styles.enrollmentDate, { color: colors.tabIconDefault }]}>
-                    {formatEnrollmentDate(course.enrolled_at)}
-                  </Text>
-                )}
+                <View>
+                  <Text style={[styles.courseCode, { color: colors.tint }]}>{course.code}</Text>
+                  {course.enrolled_at && (
+                    <Text style={[styles.enrollmentDate, { color: colors.tabIconDefault }]}>
+                      {formatEnrollmentDate(course.enrolled_at)}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleDeleteCourse(course.id, course.name)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol name="trash" size={20} color={colors.error} />
+                </TouchableOpacity>
               </View>
 
               <Text style={[styles.courseName, { color: colors.text }]}>{course.name}</Text>
