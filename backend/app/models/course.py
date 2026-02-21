@@ -12,7 +12,7 @@ class Course(Base):
     name: Mapped[str] = mapped_column(String(200))  # e.g., "Introduction to Computer Science"
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     semester: Mapped[str] = mapped_column(String(20))  # e.g., "Fall 2024", "Spring 2025"
-    lecturer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    lecturer_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

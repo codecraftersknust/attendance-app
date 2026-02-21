@@ -10,6 +10,8 @@ from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.attendance_session import AttendanceSession
 from ....models.verification_log import VerificationLog
 from ....models.audit_log import AuditLog
+from ....models.course import Course
+from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....services.audit import write_audit
 from ....api.deps.auth import role_required
 from ....services.face_verification import FaceVerificationService
@@ -20,6 +22,153 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 def get_current_admin(current: User = Depends(role_required(UserRole.admin))) -> User:
     return current
+
+
+# ── Course Management ──────────────────────────────────────────────
+
+
+@router.get("/courses", response_model=List[dict])
+def get_all_courses(
+    search: Optional[str] = None,
+    semester: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_admin),
+):
+    """List all courses with optional search and semester filters"""
+    query = db.query(Course)
+
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(
+            (Course.code.ilike(pattern)) | (Course.name.ilike(pattern))
+        )
+    if semester:
+        query = query.filter(Course.semester == semester)
+
+    courses = query.order_by(Course.code).offset(offset).limit(limit).all()
+
+    write_audit(db, "admin.get_all_courses", current.id, f"search={search}, semester={semester}")
+    return [
+        {
+            "id": c.id,
+            "code": c.code,
+            "name": c.name,
+            "description": c.description,
+            "semester": c.semester,
+            "lecturer_id": c.lecturer_id,
+            "lecturer_name": c.lecturer.full_name if c.lecturer else None,
+            "is_active": c.is_active,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in courses
+    ]
+
+
+@router.post("/courses", response_model=dict)
+def create_course(
+    code: str,
+    name: str,
+    semester: str,
+    description: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_admin),
+):
+    """Create a new course (no lecturer assigned)"""
+    existing = db.query(Course).filter(Course.code == code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Course code already exists")
+
+    course = Course(
+        code=code,
+        name=name,
+        description=description,
+        semester=semester,
+        lecturer_id=None,
+    )
+    db.add(course)
+    db.commit()
+    db.refresh(course)
+
+    write_audit(db, "admin.create_course", current.id, f"course_id={course.id}")
+    return {
+        "id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "description": course.description,
+        "semester": course.semester,
+        "lecturer_id": None,
+        "is_active": course.is_active,
+    }
+
+
+@router.put("/courses/{course_id}", response_model=dict)
+def update_course(
+    course_id: int,
+    code: Optional[str] = None,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    semester: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_admin),
+):
+    """Update any course"""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    if code and code != course.code:
+        if db.query(Course).filter(Course.code == code).first():
+            raise HTTPException(status_code=400, detail="Course code already exists")
+
+    if code is not None:
+        course.code = code
+    if name is not None:
+        course.name = name
+    if description is not None:
+        course.description = description
+    if semester is not None:
+        course.semester = semester
+    if is_active is not None:
+        course.is_active = is_active
+
+    db.commit()
+    db.refresh(course)
+
+    write_audit(db, "admin.update_course", current.id, f"course_id={course_id}")
+    return {
+        "id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "description": course.description,
+        "semester": course.semester,
+        "lecturer_id": course.lecturer_id,
+        "lecturer_name": course.lecturer.full_name if course.lecturer else None,
+        "is_active": course.is_active,
+    }
+
+
+@router.delete("/courses/{course_id}", response_model=dict)
+def delete_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_admin),
+):
+    """Delete any course (removes enrollments and sessions too)"""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    db.query(StudentCourseEnrollment).filter(
+        StudentCourseEnrollment.course_id == course_id
+    ).delete()
+    db.delete(course)
+    db.commit()
+
+    write_audit(db, "admin.delete_course", current.id, f"course_id={course_id}")
+    return {"deleted": True, "course_id": course_id}
 
 
 @router.post("/device/approve-reset")

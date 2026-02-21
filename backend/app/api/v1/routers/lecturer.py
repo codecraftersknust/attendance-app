@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from ....db.deps import get_db
 from ....models.user import UserRole, User
 from ....models.course import Course
@@ -46,6 +46,92 @@ def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(
         for course in courses
     ]
 
+
+@router.get("/courses/all", response_model=List[dict])
+def browse_all_courses(
+    search: Optional[str] = None,
+    semester: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer),
+):
+    """Browse/search all courses in the system.
+
+    Lecturers use this to find courses they can claim for a semester.
+    Returns all courses with optional search (code or name) and semester filters.
+    """
+    query = db.query(Course).filter(Course.is_active == True)
+
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(
+            (Course.code.ilike(pattern)) | (Course.name.ilike(pattern))
+        )
+    if semester:
+        query = query.filter(Course.semester == semester)
+
+    courses = query.order_by(Course.code).offset(offset).limit(limit).all()
+
+    write_audit(db, "lecturer.browse_all_courses", current.id, f"search={search}, semester={semester}")
+    return [
+        {
+            "id": c.id,
+            "code": c.code,
+            "name": c.name,
+            "description": c.description,
+            "semester": c.semester,
+            "lecturer_id": c.lecturer_id,
+            "lecturer_name": c.lecturer.full_name if c.lecturer else None,
+            "is_active": c.is_active,
+            "is_claimed": c.lecturer_id is not None,
+            "is_mine": c.lecturer_id == current.id,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in courses
+    ]
+
+
+@router.post("/courses/{course_id}/claim", response_model=dict)
+def claim_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_lecturer),
+):
+    """Claim an unassigned course.
+
+    Sets the current lecturer as the course's lecturer.
+    Fails if the course is already claimed by another lecturer.
+    """
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.is_active == True,
+    ).first()
+
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    if course.lecturer_id is not None and course.lecturer_id != current.id:
+        raise HTTPException(status_code=400, detail="Course is already claimed by another lecturer")
+
+    if course.lecturer_id == current.id:
+        raise HTTPException(status_code=400, detail="You have already claimed this course")
+
+    course.lecturer_id = current.id
+    db.commit()
+    db.refresh(course)
+
+    write_audit(db, "lecturer.claim_course", current.id, f"course_id={course_id}")
+    return {
+        "id": course.id,
+        "code": course.code,
+        "name": course.name,
+        "description": course.description,
+        "semester": course.semester,
+        "lecturer_id": course.lecturer_id,
+        "is_active": course.is_active,
+        "message": f"Successfully claimed course {course.code}",
+    }
 
 @router.post("/courses", response_model=dict)
 def create_course(
