@@ -7,13 +7,11 @@ export function proxy(req: NextRequest) {
 
     const token = cookies.get('access_token')?.value;
     const role = cookies.get('role')?.value as 'student' | 'lecturer' | 'admin' | undefined;
-    const portalOk = cookies.get('admin_portal_ok')?.value === '1';
 
     const isAuthPage = path.startsWith('/auth');
     const isProtected =
         path === '/dashboard' || path.startsWith('/student') || path.startsWith('/lecturer');
     const isAdminRoute = path.startsWith('/admin');
-    const isAdminLogin = path === '/admin/login';
 
     // General protected routes
     if (!token && isProtected) {
@@ -33,18 +31,15 @@ export function proxy(req: NextRequest) {
         return NextResponse.redirect(new URL('/unauthorized', nextUrl));
     }
 
-    // Admin area protection
+    // Admin area: require auth + admin role
     if (isAdminRoute) {
-        if (!isAdminLogin && !token) {
-            return NextResponse.redirect(new URL('/admin/login', nextUrl));
+        if (!token) {
+            const url = new URL('/auth/login', nextUrl);
+            url.searchParams.set('redirect', path);
+            return NextResponse.redirect(url);
         }
-        // Allow visiting /admin/login even if already authenticated; do not auto-redirect
-        if (!isAdminLogin && role !== 'admin') {
+        if (role !== 'admin') {
             return NextResponse.redirect(new URL('/unauthorized', nextUrl));
-        }
-        // Require portal cookie for all admin routes except login
-        if (!isAdminLogin && !portalOk) {
-            return NextResponse.redirect(new URL('/admin/login', nextUrl));
         }
     }
 

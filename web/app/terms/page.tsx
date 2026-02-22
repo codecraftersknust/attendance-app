@@ -5,7 +5,7 @@ export default function TermsPage() {
             <p className="text-gray-600">Last updated: {new Date().toLocaleDateString()}</p>
 
             <p className="text-gray-700">
-                These Terms govern your use of the Absence platform. By accessing or using the
+                These Terms govern your use of the Absense platform. By accessing or using the
                 service, you agree to be bound by these Terms.
             </p>
 
@@ -24,7 +24,7 @@ export default function TermsPage() {
 
             <h2 className="text-xl font-semibold">Limitation of Liability</h2>
             <p className="text-gray-700">
-                To the maximum extent permitted by law, Absence is not liable for indirect or
+                To the maximum extent permitted by law, Absense is not liable for indirect or
                 consequential damages arising from your use of the service.
             </p>
 

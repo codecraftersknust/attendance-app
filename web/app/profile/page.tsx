@@ -12,6 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -30,6 +37,8 @@ import {
     Lock,
     ScanFace,
     Loader2,
+    GraduationCap,
+    BookOpen,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -45,6 +54,8 @@ export default function ProfilePage() {
     const [editFullName, setEditFullName] = useState('');
     const [editEmail, setEditEmail] = useState('');
     const [editUserId, setEditUserId] = useState('');
+    const [editLevel, setEditLevel] = useState<number>(100);
+    const [editProgramme, setEditProgramme] = useState('');
     const [saving, setSaving] = useState(false);
 
     // Change password dialog
@@ -75,6 +86,8 @@ export default function ProfilePage() {
         setEditFullName(profile.full_name || '');
         setEditEmail(profile.email);
         setEditUserId(profile.user_id || '');
+        setEditLevel(profile.level || 100);
+        setEditProgramme(profile.programme || '');
         setEditOpen(true);
     }
 
@@ -87,6 +100,10 @@ export default function ProfilePage() {
             if (editFullName !== (profile.full_name || '')) updates.full_name = editFullName;
             if (editEmail !== profile.email) updates.email = editEmail;
             if (editUserId !== (profile.user_id || '')) updates.user_id = editUserId;
+            if (profile.role === 'student') {
+                if (editLevel !== (profile.level || 0)) updates.level = editLevel;
+                if (editProgramme !== (profile.programme || '')) updates.programme = editProgramme;
+            }
 
             if (Object.keys(updates).length === 0) {
                 toast('No changes to save');
@@ -313,6 +330,39 @@ export default function ProfilePage() {
 
                                         <Separator />
 
+                                        {/* Level & Programme — only shown for students */}
+                                        {profile.role === 'student' && (
+                                            <>
+                                                <div className="flex items-start gap-3">
+                                                    <GraduationCap className="size-5 text-gray-400 mt-0.5 shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Level
+                                                        </p>
+                                                        <p className="text-sm text-gray-900 mt-0.5">
+                                                            {profile.level ? `Level ${profile.level}` : 'Not set'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <Separator />
+
+                                                <div className="flex items-start gap-3">
+                                                    <BookOpen className="size-5 text-gray-400 mt-0.5 shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Programme
+                                                        </p>
+                                                        <p className="text-sm text-gray-900 mt-0.5">
+                                                            {profile.programme || 'Not set'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <Separator />
+                                            </>
+                                        )}
+
                                         <div className="flex items-start gap-3">
                                             <Shield className="size-5 text-gray-400 mt-0.5 shrink-0" />
                                             <div className="min-w-0">
@@ -425,6 +475,44 @@ export default function ProfilePage() {
                                     placeholder="Enter your ID"
                                 />
                             </div>
+                            {profile?.role === 'student' && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-level">Level</Label>
+                                        <Select
+                                            value={String(editLevel)}
+                                            onValueChange={(v) => setEditLevel(Number(v))}
+                                        >
+                                            <SelectTrigger id="edit-level" className="w-full">
+                                                <SelectValue placeholder="Select level" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {[100, 200, 300, 400].map((lvl) => (
+                                                    <SelectItem key={lvl} value={String(lvl)}>Level {lvl}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-programme">Programme</Label>
+                                        <Select
+                                            value={editProgramme || '__none__'}
+                                            onValueChange={(v) => setEditProgramme(v === '__none__' ? '' : v)}
+                                        >
+                                            <SelectTrigger id="edit-programme" className="w-full">
+                                                <SelectValue placeholder="Select programme" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="__none__">None</SelectItem>
+                                                <SelectItem value="Computer Engineering">Computer Engineering</SelectItem>
+                                                <SelectItem value="Telecommunication Engineering">Telecommunication Engineering</SelectItem>
+                                                <SelectItem value="Electrical Engineering">Electrical Engineering</SelectItem>
+                                                <SelectItem value="Biomedical Engineering">Biomedical Engineering</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </>
+                            )}
                         </div>
                         <DialogFooter>
                             <Button

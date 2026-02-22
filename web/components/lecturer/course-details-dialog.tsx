@@ -19,6 +19,8 @@ type CourseDetails = {
     name: string;
     description: string | null;
     semester: string;
+    level: number;
+    programme: string;
     is_active: boolean;
     created_at: string;
     enrolled_students: Array<{
@@ -100,6 +102,14 @@ export function CourseDetailsDialog({
                                 <div>
                                     <span className="text-gray-500">Semester:</span>
                                     <span className="ml-2 font-medium">{courseDetails.semester}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-500">Level:</span>
+                                    <span className="ml-2 font-medium">Level {courseDetails.level}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-500">Programme:</span>
+                                    <span className="ml-2 font-medium">{courseDetails.programme || '-'}</span>
                                 </div>
                                 <div className="col-span-2">
                                     <span className="text-gray-500">Name:</span>
@@ -186,22 +196,21 @@ export function CourseDetailsDialog({
                                                 <TableRow key={session.id}>
                                                     <TableCell className="font-medium">#{session.id} - {session.code}</TableCell>
                                                     <TableCell>
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                            session.is_active 
-                                                                ? 'bg-emerald-100 text-emerald-800' 
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${session.is_active
+                                                                ? 'bg-emerald-100 text-emerald-800'
                                                                 : 'bg-gray-100 text-gray-800'
-                                                        }`}>
+                                                            }`}>
                                                             {session.is_active ? 'Active' : 'Closed'}
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {session.starts_at 
-                                                            ? new Date(session.starts_at).toLocaleString() 
+                                                        {session.starts_at
+                                                            ? new Date(session.starts_at).toLocaleString()
                                                             : 'N/A'}
                                                     </TableCell>
                                                     <TableCell>
-                                                        {session.ends_at 
-                                                            ? new Date(session.ends_at).toLocaleString() 
+                                                        {session.ends_at
+                                                            ? new Date(session.ends_at).toLocaleString()
                                                             : 'N/A'}
                                                     </TableCell>
                                                     <TableCell>{session.attendance_count}</TableCell>

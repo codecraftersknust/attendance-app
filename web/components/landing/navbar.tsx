@@ -27,7 +27,7 @@ export function Navbar() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 sm:space-x-8">
                     <Link className="font-semibold text-lg" href="/">
-                        Absence
+                        Absense
                     </Link>
                     <nav className="hidden lg:flex items-center space-x-4 text-sm font-medium">
                         <Link href="/getting-started" className="hover:text-emerald-900">

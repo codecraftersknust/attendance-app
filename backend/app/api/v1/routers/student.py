@@ -13,6 +13,7 @@ from ....models.device import Device
 from ....models.verification_log import VerificationLog
 from ....models.course import Course
 from ....models.student_course_enrollment import StudentCourseEnrollment
+from ....models.school_settings import get_or_create_settings
 from ....services.audit import write_audit
 from ....services.utils import hash_device_id, utcnow
 from ....storage.base import get_storage
@@ -275,31 +276,94 @@ async def verify_face(
     )
 
 
+@router.get("/courses/recommended")
+def get_recommended_courses(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Return courses for the student's programme+level in the current semester.
+
+    Each course includes an `is_enrolled` flag so the frontend can show
+    enrolment status without a separate call.
+    """
+    if not current.level or not current.programme:
+        return []
+
+    school = get_or_create_settings(db)
+
+    courses = (
+        db.query(Course)
+        .filter(
+            Course.is_active == True,
+            Course.level == current.level,
+            Course.programme == current.programme,
+            Course.semester == school.current_semester,
+        )
+        .order_by(Course.code)
+        .all()
+    )
+
+    enrolled_ids = {
+        e.course_id
+        for e in db.query(StudentCourseEnrollment)
+        .filter(StudentCourseEnrollment.student_id == current.id)
+        .all()
+    }
+
+    write_audit(db, "student.recommended_courses", current.id,
+                f"level={current.level}, programme={current.programme}")
+    return [
+        {
+            "id": c.id,
+            "code": c.code,
+            "name": c.name,
+            "description": c.description,
+            "semester": c.semester,
+            "level": c.level,
+            "programme": c.programme,
+            "lecturer_name": c.lecturer.full_name if c.lecturer else None,
+            "is_enrolled": c.id in enrolled_ids,
+        }
+        for c in courses
+    ]
+
+
 @router.get("/courses/search")
 def search_courses(
     q: Optional[str] = None,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
 ):
-    """Search for courses by code or name"""
-    query = db.query(Course).filter(Course.is_active == True)
-    
+    """Search courses within the student's own programme and level."""
+    school = get_or_create_settings(db)
+
+    query = db.query(Course).filter(
+        Course.is_active == True,
+        Course.semester == school.current_semester,
+    )
+
+    # Restrict to the student's own programme+level if their profile is set
+    if current.level and current.programme:
+        query = query.filter(
+            Course.level == current.level,
+            Course.programme == current.programme,
+        )
+
     if q:
         search_term = f"%{q}%"
         query = query.filter(
             (Course.code.ilike(search_term)) | (Course.name.ilike(search_term))
         )
-    
+
     courses = query.limit(20).all()
-    
-    # Get enrolled course IDs for current student
+
     enrolled_ids = {
-        e.course_id 
+        e.course_id
         for e in db.query(StudentCourseEnrollment)
         .filter(StudentCourseEnrollment.student_id == current.id)
         .all()
     }
-    
+
     write_audit(db, "student.search_courses", current.id, f"query={q}")
     return [
         {
@@ -358,12 +422,19 @@ def student_dashboard(
         .filter(AttendanceRecord.student_id == current.id, AttendanceRecord.status == AttendanceStatus.confirmed)
         .count()
     )
+    profile_complete = bool(current.level and current.programme)
+    school = get_or_create_settings(db)
     write_audit(db, "student.dashboard", current.id)
     return {
         "enrolled_courses": enrolled_count,
         "total_sessions": total_sessions,
         "attendance_marked_count": attendance_marked_count,
         "confirmed_count": confirmed_count,
+        "profile_complete": profile_complete,
+        "enrollment_open": school.enrollment_open,
+        "current_semester": school.current_semester,
+        "is_on_break": school.is_on_break,
+        "academic_year": school.academic_year,
     }
 
 
@@ -404,20 +475,36 @@ def enroll_in_course(
     current: User = Depends(get_current_student),
 ):
     """Enroll in a course"""
+    # Guard: enrolment must be open
+    school = get_or_create_settings(db)
+    if not school.enrollment_open:
+        raise HTTPException(
+            status_code=403,
+            detail="Enrolment is currently closed. Please wait for the next semester.",
+        )
+
     course = db.query(Course).filter(
         Course.id == course_id,
         Course.is_active == True
     ).first()
-    
+
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
-    
+
+    # Ensure student only enrols in their own programme/level
+    if current.level and current.programme:
+        if course.level != current.level or course.programme != current.programme:
+            raise HTTPException(
+                status_code=403,
+                detail="This course is not in your programme or level.",
+            )
+
     # Check if already enrolled
     existing = db.query(StudentCourseEnrollment).filter(
         StudentCourseEnrollment.student_id == current.id,
         StudentCourseEnrollment.course_id == course_id
     ).first()
-    
+
     if existing:
         raise HTTPException(status_code=400, detail="Already enrolled in this course")
     
@@ -535,7 +622,7 @@ def get_attendance_history(
         return []
 
     # 2. Get all sessions for these courses that have ENDED
-    # We only count absence if the session is over
+    # We only count Absense if the session is over
     from datetime import datetime
     now = utcnow()
     

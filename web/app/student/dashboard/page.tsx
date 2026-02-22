@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Search, Trash2, BookOpen, UserCheck, CheckCircle2, Gauge } from 'lucide-react';
+import { Plus, Search, Trash2, BookOpen, UserCheck, CheckCircle2, Gauge, AlertTriangle } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -45,13 +45,23 @@ export default function StudentDashboard() {
         total_sessions: number;
         attendance_marked_count: number;
         confirmed_count: number;
+        profile_complete: boolean;
+        enrollment_open: boolean;
+        current_semester: string;
+        is_on_break: boolean;
+        academic_year: string;
     } | null>(null);
+
+    type RecommendedCourse = { id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; lecturer_name: string | null; is_enrolled: boolean };
+    const [recommendedCourses, setRecommendedCourses] = useState<RecommendedCourse[]>([]);
+    const [loadingRecommended, setLoadingRecommended] = useState(false);
 
     const [history, setHistory] = useState<any[]>([]);
 
     // Load enrolled courses (and dashboard stats) on mount
     useEffect(() => {
         loadEnrolledCourses();
+        loadRecommendedCourses();
     }, []);
 
     // Debounced search
@@ -85,6 +95,16 @@ export default function StudentDashboard() {
         }
     };
 
+    const loadRecommendedCourses = async () => {
+        try {
+            setLoadingRecommended(true);
+            const data = await apiClient.studentGetRecommendedCourses();
+            setRecommendedCourses(data);
+        } catch { /* profile may be incomplete */ } finally {
+            setLoadingRecommended(false);
+        }
+    };
+
     const performSearch = async (query: string) => {
         try {
             setSearching(true);
@@ -106,10 +126,7 @@ export default function StudentDashboard() {
             await apiClient.studentEnrollInCourse(courseId);
             toast.success('Course added successfully');
             // Refresh both lists
-            await loadEnrolledCourses();
-            if (searchQuery.trim()) {
-                await performSearch(searchQuery.trim());
-            }
+            await Promise.all([loadEnrolledCourses(), loadRecommendedCourses()]);
         } catch (e: any) {
             toast.error(e?.message || 'Failed to enroll in course');
         } finally {
@@ -147,6 +164,23 @@ export default function StudentDashboard() {
                     <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Welcome, {user?.full_name || user?.email}</h1>
                     <p className="text-sm text-gray-500 mt-0.5">Your courses and attendance at a glance</p>
                 </div>
+
+                {/* Incomplete profile alert */}
+                {stats && !stats.profile_complete && (
+                    <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800">
+                        <AlertTriangle className="size-5 shrink-0 mt-0.5 text-amber-500" />
+                        <div className="flex-1 text-sm">
+                            <p className="font-semibold">Incomplete profile</p>
+                            <p className="mt-0.5">
+                                Your level and programme are not set. Please{' '}
+                                <Link href="/profile" className="underline underline-offset-2 font-medium hover:text-amber-900">
+                                    visit your profile
+                                </Link>{' '}
+                                to complete your setup.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Stats row */}
                 {stats && (
@@ -266,71 +300,71 @@ export default function StudentDashboard() {
                     )}
                 </div>
 
-                {/* Search Section */}
-                <div className="bg-white rounded-md shadow p-4 mb-4">
-                    <h2 className="text-lg font-semibold mb-3">Search Courses</h2>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <Input
-                            type="text"
-                            placeholder="Search by course code or name..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
+                {/* Recommended Courses for this Semester */}
+                {stats?.profile_complete && (
+                    <div className="bg-white rounded-md shadow p-4 mb-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <h2 className="text-lg font-semibold">
+                                Courses for {stats.current_semester}
+                                {stats.academic_year && <span className="ml-1 text-sm font-normal text-gray-500">({stats.academic_year})</span>}
+                            </h2>
+                        </div>
 
-                    {searching && (
-                        <p className="text-sm text-gray-500 mt-2">Searching...</p>
-                    )}
+                        {/* Enrolment closed banner */}
+                        {!stats.enrollment_open && (
+                            <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800 mb-3">
+                                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-blue-500" />
+                                <p className="text-sm">Enrolment is currently <strong>closed</strong>. Courses will be available to join at the start of the next semester.</p>
+                            </div>
+                        )}
 
-                    {searchResults.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                            <h3 className="text-sm font-medium text-gray-700">Search Results</h3>
+                        {loadingRecommended ? (
+                            <p className="text-gray-600 text-sm">Loading courses...</p>
+                        ) : recommendedCourses.length === 0 ? (
+                            <p className="text-gray-600 text-sm">No courses found for your programme and level this semester.</p>
+                        ) : (
                             <ul className="divide-y">
-                                {searchResults.map((course) => (
+                                {recommendedCourses.map((course) => (
                                     <li key={course.id} className="py-3 flex items-center justify-between">
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
                                             <div className="font-medium">{course.code} - {course.name}</div>
                                             {course.description && (
-                                                <div className="text-sm text-gray-600 mt-1">{course.description}</div>
+                                                <div className="text-sm text-gray-600 mt-0.5 truncate">{course.description}</div>
                                             )}
-                                            <div className="text-xs text-gray-500 mt-1">
+                                            <div className="text-xs text-gray-500 mt-0.5">
                                                 {course.semester} {course.lecturer_name && `• ${course.lecturer_name}`}
                                             </div>
                                         </div>
                                         {course.is_enrolled ? (
-                                            <span className="text-sm text-gray-500">Enrolled</span>
-                                        ) : (
+                                            <span className="ml-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                Enrolled
+                                            </span>
+                                        ) : stats.enrollment_open ? (
                                             <Button
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => handleEnroll(course.id)}
                                                 disabled={enrollingIds.has(course.id)}
-                                                className="ml-4"
+                                                className="ml-4 shrink-0"
                                             >
                                                 <Plus className="h-4 w-4" />
-                                                {enrollingIds.has(course.id) ? 'Adding...' : 'Add'}
+                                                {enrollingIds.has(course.id) ? 'Adding...' : 'Enrol'}
                                             </Button>
-                                        )}
+                                        ) : null}
                                     </li>
                                 ))}
                             </ul>
-                        </div>
-                    )}
-
-                    {searchQuery.trim() && !searching && searchResults.length === 0 && (
-                        <p className="text-sm text-gray-500 mt-2">No courses found.</p>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Enrolled Courses Section */}
                 <div className="bg-white rounded-md shadow p-4">
-                    <h2 className="text-lg font-semibold mb-3">My Courses</h2>
+                    <h2 className="text-lg font-semibold mb-3">My Enrolled Courses</h2>
                     {loading ? (
                         <p className="text-gray-600">Loading...</p>
                     ) : enrolledCourses.length === 0 ? (
-                        <p className="text-gray-600">No enrolled courses yet. Search for courses above to add them.</p>
+                        <p className="text-gray-600 text-sm">No enrolled courses yet. Courses you enrol in will appear here.</p>
                     ) : (
                         <ul className="divide-y">
                             {enrolledCourses.map((course) => (

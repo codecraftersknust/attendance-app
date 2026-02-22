@@ -5,7 +5,7 @@ export default function PrivacyPage() {
             <p className="text-gray-600">Last updated: {new Date().toLocaleDateString()}</p>
 
             <p className="text-gray-700">
-                This Privacy Policy explains how Absence collects, uses, and protects your information
+                This Privacy Policy explains how Absense collects, uses, and protects your information
                 when you use our attendance platform. By using our services, you agree to the
                 collection and use of information in accordance with this policy.
             </p>

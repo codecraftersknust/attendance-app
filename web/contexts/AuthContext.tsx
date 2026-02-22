@@ -46,9 +46,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 const isSecure = window.location.protocol === 'https:';
                 document.cookie = `role=${userData.role}; Path=/; SameSite=Lax; ${isSecure ? 'Secure;' : ''}`;
             }
-        } catch (error) {
-            console.error('Failed to refresh auth:', error);
-            // Try to refresh token
+        } catch {
+            // Access token is invalid/expired — attempt a silent refresh
             try {
                 const refreshResponse = await apiClient.refreshToken();
                 localStorage.setItem('access_token', refreshResponse.access_token);
@@ -58,20 +57,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 const userData = await apiClient.getCurrentUser();
                 setUser(userData);
-                // Update cookies after refresh
                 if (typeof document !== 'undefined') {
                     const isSecure = window.location.protocol === 'https:';
                     document.cookie = `access_token=${refreshResponse.access_token}; Path=/; SameSite=Lax; ${isSecure ? 'Secure;' : ''}`;
                     document.cookie = `role=${userData.role}; Path=/; SameSite=Lax; ${isSecure ? 'Secure;' : ''}`;
                 }
-            } catch (refreshError) {
-                console.error('Failed to refresh token:', refreshError);
-                // Clear tokens and redirect to login
+            } catch {
+                // Refresh also failed — stale session, clear everything silently
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 setUser(null);
                 if (typeof document !== 'undefined') {
-                    // Expire cookies
                     document.cookie = `access_token=; Path=/; Max-Age=0;`;
                     document.cookie = `role=; Path=/; Max-Age=0;`;
                 }

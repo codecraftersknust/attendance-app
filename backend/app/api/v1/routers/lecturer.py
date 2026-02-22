@@ -133,40 +133,36 @@ def claim_course(
         "message": f"Successfully claimed course {course.code}",
     }
 
-@router.post("/courses", response_model=dict)
-def create_course(
-    code: str,
-    name: str,
-    description: str = None,
-    semester: str = "Fall 2024",
+@router.post("/courses/{course_id}/unclaim", response_model=dict)
+def unclaim_course(
+    course_id: int,
     db: Session = Depends(get_db),
-    current: User = Depends(get_current_lecturer)
+    current: User = Depends(get_current_lecturer),
 ):
-    """Create a new course"""
-    # Check if course code already exists
-    existing_course = db.query(Course).filter(Course.code == code).first()
-    if existing_course:
-        raise HTTPException(status_code=400, detail="Course code already exists")
-    
-    course = Course(
-        code=code,
-        name=name,
-        description=description,
-        semester=semester,
-        lecturer_id=current.id
-    )
-    db.add(course)
+    """Remove yourself as the lecturer of a course.
+
+    Only works if you are the current lecturer. The course remains in the
+    system but becomes unassigned so another lecturer can claim it.
+    """
+    course = db.query(Course).filter(
+        Course.id == course_id,
+        Course.lecturer_id == current.id,
+    ).first()
+
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found or you are not the lecturer")
+
+    course.lecturer_id = None
     db.commit()
     db.refresh(course)
-    
-    write_audit(db, "lecturer.create_course", current.id, f"course_id={course.id}")
+
+    write_audit(db, "lecturer.unclaim_course", current.id, f"course_id={course_id}")
     return {
         "id": course.id,
         "code": course.code,
         "name": course.name,
-        "description": course.description,
-        "semester": course.semester,
-        "is_active": course.is_active
+        "unclaimed": True,
+        "message": f"Successfully removed yourself from {course.code}",
     }
 
 
@@ -200,6 +196,8 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
         "name": course.name,
         "description": course.description,
         "semester": course.semester,
+        "level": course.level,
+        "programme": course.programme,
         "is_active": course.is_active,
         "created_at": course.created_at.isoformat(),
         "enrolled_students": [
@@ -225,29 +223,6 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
             for session in recent_sessions
         ]
     }
-
-
-@router.delete("/courses/{course_id}", response_model=dict)
-def delete_course(
-    course_id: int,
-    db: Session = Depends(get_db),
-    current: User = Depends(get_current_lecturer),
-):
-    """Delete a course (and its sessions). Enrollments are removed. Only the owning lecturer can delete."""
-    from ....models.student_course_enrollment import StudentCourseEnrollment
-
-    course = db.query(Course).filter(
-        Course.id == course_id,
-        Course.lecturer_id == current.id,
-    ).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    # Remove enrollments first (no cascade from Course to enrollments)
-    db.query(StudentCourseEnrollment).filter(StudentCourseEnrollment.course_id == course_id).delete()
-    db.delete(course)
-    db.commit()
-    write_audit(db, "lecturer.delete_course", current.id, f"course_id={course_id}")
-    return {"deleted": True, "course_id": course_id}
 
 
 @router.put("/courses/{course_id}", response_model=dict)

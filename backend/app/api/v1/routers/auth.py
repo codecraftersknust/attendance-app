@@ -82,6 +82,8 @@ def get_profile(current: User = Depends(get_current_user)):
         full_name=current.full_name,
         user_id=current.user_id,
         role=current.role.value if hasattr(current.role, "value") else current.role,
+        level=current.level,
+        programme=current.programme,
         is_active=current.is_active,
         has_face_enrolled=has_face,
         created_at=current.created_at,
@@ -96,14 +98,12 @@ def update_profile(
     current: User = Depends(get_current_user),
 ):
     """Update the current user's profile fields."""
-    # Check email uniqueness if changing
     if updates.email and updates.email != current.email:
         existing = db.query(User).filter(User.email == updates.email).first()
         if existing:
             raise HTTPException(status_code=400, detail="Email already in use")
         current.email = updates.email
 
-    # Check user_id uniqueness if changing
     if updates.user_id is not None and updates.user_id != current.user_id:
         if updates.user_id:
             existing = db.query(User).filter(User.user_id == updates.user_id).first()
@@ -113,6 +113,10 @@ def update_profile(
 
     if updates.full_name is not None:
         current.full_name = updates.full_name
+    if updates.level is not None:
+        current.level = updates.level
+    if updates.programme is not None:
+        current.programme = updates.programme
 
     db.commit()
     db.refresh(current)
@@ -124,6 +128,8 @@ def update_profile(
         full_name=current.full_name,
         user_id=current.user_id,
         role=current.role.value if hasattr(current.role, "value") else current.role,
+        level=current.level,
+        programme=current.programme,
         is_active=current.is_active,
         has_face_enrolled=has_face,
         created_at=current.created_at,

@@ -27,6 +27,8 @@ class UserRead(BaseModel):
     full_name: Optional[str] = None
     user_id: Optional[str] = None
     role: str
+    level: Optional[int] = None
+    programme: Optional[str] = None
     is_active: bool = True
     created_at: Optional[datetime] = None
 
@@ -41,6 +43,8 @@ class UserProfileRead(BaseModel):
     full_name: Optional[str] = None
     user_id: Optional[str] = None
     role: str
+    level: Optional[int] = None
+    programme: Optional[str] = None
     is_active: bool = True
     has_face_enrolled: bool = False
     created_at: Optional[datetime] = None
@@ -55,6 +59,8 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     user_id: Optional[str] = None
+    level: Optional[int] = None
+    programme: Optional[str] = None
 
 
 class PasswordChange(BaseModel):

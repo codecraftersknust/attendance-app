@@ -8,10 +8,12 @@ class Course(Base):
     __tablename__ = "courses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    code: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # e.g., "CS101", "MATH201"
-    name: Mapped[str] = mapped_column(String(200))  # e.g., "Introduction to Computer Science"
+    code: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    semester: Mapped[str] = mapped_column(String(20))  # e.g., "Fall 2024", "Spring 2025"
+    semester: Mapped[str] = mapped_column(String(20))
+    level: Mapped[int] = mapped_column(Integer, nullable=False, default=100, server_default="100")
+    programme: Mapped[str] = mapped_column(String(100), nullable=False, default="General", server_default="General")
     lecturer_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -16,6 +16,8 @@ export interface UserProfile {
     full_name: string | null;
     user_id: string | null;
     role: 'student' | 'lecturer' | 'admin';
+    level: number | null;
+    programme: string | null;
     is_active: boolean;
     has_face_enrolled: boolean;
     created_at: string | null;
@@ -26,6 +28,8 @@ export interface UserUpdateRequest {
     full_name?: string;
     email?: string;
     user_id?: string;
+    level?: number;
+    programme?: string;
 }
 
 export interface PasswordChangeRequest {
@@ -88,19 +92,14 @@ class ApiClient {
             }
         }
 
-        try {
-            const response = await fetch(url, config);
+        const response = await fetch(url, config);
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('API request failed:', error);
-            throw error;
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
         }
+
+        return await response.json();
     }
 
     // Auth endpoints
@@ -173,7 +172,7 @@ class ApiClient {
         session_id: number;
         student_id: number;
         lecturer_id: number | null;
-        imei: string | null;
+        device_id_hash: string | null;
         face_verified: boolean | null;
         face_distance: number | null;
         face_threshold: number | null;
@@ -182,9 +181,9 @@ class ApiClient {
         return this.request('/admin/flagged');
     }
 
-    async adminApproveImeiReset(userId: number, newImei: string): Promise<{ user_id: number; imei: string }> {
-        const qs = new URLSearchParams({ user_id: String(userId), new_imei: newImei }).toString();
-        return this.request(`/admin/imei/approve-reset?${qs}`, { method: 'POST' });
+    async adminApproveDeviceReset(userId: number, newDeviceId: string): Promise<{ user_id: number; device_id: string }> {
+        const qs = new URLSearchParams({ user_id: String(userId), new_device_id: newDeviceId }).toString();
+        return this.request(`/admin/device/approve-reset?${qs}`, { method: 'POST' });
     }
 
     async adminDashboard(): Promise<any> {
@@ -230,6 +229,104 @@ class ApiClient {
         return this.request(`/admin/attendance/manual-mark?${qs.toString()}`, { method: 'POST' });
     }
 
+    // Admin course management
+    async adminGetCourses(params: { search?: string; semester?: string; limit?: number; offset?: number } = {}): Promise<Array<{
+        id: number;
+        code: string;
+        name: string;
+        description: string | null;
+        semester: string;
+        level: number;
+        programme: string;
+        is_active: boolean;
+        lecturer_name: string | null;
+        enrolled_count: number;
+        session_count: number;
+        created_at: string;
+    }>> {
+        const qs = new URLSearchParams();
+        if (params.search) qs.set('search', params.search);
+        if (params.semester) qs.set('semester', params.semester);
+        if (params.limit != null) qs.set('limit', String(params.limit));
+        if (params.offset != null) qs.set('offset', String(params.offset));
+        const q = qs.toString();
+        return this.request(`/admin/courses${q ? `?${q}` : ''}`);
+    }
+
+    async adminGetCourseDetails(courseId: number): Promise<{
+        id: number;
+        code: string;
+        name: string;
+        description: string | null;
+        semester: string;
+        level: number;
+        programme: string;
+        is_active: boolean;
+        lecturer_id: number | null;
+        lecturer_name: string | null;
+        created_at: string;
+        enrolled_students: Array<{
+            id: number;
+            user_id: string | null;
+            full_name: string | null;
+            email: string;
+            enrolled_at: string;
+        }>;
+        enrolled_count: number;
+        recent_sessions: Array<{
+            id: number;
+            code: string;
+            is_active: boolean;
+            starts_at: string | null;
+            ends_at: string | null;
+            attendance_count: number;
+        }>;
+    }> {
+        return this.request(`/admin/courses/${courseId}`);
+    }
+
+    async adminCreateCourse(payload: {
+        code: string;
+        name: string;
+        description?: string;
+        semester?: string;
+        level?: number;
+        programme?: string;
+    }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; is_active: boolean }> {
+        const qs = new URLSearchParams();
+        qs.set('code', payload.code);
+        qs.set('name', payload.name);
+        if (payload.semester) qs.set('semester', payload.semester);
+        if (payload.description) qs.set('description', payload.description);
+        if (payload.level != null) qs.set('level', String(payload.level));
+        if (payload.programme) qs.set('programme', payload.programme);
+        return this.request(`/admin/courses?${qs.toString()}`, { method: 'POST' });
+    }
+
+    async adminUpdateCourse(courseId: number, payload: {
+        code?: string;
+        name?: string;
+        description?: string;
+        semester?: string;
+        level?: number;
+        programme?: string;
+        is_active?: boolean;
+    }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; is_active: boolean }> {
+        const qs = new URLSearchParams();
+        if (payload.code) qs.set('code', payload.code);
+        if (payload.name) qs.set('name', payload.name);
+        if (payload.description) qs.set('description', payload.description);
+        if (payload.semester) qs.set('semester', payload.semester);
+        if (payload.level != null) qs.set('level', String(payload.level));
+        if (payload.programme) qs.set('programme', payload.programme);
+        if (payload.is_active != null) qs.set('is_active', String(payload.is_active));
+        return this.request(`/admin/courses/${courseId}?${qs.toString()}`, { method: 'PUT' });
+    }
+
+    async adminDeleteCourse(courseId: number): Promise<{ deleted: boolean; course_id: number }> {
+        return this.request(`/admin/courses/${courseId}`, { method: 'DELETE' });
+    }
+
     // Lecturer endpoints
     async lecturerCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean; created_at?: string; session_count?: number }>> {
         return this.request('/lecturer/courses');
@@ -241,6 +338,8 @@ class ApiClient {
         name: string;
         description: string | null;
         semester: string;
+        level: number;
+        programme: string;
         is_active: boolean;
         created_at: string;
         enrolled_students: Array<{
@@ -263,17 +362,24 @@ class ApiClient {
         return this.request(`/lecturer/courses/${courseId}`);
     }
 
-    async lecturerCreateCourse(payload: { code: string; name: string; description?: string; semester?: string }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean }> {
+    async lecturerBrowseCourses(params?: { search?: string; semester?: string }): Promise<Array<{
+        id: number; code: string; name: string; description: string | null; semester: string;
+        lecturer_id: number | null; lecturer_name: string | null;
+        is_active: boolean; is_claimed: boolean; is_mine: boolean; created_at: string | null;
+    }>> {
         const qs = new URLSearchParams();
-        qs.set('code', payload.code);
-        qs.set('name', payload.name);
-        if (payload.description) qs.set('description', payload.description);
-        if (payload.semester) qs.set('semester', payload.semester);
-        return this.request(`/lecturer/courses?${qs.toString()}`, { method: 'POST' });
+        if (params?.search) qs.set('search', params.search);
+        if (params?.semester) qs.set('semester', params.semester);
+        const query = qs.toString();
+        return this.request(`/lecturer/courses/all${query ? `?${query}` : ''}`);
     }
 
-    async lecturerDeleteCourse(courseId: number): Promise<{ deleted: boolean; course_id: number }> {
-        return this.request(`/lecturer/courses/${courseId}`, { method: 'DELETE' });
+    async lecturerClaimCourse(courseId: number): Promise<{ id: number; code: string; name: string; message: string }> {
+        return this.request(`/lecturer/courses/${courseId}/claim`, { method: 'POST' });
+    }
+
+    async lecturerUnclaimCourse(courseId: number): Promise<{ id: number; code: string; name: string; unclaimed: boolean; message: string }> {
+        return this.request(`/lecturer/courses/${courseId}/unclaim`, { method: 'POST' });
     }
 
     async lecturerDashboard(): Promise<{
@@ -390,8 +496,21 @@ class ApiClient {
         total_sessions: number;
         attendance_marked_count: number;
         confirmed_count: number;
+        profile_complete: boolean;
+        enrollment_open: boolean;
+        current_semester: string;
+        is_on_break: boolean;
+        academic_year: string;
     }> {
         return this.request('/student/dashboard');
+    }
+
+    async studentGetRecommendedCourses(): Promise<Array<{
+        id: number; code: string; name: string; description: string | null;
+        semester: string; level: number; programme: string;
+        lecturer_name: string | null; is_enrolled: boolean;
+    }>> {
+        return this.request('/student/courses/recommended');
     }
 
     // Student attendance endpoints
@@ -467,6 +586,50 @@ class ApiClient {
     }>> {
         return this.request('/student/attendance/history');
     }
+
+    // ── School Settings ────────────────────────────────────────────
+
+    async adminGetSchoolSettings(): Promise<{
+        current_semester: string;
+        is_on_break: boolean;
+        enrollment_open: boolean;
+        academic_year: string;
+        updated_at: string | null;
+    }> {
+        return this.request('/admin/school-settings');
+    }
+
+    async adminUpdateSchoolSettings(data: {
+        current_semester?: string;
+        is_on_break?: boolean;
+        enrollment_open?: boolean;
+        academic_year?: string;
+    }): Promise<{
+        current_semester: string;
+        is_on_break: boolean;
+        enrollment_open: boolean;
+        academic_year: string;
+        updated_at: string | null;
+    }> {
+        const qs = new URLSearchParams();
+        if (data.current_semester !== undefined) qs.set('current_semester', data.current_semester);
+        if (data.is_on_break !== undefined) qs.set('is_on_break', String(data.is_on_break));
+        if (data.enrollment_open !== undefined) qs.set('enrollment_open', String(data.enrollment_open));
+        if (data.academic_year !== undefined) qs.set('academic_year', data.academic_year);
+        return this.request(`/admin/school-settings?${qs.toString()}`, { method: 'PUT' });
+    }
+
+    async adminCloseSemester(): Promise<{
+        semester_closed: string;
+        sessions_closed: number;
+        students_unenrolled: number;
+        levels_updated: number;
+        school_status: string;
+    }> {
+        return this.request('/admin/semester/close', { method: 'POST' });
+    }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
+
+

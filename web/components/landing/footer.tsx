@@ -8,7 +8,7 @@ export function Footer() {
                     <div className="space-y-3 sm:col-span-2 lg:col-span-1">
                         <Link href="/">
                             <span className="inline-flex items-center gap-2 font-semibold text-lg">
-                                Absence
+                                Absense
                             </span>
                         </Link>
                         <p className="text-sm text-gray-600 leading-relaxed max-w-sm">
@@ -48,7 +48,7 @@ export function Footer() {
 
             <div className="border-t">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-600">
-                    <p>© {new Date().getFullYear()} Absence. All rights reserved.</p>
+                    <p>© {new Date().getFullYear()} Absense. All rights reserved.</p>
                     <div className="flex items-center gap-3 sm:gap-4">
                         <Link href="/privacy" className="hover:text-gray-900 transition-colors">Privacy</Link>
                         <span className="text-emerald-900">•</span>

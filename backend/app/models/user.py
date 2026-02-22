@@ -22,6 +22,8 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=True)
     face_reference_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False, default=UserRole.student)
+    level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    programme: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
