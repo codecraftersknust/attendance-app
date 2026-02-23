@@ -90,29 +90,29 @@ export function SessionList() {
     const [qrSessionId, setQrSessionId] = useState<number | null>(null);
 
     return (
-        <div className="bg-white rounded-md shadow p-4">
-            <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold">Sessions</h2>
-                <Button variant="outline" onClick={load} disabled={loading}>Refresh</Button>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-6">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Sessions</h2>
+                <Button variant="outline" onClick={load} disabled={loading} className="border-gray-200">Refresh</Button>
             </div>
             {loading ? (
-                <p>Loading...</p>
+                <p className="text-gray-500 py-8">Loading sessions...</p>
             ) : (
                 <div className="space-y-6">
                     <div>
-                        <h3 className="font-medium mb-2">Active</h3>
+                        <h3 className="font-semibold text-gray-800 mb-3">Active</h3>
                         {active.length === 0 ? (
-                            <p className="text-gray-600 text-sm">No active sessions</p>
+                            <p className="text-gray-500 text-sm py-4">No active sessions</p>
                         ) : (
-                            <ul className="divide-y">
+                            <ul className="divide-y divide-gray-100">
                                 {active.map((s) => (
-                                    <li key={s.id} className="py-3 flex items-center justify-between">
+                                    <li key={s.id} className="py-4 flex items-center justify-between hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors">
                                         <div>
-                                            <div className="font-medium">#{s.id} - Code: {s.code}</div>
-                                            <div className="text-xs text-gray-500">Active</div>
+                                            <div className="font-medium text-gray-900">#{s.id} - Code: {s.code}</div>
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 mt-1">Active</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Button variant="default" size="sm" onClick={() => setQrSessionId(s.id)}>
+                                            <Button size="sm" className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={() => setQrSessionId(s.id)}>
                                                 <QrCode className="mr-1 h-4 w-4" />
                                                 Show QR
                                             </Button>
@@ -131,16 +131,16 @@ export function SessionList() {
                         )}
                     </div>
                     <div>
-                        <h3 className="font-medium mb-2">Recent (Closed)</h3>
+                        <h3 className="font-semibold text-gray-800 mb-3">Recent (Closed)</h3>
                         {inactive.length === 0 ? (
-                            <p className="text-gray-600 text-sm">No closed sessions</p>
+                            <p className="text-gray-500 text-sm py-4">No closed sessions</p>
                         ) : (
-                            <ul className="divide-y">
+                            <ul className="divide-y divide-gray-100">
                                 {inactive.map((s) => (
-                                    <li key={s.id} className="py-3 flex items-center justify-between">
+                                    <li key={s.id} className="py-4 flex items-center justify-between">
                                         <div>
-                                            <div className="font-medium">#{s.id} - Code: {s.code}</div>
-                                            <div className="text-xs text-gray-500">Closed</div>
+                                            <div className="font-medium text-gray-900">#{s.id} - Code: {s.code}</div>
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-1">Closed</span>
                                         </div>
                                         <div className="text-sm text-gray-500">&nbsp;</div>
                                     </li>

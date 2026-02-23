@@ -11,6 +11,7 @@ import {
     SidebarGroup,
     SidebarGroupContent,
     SidebarGroupLabel,
+    SidebarHeader,
     SidebarInset,
     SidebarMenu,
     SidebarMenuButton,
@@ -27,6 +28,7 @@ import {
     Activity,
     Smartphone,
     CheckSquare,
+    Shield,
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -44,11 +46,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     ];
 
     return (
-        <SidebarProvider>
+        <SidebarProvider className="admin-layout">
             <ShadSidebar collapsible="offcanvas">
+                <SidebarHeader className="border-b border-emerald-200 bg-emerald-50 px-4 py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-900 text-white">
+                            <Shield className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-emerald-900">Admin</p>
+                            <p className="text-xs text-emerald-700">School Administration</p>
+                        </div>
+                    </div>
+                </SidebarHeader>
                 <SidebarContent>
                     <SidebarGroup>
-                        <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                        <SidebarGroupLabel>Navigation</SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 {links.map((link) => (

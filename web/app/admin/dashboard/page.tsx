@@ -89,16 +89,22 @@ export default function AdminDashboard() {
 
     return (
         <ProtectedRoute allowedRoles={['admin']}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:px-8 space-y-6">
-                <div>
-                    <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
-                        Welcome, {user?.full_name || user?.email}
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-0.5">School administration overview</p>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:px-8 space-y-8">
+                {/* Welcome section */}
+                <div className="relative overflow-hidden rounded-2xl bg-emerald-900 px-6 py-8 shadow-xl">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
+                    <div className="relative">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                            Welcome, {user?.full_name || user?.email}
+                        </h1>
+                        <p className="mt-1.5 text-emerald-100/90 text-sm sm:text-base">
+                            School administration overview
+                        </p>
+                    </div>
                 </div>
 
                 {/* Academic Calendar Card */}
-                <Card className="border-gray-200/80 bg-white">
+                <Card className="border-gray-200/80 bg-white shadow-md">
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                             <CardTitle className="text-base font-medium text-gray-700 flex items-center gap-2">
@@ -146,68 +152,80 @@ export default function AdminDashboard() {
                 </Card>
 
                 {loading ? (
-                    <p className="text-gray-500">Loading...</p>
+                    <p className="text-gray-500 py-8">Loading...</p>
                 ) : overview ? (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Card className="border-gray-200/80 bg-white">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Total Users</CardTitle>
-                                    <Users className="h-4 w-4 text-emerald-600" />
+                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                    <CardTitle className="text-sm font-semibold text-gray-600">Total Users</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                        <Users className="h-4 w-4" />
+                                    </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-5">
                                     <div className="text-2xl font-bold text-gray-900">{overview.overview?.total_users ?? '-'}</div>
                                     <p className="text-xs text-gray-500 mt-0.5">All registered accounts</p>
                                 </CardContent>
                             </Card>
-                            <Card className="border-gray-200/80 bg-white">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Students</CardTitle>
-                                    <GraduationCap className="h-4 w-4 text-blue-600" />
+                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                    <CardTitle className="text-sm font-semibold text-gray-600">Students</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                        <GraduationCap className="h-4 w-4" />
+                                    </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-5">
                                     <div className="text-2xl font-bold text-gray-900">{overview.overview?.total_students ?? '-'}</div>
                                     <p className="text-xs text-gray-500 mt-0.5">Enrolled students</p>
                                 </CardContent>
                             </Card>
-                            <Card className="border-gray-200/80 bg-white">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Lecturers</CardTitle>
-                                    <UserCog className="h-4 w-4 text-purple-600" />
+                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                    <CardTitle className="text-sm font-semibold text-gray-600">Lecturers</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                        <UserCog className="h-4 w-4" />
+                                    </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-5">
                                     <div className="text-2xl font-bold text-gray-900">{overview.overview?.total_lecturers ?? '-'}</div>
                                     <p className="text-xs text-gray-500 mt-0.5">Teaching staff</p>
                                 </CardContent>
                             </Card>
-                            <Card className="border-gray-200/80 bg-white">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Sessions</CardTitle>
-                                    <CalendarClock className="h-4 w-4 text-amber-600" />
+                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                    <CardTitle className="text-sm font-semibold text-gray-600">Sessions</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                        <CalendarClock className="h-4 w-4" />
+                                    </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-5">
                                     <div className="text-2xl font-bold text-gray-900">{overview.overview?.total_sessions ?? '-'}</div>
                                     <p className="text-xs text-gray-500 mt-0.5">All-time sessions</p>
                                 </CardContent>
                             </Card>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-3">
                             <Link href="/admin/courses">
-                                <Button size="sm" className="bg-emerald-900 hover:bg-emerald-900/90 text-white">
-                                    <BookOpen className="h-4 w-4 mr-1" />
+                                <Button size="default" className="bg-emerald-900 hover:bg-emerald-900/90 text-white px-5">
+                                    <BookOpen className="h-4 w-4 mr-2" />
                                     Manage Courses
                                 </Button>
                             </Link>
                             <Link href="/admin/flagged">
-                                <Button variant="outline" size="sm">
-                                    <Flag className="h-4 w-4 mr-1" />
+                                <Button variant="outline" size="default" className="border-gray-200 hover:bg-gray-50 px-5">
+                                    <Flag className="h-4 w-4 mr-2" />
                                     View Flagged
                                 </Button>
                             </Link>
                             <Link href="/admin/activity">
-                                <Button variant="outline" size="sm">
-                                    <Activity className="h-4 w-4 mr-1" />
+                                <Button variant="outline" size="default" className="border-gray-200 hover:bg-gray-50 px-5">
+                                    <Activity className="h-4 w-4 mr-2" />
                                     Activity Log
                                 </Button>
                             </Link>

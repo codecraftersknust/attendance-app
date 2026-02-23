@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Emerald } from '@/constants/theme';
 
 export default function LoginScreen() {
     const [username, setUsername] = useState('');
@@ -56,7 +57,7 @@ export default function LoginScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.header}>
-                    <View style={styles.logoCircle}>
+                    <View style={[styles.logoCircle, { backgroundColor: isDark ? Emerald[500] : Emerald[900] }]}>
                         <Text style={styles.logoText}>A</Text>
                     </View>
                     <Text style={[styles.title, { color: isDark ? '#f1f5f9' : '#1e293b' }]}>
@@ -114,7 +115,11 @@ export default function LoginScreen() {
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.button, isLoading && styles.buttonDisabled]}
+                        style={[
+                            styles.button,
+                            { backgroundColor: isDark ? Emerald[500] : Emerald[900] },
+                            isLoading && styles.buttonDisabled,
+                        ]}
                         onPress={handleLogin}
                         disabled={isLoading}
                         activeOpacity={0.8}
@@ -128,7 +133,7 @@ export default function LoginScreen() {
                         Don't have an account?{' '}
                     </Text>
                     <TouchableOpacity onPress={() => router.push('/(auth)/register')} disabled={isLoading}>
-                        <Text style={styles.linkText}>Create Account</Text>
+                        <Text style={[styles.linkText, { color: isDark ? Emerald[500] : Emerald[900] }]}>Create Account</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -153,7 +158,6 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: '#10b981',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
@@ -194,7 +198,6 @@ const styles = StyleSheet.create({
     button: {
         height: 48,
         borderRadius: 8,
-        backgroundColor: '#10b981',
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 8,
@@ -219,6 +222,5 @@ const styles = StyleSheet.create({
     linkText: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#10b981',
     },
 });

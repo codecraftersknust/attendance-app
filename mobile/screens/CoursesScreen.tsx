@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusEffect } from '@react-navigation/native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/ToastContext';
 import apiClientService from '@/services/apiClient.service';
-import type { Course } from '@/types/api.types';
+import type { Course, DashboardStats, RecommendedCourse } from '@/types/api.types';
 
 export default function CoursesScreen() {
   const colorScheme = useColorScheme();
@@ -14,18 +14,57 @@ export default function CoursesScreen() {
   const { showToast } = useToast();
 
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recommendedCourses, setRecommendedCourses] = useState<RecommendedCourse[]>([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadEnrolledCourses = async () => {
     try {
-      const courses = await apiClientService.studentGetCourses();
+      const [courses, dashboardData] = await Promise.all([
+        apiClientService.studentGetCourses(),
+        apiClientService.studentDashboard(),
+      ]);
       setEnrolledCourses(courses);
+      setStats(dashboardData);
+
+      if (dashboardData?.profile_complete) {
+        setLoadingRecommended(true);
+        try {
+          const recommended = await apiClientService.studentGetRecommendedCourses();
+          setRecommendedCourses(recommended);
+        } catch {
+          // Non-critical
+        } finally {
+          setLoadingRecommended(false);
+        }
+      }
     } catch (error: any) {
       console.error('Failed to load enrolled courses:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleEnroll = async (courseId: number) => {
+    if (enrollingIds.has(courseId)) return;
+    try {
+      setEnrollingIds((prev) => new Set(prev).add(courseId));
+      await apiClientService.studentEnrollInCourse(courseId);
+      showToast('Course added successfully', 'success');
+      await loadEnrolledCourses();
+    } catch (error: any) {
+      showToast(error?.message || 'Failed to enroll in course', 'error');
+    } finally {
+      setEnrollingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
     }
   };
 
@@ -78,6 +117,24 @@ export default function CoursesScreen() {
     return `Enrolled ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   };
 
+  const matchesSearch = (course: { code: string; name: string }, q: string) => {
+    if (!q.trim()) return true;
+    const lower = q.trim().toLowerCase();
+    return (
+      course.code.toLowerCase().includes(lower) ||
+      course.name.toLowerCase().includes(lower)
+    );
+  };
+
+  const filteredRecommended = useMemo(
+    () => recommendedCourses.filter((c) => matchesSearch(c, searchQuery)),
+    [recommendedCourses, searchQuery]
+  );
+  const filteredEnrolled = useMemo(
+    () => enrolledCourses.filter((c) => matchesSearch(c, searchQuery)),
+    [enrolledCourses, searchQuery]
+  );
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -87,11 +144,102 @@ export default function CoursesScreen() {
       }
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>My Courses</Text>
-        <Text style={[styles.subtitle, { color: colors.tabIconDefault }]}>
-          Your enrolled courses
-        </Text>
+        <Text style={[styles.title, { color: colors.text }]}>Courses</Text>
+        <View style={[styles.searchContainer, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#f5f5f5' }]}>
+          <IconSymbol name="magnifyingglass" size={18} color={colors.tabIconDefault} style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search by code or name..."
+            placeholderTextColor={colors.tabIconDefault}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
       </View>
+
+      {/* Recommended courses (when profile complete) */}
+      {stats?.profile_complete && (
+        <View style={styles.recommendedSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Courses for {stats.current_semester || 'this semester'}
+            {stats.academic_year ? ` (${stats.academic_year})` : ''}
+          </Text>
+          {!stats.enrollment_open && (
+            <View style={[styles.enrollmentBanner, { backgroundColor: '#dbeafe', borderColor: '#3b82f6' }]}>
+              <IconSymbol name="exclamationmark.triangle.fill" size={16} color="#2563eb" />
+              <Text style={styles.enrollmentBannerText}>
+                Enrolment is currently closed. Courses will be available at the start of the next semester.
+              </Text>
+            </View>
+          )}
+          {loadingRecommended ? (
+            <ActivityIndicator size="small" color={colors.tint} style={{ marginVertical: 16 }} />
+          ) : filteredRecommended.length === 0 ? (
+            <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
+              {recommendedCourses.length === 0
+                ? 'No courses found for your programme and level this semester.'
+                : 'No courses match your search.'}
+            </Text>
+          ) : (
+            filteredRecommended.map((course) => (
+              <View
+                key={course.id}
+                style={[
+                  styles.recommendedCard,
+                  { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5' },
+                ]}
+              >
+                <View style={styles.recommendedInfo}>
+                  <Text style={[styles.courseCode, { color: colors.tint }]}>{course.code}</Text>
+                  <Text style={[styles.courseName, { color: colors.text }]} numberOfLines={1}>{course.name}</Text>
+                  {course.description && (
+                    <Text style={[styles.courseDescription, { color: colors.tabIconDefault }]} numberOfLines={2}>
+                      {course.description}
+                    </Text>
+                  )}
+                  <View style={styles.courseMetaRow}>
+                    <IconSymbol name="calendar" size={14} color={colors.tabIconDefault} />
+                    <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
+                      {course.semester}
+                    </Text>
+                    {course.lecturer_name && (
+                      <>
+                        <Text style={[styles.metaDivider, { color: colors.tabIconDefault }]}> • </Text>
+                        <IconSymbol name="person.fill" size={14} color={colors.tabIconDefault} />
+                        <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
+                          {course.lecturer_name}
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+                {course.is_enrolled ? (
+                  <View style={[styles.enrolledBadge, { backgroundColor: colors.tint + '20' }]}>
+                    <Text style={[styles.enrolledBadgeText, { color: colors.tint }]}>Enrolled</Text>
+                  </View>
+                ) : stats.enrollment_open ? (
+                  <TouchableOpacity
+                    style={[styles.enrollButton, { borderColor: colors.tint, borderWidth: 1 }]}
+                    onPress={() => handleEnroll(course.id)}
+                    disabled={enrollingIds.has(course.id)}
+                  >
+                    {enrollingIds.has(course.id) ? (
+                      <ActivityIndicator size="small" color={colors.tint} />
+                    ) : (
+                      <>
+                        <IconSymbol name="plus" size={14} color={colors.tint} />
+                        <Text style={[styles.enrollButtonText, { color: colors.tint }]}>Enrol</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ))
+          )}
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -101,14 +249,21 @@ export default function CoursesScreen() {
       ) : enrolledCourses.length === 0 ? (
         <View style={styles.emptyContainer}>
           <IconSymbol name="book.fill" size={64} color={colors.tabIconDefault} />
-          <Text style={[styles.emptyText, { color: colors.text }]}>No courses yet</Text>
+          <Text style={[styles.emptyText, { color: colors.text }]}>No enrolled courses yet</Text>
           <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
-            Use the search button to find and enroll in courses
+            Use the search tab or recommended courses above to enroll
           </Text>
         </View>
       ) : (
+        <View style={styles.enrolledSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Enrolled</Text>
         <View style={styles.coursesContainer}>
-          {enrolledCourses.map((course) => (
+          {filteredEnrolled.length === 0 ? (
+            <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
+              No enrolled courses match your search.
+            </Text>
+          ) : (
+          filteredEnrolled.map((course) => (
             <View
               key={course.id}
               style={[
@@ -132,7 +287,7 @@ export default function CoursesScreen() {
                   onPress={() => handleDeleteCourse(course.id, course.name)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <IconSymbol name="trash" size={20} color={colors.error} />
+                  <IconSymbol name="trash" size={18} color={colors.error} />
                 </TouchableOpacity>
               </View>
 
@@ -160,7 +315,9 @@ export default function CoursesScreen() {
                 )}
               </View>
             </View>
-          ))}
+          ))
+          )}
+        </View>
         </View>
       )}
     </ScrollView>
@@ -173,19 +330,31 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 34,
     paddingBottom: 100,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  subtitle: {
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
     fontSize: 16,
+    paddingVertical: 0,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -217,33 +386,33 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   courseCard: {
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   courseHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   courseCode: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   enrollmentDate: {
-    fontSize: 11,
+    fontSize: 10,
   },
   courseName: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   courseDescription: {
-    fontSize: 14,
-    marginBottom: 12,
-    lineHeight: 20,
+    fontSize: 12,
+    marginBottom: 8,
+    lineHeight: 18,
   },
   courseMetaRow: {
     flexDirection: 'row',
@@ -251,11 +420,71 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   courseMeta: {
-    fontSize: 13,
+    fontSize: 11,
     marginLeft: 4,
   },
   metaDivider: {
-    fontSize: 12,
+    fontSize: 11,
     marginHorizontal: 4,
+  },
+  recommendedSection: {
+    marginBottom: 24,
+  },
+  enrolledSection: {
+    marginTop: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  enrollmentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  enrollmentBannerText: {
+    fontSize: 12,
+    color: '#1e40af',
+    marginLeft: 8,
+    flex: 1,
+  },
+  recommendedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  recommendedInfo: {
+    flex: 1,
+  },
+  enrolledBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  enrolledBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  enrollButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginLeft: 12,
+  },
+  enrollButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });

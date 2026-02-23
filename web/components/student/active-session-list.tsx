@@ -31,15 +31,18 @@ export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => v
     }, []);
 
     return (
-        <div className="bg-white rounded-md shadow p-4">
-            <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold">Active Sessions</h2>
-                <Button variant="outline" onClick={load} disabled={loading}>Refresh</Button>
+        <div className="border-gray-200/80 bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h2 className="text-lg font-semibold text-gray-900">Active Sessions</h2>
+                <Button variant="outline" size="sm" onClick={load} disabled={loading} className="border-gray-200 hover:bg-gray-50">
+                    Refresh
+                </Button>
             </div>
+            <div className="p-4">
             {loading ? (
-                <p>Loading...</p>
+                <p className="text-gray-500 py-6">Loading...</p>
             ) : sessions.length === 0 ? (
-                <p className="text-gray-600">No active sessions for your courses.</p>
+                <p className="text-gray-500 py-6">No active sessions for your courses.</p>
             ) : (
                 <ul className="divide-y">
                     {sessions.map((s) => (
@@ -60,6 +63,7 @@ export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => v
                     ))}
                 </ul>
             )}
+            </div>
         </div>
     );
 }

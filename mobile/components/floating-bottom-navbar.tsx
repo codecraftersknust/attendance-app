@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -24,6 +24,23 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
         return 'person.fill';
       default:
         return 'circle.fill';
+    }
+  };
+
+  const getTabLabel = (routeName: string): string => {
+    switch (routeName) {
+      case 'index':
+        return 'Home';
+      case 'courses':
+        return 'Courses';
+      case 'attendance':
+        return 'Attend';
+      case 'search':
+        return 'Search';
+      case 'profile':
+        return 'Profile';
+      default:
+        return '';
     }
   };
 
@@ -75,22 +92,29 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
               accessibilityState={isFocused ? { selected: true } : {}}
               accessibilityLabel={options.tabBarAccessibilityLabel}
               onPress={onPress}
-              style={styles.tabButton}
+              style={[
+                styles.tabButton,
+                isFocused && {
+                  backgroundColor: colors.tint + '18',
+                  borderRadius: 20,
+                },
+              ]}
             >
-              <View
+              <IconSymbol
+                size={22}
+                name={getIconName(route.name)}
+                color={isFocused ? colors.tint : colors.tabIconDefault}
+              />
+              <Text
                 style={[
-                  styles.iconContainer,
-                  isFocused && {
-                    backgroundColor: colors.tint + '20',
-                  },
+                  styles.tabLabel,
+                  { color: isFocused ? colors.tint : colors.tabIconDefault },
                 ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                <IconSymbol
-                  size={26}
-                  name={getIconName(route.name)}
-                  color={isFocused ? colors.tint : colors.tabIconDefault}
-                />
-              </View>
+                {getTabLabel(route.name)}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -113,7 +137,7 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
             },
           ]}
         >
-          <IconSymbol size={24} name="magnifyingglass" color="#ffffff" />
+          <IconSymbol size={22} name="magnifyingglass" color="#ffffff" />
         </TouchableOpacity>
       )}
     </View>
@@ -126,8 +150,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -136,29 +160,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 30,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 24,
     flex: 1,
     marginRight: 12,
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
     elevation: 8,
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginHorizontal: 2,
+    gap: 2,
+    minWidth: 0,
   },
-  iconContainer: {
-    padding: 10,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    maxWidth: '100%',
   },
   searchButton: {
     width: 56,

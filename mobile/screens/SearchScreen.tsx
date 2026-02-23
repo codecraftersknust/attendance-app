@@ -72,7 +72,6 @@ export default function SearchScreen() {
       contentContainerStyle={styles.content}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Search Courses</Text>
         <Text style={[styles.subtitle, { color: colors.tabIconDefault }]}>
           Find and enroll in courses
         </Text>
@@ -191,19 +190,14 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 34,
     paddingBottom: 100,
   },
   header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
   },
   searchContainer: {
     flexDirection: 'row',

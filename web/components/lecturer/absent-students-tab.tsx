@@ -77,7 +77,7 @@ export function AbsentStudentsTab({ sessionId }: AbsentStudentsTabProps) {
     }
 
     return (
-        <Card>
+        <Card className="border-gray-200/80 bg-white shadow-md">
             <CardHeader>
                 <CardTitle className="flex items-center justify-between text-lg">
                     <span>Absent Students</span>

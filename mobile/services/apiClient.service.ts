@@ -5,7 +5,7 @@
  */
 
 import apiClient from './api';
-import type { DashboardStats, Course, AttendanceHistoryItem } from '@/types/api.types';
+import type { DashboardStats, Course, AttendanceHistoryItem, RecommendedCourse } from '@/types/api.types';
 
 export interface UserProfile {
     id: number;
@@ -15,6 +15,8 @@ export interface UserProfile {
     role: string;
     is_active: boolean;
     has_face_enrolled: boolean;
+    level?: number | null;
+    programme?: string | null;
     created_at: string | null;
     updated_at: string | null;
 }
@@ -23,6 +25,8 @@ export interface UserUpdateRequest {
     full_name?: string;
     email?: string;
     user_id?: string;
+    level?: number;
+    programme?: string;
 }
 
 export interface PasswordChangeRequest {
@@ -102,6 +106,14 @@ class ApiClientService {
      */
     async getAttendanceHistory(): Promise<AttendanceHistoryItem[]> {
         const response = await apiClient.get<AttendanceHistoryItem[]>('/student/attendance/history');
+        return response.data;
+    }
+
+    /**
+     * Get recommended courses for current semester (based on programme and level)
+     */
+    async studentGetRecommendedCourses(): Promise<RecommendedCourse[]> {
+        const response = await apiClient.get<RecommendedCourse[]>('/student/courses/recommended');
         return response.data;
     }
 }

@@ -118,16 +118,16 @@ export default function ReportsPage() {
 
     return (
         <ProtectedRoute allowedRoles={['lecturer']}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Attendance Reports</h1>
-                        <p className="text-gray-500">View analytics and detailed attendance records</p>
+                        <p className="text-sm text-gray-500 mt-0.5">View analytics and detailed attendance records</p>
                     </div>
 
                     <div className="w-full md:w-72">
                         <Select value={selectedSessionId} onValueChange={setSelectedSessionId} disabled={loadingSessions}>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-gray-200">
                                 <SelectValue placeholder={loadingSessions ? "Loading sessions..." : "Select a session"} />
                             </SelectTrigger>
                             <SelectContent>
@@ -142,13 +142,15 @@ export default function ReportsPage() {
                 </div>
 
                 {!selectedSessionId ? (
-                    <div className="text-center py-12 bg-white rounded-lg border border-dashed mt-4">
-                        <BarChart className="mx-auto h-12 w-12 text-gray-400" />
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">No session selected</h3>
+                    <div className="text-center py-16 bg-white rounded-lg border border-dashed border-gray-200">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+                            <BarChart className="h-8 w-8" />
+                        </div>
+                        <h3 className="mt-4 text-sm font-semibold text-gray-900">No session selected</h3>
                         <p className="mt-1 text-sm text-gray-500">Select a session from the dropdown to view its report.</p>
                     </div>
                 ) : loadingReport ? (
-                    <div className="text-center py-12">
+                    <div className="text-center py-16">
                         <p className="text-gray-500">Loading report data...</p>
                     </div>
                 ) : (
@@ -156,50 +158,62 @@ export default function ReportsPage() {
                         {/* Analytics Cards */}
                         {analytics && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <Card>
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden relative">
+                                    <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                        <CardTitle className="text-sm font-semibold text-gray-600">Total Students</CardTitle>
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                            <Users className="h-4 w-4" />
+                                        </div>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold">{analytics.total_students}</div>
+                                    <CardContent className="pl-5">
+                                        <div className="text-2xl font-bold text-gray-900">{analytics.total_students}</div>
                                     </CardContent>
                                 </Card>
-                                <Card>
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Present</CardTitle>
-                                        <UserCheck className="h-4 w-4 text-emerald-600" />
+                                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden relative">
+                                    <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                        <CardTitle className="text-sm font-semibold text-gray-600">Present</CardTitle>
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                            <UserCheck className="h-4 w-4" />
+                                        </div>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold text-emerald-600">{analytics.present_count}</div>
-                                        <p className="text-xs text-muted-foreground">{(analytics.attendance_rate * 100).toFixed(1)}% rate</p>
+                                    <CardContent className="pl-5">
+                                        <div className="text-2xl font-bold text-emerald-700">{analytics.present_count}</div>
+                                        <p className="text-xs text-gray-500 mt-0.5">{(analytics.attendance_rate * 100).toFixed(1)}% rate</p>
                                     </CardContent>
                                 </Card>
-                                <Card>
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Flagged</CardTitle>
-                                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden relative">
+                                    <div className="absolute left-0 top-0 h-full w-1 bg-amber-500" />
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                        <CardTitle className="text-sm font-semibold text-gray-600">Flagged</CardTitle>
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                                            <AlertTriangle className="h-4 w-4" />
+                                        </div>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold text-amber-500">{analytics.flagged_count}</div>
+                                    <CardContent className="pl-5">
+                                        <div className="text-2xl font-bold text-amber-600">{analytics.flagged_count}</div>
                                     </CardContent>
                                 </Card>
-                                <Card>
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Absent</CardTitle>
-                                        <UserX className="h-4 w-4 text-red-500" />
+                                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden relative">
+                                    <div className="absolute left-0 top-0 h-full w-1 bg-red-500" />
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                        <CardTitle className="text-sm font-semibold text-gray-600">Absent</CardTitle>
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                                            <UserX className="h-4 w-4" />
+                                        </div>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="text-2xl font-bold text-red-500">{analytics.absent_count}</div>
+                                    <CardContent className="pl-5">
+                                        <div className="text-2xl font-bold text-red-600">{analytics.absent_count}</div>
                                     </CardContent>
                                 </Card>
                             </div>
                         )}
 
                         {/* Attendance Table */}
-                        <div className="bg-white rounded-md shadow overflow-hidden mt-4">
-                            <div className="p-4 border-b">
-                                <h3 className="font-semibold">Attendance Records</h3>
+                        <div className="bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden">
+                            <div className="p-4 border-b border-gray-100">
+                                <h3 className="font-semibold text-gray-900">Attendance Records</h3>
                             </div>
                             <Table>
                                 <TableHeader>

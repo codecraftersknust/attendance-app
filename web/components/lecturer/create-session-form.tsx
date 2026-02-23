@@ -73,7 +73,7 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
     };
 
     return (
-        <div className="bg-white rounded-md shadow p-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-6">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                 <div className="space-y-2">
                     <Label>Course</Label>
@@ -102,9 +102,9 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
             </div>
 
             {courseId && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        Class location
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                        Class location (optional)
                     </h3>
                     <SessionLocationMap value={location} onChange={setLocation} />
                 </div>

@@ -171,8 +171,6 @@ export default function AttendanceScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Attendance</Text>
-
         {/* Segmented Control */}
         <View
           style={[
@@ -299,18 +297,28 @@ export default function AttendanceScreen() {
                       borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
                     },
                   ]}
-                  onPress={() => handleOpenSession(session)}
+                  onPress={() => !session.already_marked && handleOpenSession(session)}
                   activeOpacity={0.7}
+                  disabled={session.already_marked}
                 >
                   <View style={styles.sessionInfo}>
                     <View style={styles.sessionHeader}>
                       <Text style={[styles.courseCode, { color: colors.tint }]}>
                         {session.course_code}
                       </Text>
-                      <View style={[styles.activeBadge, { backgroundColor: '#10b981' + '20' }]}>
-                        <View style={[styles.activeDot, { backgroundColor: '#10b981' }]} />
-                        <Text style={[styles.activeText, { color: '#10b981' }]}>Active</Text>
-                      </View>
+                      {session.already_marked ? (
+                        <View style={[styles.markedBadge, { backgroundColor: Emerald[100] }]}>
+                          <IconSymbol name="checkmark.circle.fill" size={12} color={Emerald[700]} />
+                          <Text style={[styles.markedText, { color: Emerald[700] }]}>
+                            {session.attendance_status === 'confirmed' ? 'Marked ✓' : 'Marked (pending)'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.activeBadge, { backgroundColor: '#10b981' + '20' }]}>
+                          <View style={[styles.activeDot, { backgroundColor: '#10b981' }]} />
+                          <Text style={[styles.activeText, { color: '#10b981' }]}>Active</Text>
+                        </View>
+                      )}
                     </View>
 
                     <Text style={[styles.courseName, { color: colors.text }]} numberOfLines={1}>
@@ -336,9 +344,11 @@ export default function AttendanceScreen() {
                     </View>
                   </View>
 
-                  <View style={styles.arrowContainer}>
-                    <IconSymbol name="chevron.right" size={20} color={colors.tint} />
-                  </View>
+                  {!session.already_marked && (
+                    <View style={styles.arrowContainer}>
+                      <IconSymbol name="chevron.right" size={20} color={colors.tint} />
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -555,13 +565,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 34,
     paddingBottom: 8,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 16,
   },
   segmentedControl: {
     flexDirection: 'row',
@@ -667,6 +672,18 @@ const styles = StyleSheet.create({
   activeText: {
     fontSize: 10,
     fontWeight: '600',
+  },
+  markedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  markedText: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   courseName: {
     fontSize: 16,

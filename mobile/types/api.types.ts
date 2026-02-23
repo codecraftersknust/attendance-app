@@ -28,6 +28,11 @@ export interface DashboardStats {
     total_sessions: number;
     attendance_marked_count: number;
     confirmed_count: number;
+    profile_complete?: boolean;
+    enrollment_open?: boolean;
+    current_semester?: string;
+    is_on_break?: boolean;
+    academic_year?: string;
 }
 
 export interface Course {
@@ -49,6 +54,8 @@ export interface ActiveSession {
     course_name?: string;
     starts_at?: string;
     ends_at?: string;
+    already_marked?: boolean;
+    attendance_status?: string;
 }
 
 export interface DeviceStatus {
@@ -64,6 +71,18 @@ export interface AttendanceSubmission {
     longitude: number;
     device_id: string;
     selfie?: any; // File or URI depending on platform
+}
+
+export interface RecommendedCourse {
+    id: number;
+    code: string;
+    name: string;
+    description: string | null;
+    semester: string;
+    level: number;
+    programme: string;
+    lecturer_name: string | null;
+    is_enrolled: boolean;
 }
 
 export interface AttendanceHistoryItem {

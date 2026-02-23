@@ -14,7 +14,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Activity, CalendarClock, UserCheck, FileText, RefreshCw } from 'lucide-react';
+import { CalendarClock, UserCheck, FileText, RefreshCw } from 'lucide-react';
 
 export default function AdminActivityPage() {
     const [activity, setActivity] = useState<any>(null);
@@ -38,10 +38,10 @@ export default function AdminActivityPage() {
 
     return (
         <ProtectedRoute allowedRoles={['admin']}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:px-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:px-8 space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Recent Activity</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Recent Activity</h1>
                         <p className="text-sm text-gray-500 mt-0.5">System activity in the last 24 hours</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={loadActivity}>
@@ -57,39 +57,53 @@ export default function AdminActivityPage() {
                 ) : (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <Card className="border-gray-200/80 bg-white">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Sessions (24h)</CardTitle>
-                                    <CalendarClock className="h-4 w-4 text-emerald-600" />
+                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                    <CardTitle className="text-sm font-semibold text-gray-600">Sessions (24h)</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                        <CalendarClock className="h-4 w-4" />
+                                    </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-5">
                                     <div className="text-2xl font-bold text-gray-900">{activity.summary?.sessions_count ?? 0}</div>
                                 </CardContent>
                             </Card>
-                            <Card className="border-gray-200/80 bg-white">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Attendance (24h)</CardTitle>
-                                    <UserCheck className="h-4 w-4 text-blue-600" />
+                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                    <CardTitle className="text-sm font-semibold text-gray-600">Attendance (24h)</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                        <UserCheck className="h-4 w-4" />
+                                    </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-5">
                                     <div className="text-2xl font-bold text-gray-900">{activity.summary?.attendance_count ?? 0}</div>
                                 </CardContent>
                             </Card>
-                            <Card className="border-gray-200/80 bg-white">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Audit Logs (24h)</CardTitle>
-                                    <FileText className="h-4 w-4 text-amber-600" />
+                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                    <CardTitle className="text-sm font-semibold text-gray-600">Audit Logs (24h)</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                        <FileText className="h-4 w-4" />
+                                    </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-5">
                                     <div className="text-2xl font-bold text-gray-900">{activity.summary?.audit_logs_count ?? 0}</div>
                                 </CardContent>
                             </Card>
                         </div>
 
                         {activity.recent_sessions?.length > 0 && (
-                            <Card className="border-gray-200/80 bg-white">
+                            <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-base font-medium text-gray-700">Recent Sessions</CardTitle>
+                                    <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                                            <CalendarClock className="h-4 w-4 text-emerald-600" />
+                                        </div>
+                                        Recent Sessions
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="border rounded-md overflow-hidden">
@@ -121,9 +135,14 @@ export default function AdminActivityPage() {
                         )}
 
                         {activity.recent_attendance?.length > 0 && (
-                            <Card className="border-gray-200/80 bg-white">
+                            <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-base font-medium text-gray-700">Recent Attendance</CardTitle>
+                                    <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                                            <UserCheck className="h-4 w-4 text-emerald-600" />
+                                        </div>
+                                        Recent Attendance
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="border rounded-md overflow-hidden">
@@ -163,9 +182,14 @@ export default function AdminActivityPage() {
                         )}
 
                         {activity.recent_audit_logs?.length > 0 && (
-                            <Card className="border-gray-200/80 bg-white">
+                            <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-base font-medium text-gray-700">Audit Logs</CardTitle>
+                                    <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                                            <FileText className="h-4 w-4 text-emerald-600" />
+                                        </div>
+                                        Audit Logs
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="border rounded-md overflow-hidden">

@@ -159,10 +159,18 @@ export default function StudentDashboard() {
 
     return (
         <ProtectedRoute allowedRoles={['student']}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:px-8 space-y-6">
-                <div>
-                    <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Welcome, {user?.full_name || user?.email}</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">Your courses and attendance at a glance</p>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:px-8 space-y-8">
+                {/* Welcome section */}
+                <div className="relative overflow-hidden rounded-2xl bg-emerald-900 px-6 py-8 shadow-xl">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
+                    <div className="relative">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                            Welcome, {user?.full_name || user?.email}
+                        </h1>
+                        <p className="mt-1.5 text-emerald-100/90 text-sm sm:text-base">
+                            Your courses and attendance at a glance
+                        </p>
+                    </div>
                 </div>
 
                 {/* Incomplete profile alert */}
@@ -185,32 +193,41 @@ export default function StudentDashboard() {
                 {/* Stats row */}
                 {stats && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <Card className="border-gray-200/80 bg-white">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">Enrolled courses</CardTitle>
-                                <BookOpen className="h-4 w-4 text-emerald-600" />
+                        <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                            <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                <CardTitle className="text-sm font-semibold text-gray-600">Enrolled courses</CardTitle>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                    <BookOpen className="h-4 w-4" />
+                                </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pl-5">
                                 <div className="text-2xl font-bold text-gray-900">{stats.enrolled_courses}</div>
                                 <p className="text-xs text-gray-500 mt-0.5">Courses you are in</p>
                             </CardContent>
                         </Card>
-                        <Card className="border-gray-200/80 bg-white">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">Attendance marked</CardTitle>
-                                <UserCheck className="h-4 w-4 text-blue-600" />
+                        <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                            <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                <CardTitle className="text-sm font-semibold text-gray-600">Attendance marked</CardTitle>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                    <UserCheck className="h-4 w-4" />
+                                </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pl-5">
                                 <div className="text-2xl font-bold text-gray-900">{stats.attendance_marked_count}</div>
                                 <p className="text-xs text-gray-500 mt-0.5">Sessions you signed in</p>
                             </CardContent>
                         </Card>
-                        <Card className="border-gray-200/80 bg-white">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">Confirmed</CardTitle>
-                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                            <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+                                <CardTitle className="text-sm font-semibold text-gray-600">Confirmed</CardTitle>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pl-5">
                                 <div className="text-2xl font-bold text-emerald-700">{stats.confirmed_count}</div>
                                 <p className="text-xs text-gray-500 mt-0.5">Approved by lecturer</p>
                             </CardContent>
@@ -220,25 +237,27 @@ export default function StudentDashboard() {
 
                 {/* Overall attendance rate gauge */}
                 {stats && stats.total_sessions > 0 && (
-                    <Card className="border-gray-200/80 bg-white">
+                    <Card className="border-gray-200/80 bg-white shadow-md">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                <Gauge className="h-4 w-4" />
+                            <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                                    <Gauge className="h-4 w-4 text-emerald-600" />
+                                </div>
                                 Overall attendance rate
                             </CardTitle>
-                            <CardDescription className="text-xs text-gray-500">
+                            <CardDescription className="text-xs text-gray-500 mt-1">
                                 {stats.confirmed_count} confirmed out of {stats.total_sessions} total sessions across your enrolled courses.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-4">
-                                <div className="relative h-1 flex-1 max-w-xs rounded-full bg-gray-100 overflow-hidden">
+                                <div className="relative h-3 flex-1 max-w-md rounded-full bg-gray-100 overflow-hidden">
                                     <div
                                         className="absolute inset-y-0 left-0 rounded-full bg-emerald-600 transition-all duration-500"
                                         style={{ width: `${attendanceRate}%` }}
                                     />
                                 </div>
-                                <span className="font-bold text-gray-900 tabular-nums">{attendanceRate}%</span>
+                                <span className="font-bold text-gray-900 tabular-nums text-lg">{attendanceRate}%</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -247,19 +266,23 @@ export default function StudentDashboard() {
                 {/* Quick action */}
                 <div>
                     <Link href="/student/mark-attendance">
-                        <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white">
+                        <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white px-5">
+                            <Plus className="h-4 w-4 mr-2" />
                             Mark attendance
                         </Button>
                     </Link>
                 </div>
 
                 {/* Attendance History */}
-                <div className="bg-white rounded-md shadow p-4 mb-4">
-                    <h2 className="text-lg font-semibold mb-3">Recent Attendance History</h2>
+                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                    <h2 className="text-lg font-semibold text-gray-900">Recent Attendance History</h2>
+                    </div>
+                    <div className="p-4">
                     {loading ? (
-                        <p className="text-gray-600">Loading history...</p>
+                        <p className="text-gray-500 py-6">Loading history...</p>
                     ) : history.length === 0 ? (
-                        <p className="text-gray-600">No attendance history available yet.</p>
+                        <p className="text-gray-500 py-6">No attendance history available yet.</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
@@ -298,34 +321,34 @@ export default function StudentDashboard() {
                             </table>
                         </div>
                     )}
-                </div>
+                    </div>
+                </Card>
 
                 {/* Recommended Courses for this Semester */}
                 {stats?.profile_complete && (
-                    <div className="bg-white rounded-md shadow p-4 mb-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-lg font-semibold">
-                                Courses for {stats.current_semester}
-                                {stats.academic_year && <span className="ml-1 text-sm font-normal text-gray-500">({stats.academic_year})</span>}
-                            </h2>
-                        </div>
-
+                    <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                        <h2 className="text-lg font-semibold text-gray-900">
+                            Courses for {stats.current_semester}
+                            {stats.academic_year && <span className="ml-1 text-sm font-normal text-gray-500">({stats.academic_year})</span>}
+                        </h2>
                         {/* Enrolment closed banner */}
                         {!stats.enrollment_open && (
-                            <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800 mb-3">
-                                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-blue-500" />
+                            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 mt-4">
+                                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-500" />
                                 <p className="text-sm">Enrolment is currently <strong>closed</strong>. Courses will be available to join at the start of the next semester.</p>
                             </div>
                         )}
-
+                    </div>
+                    <div className="px-4 py-2">
                         {loadingRecommended ? (
-                            <p className="text-gray-600 text-sm">Loading courses...</p>
+                            <p className="text-gray-500 text-sm py-4">Loading courses...</p>
                         ) : recommendedCourses.length === 0 ? (
-                            <p className="text-gray-600 text-sm">No courses found for your programme and level this semester.</p>
+                            <p className="text-gray-500 text-sm py-4">No courses found for your programme and level this semester.</p>
                         ) : (
-                            <ul className="divide-y">
+                            <ul className="divide-y divide-gray-100">
                                 {recommendedCourses.map((course) => (
-                                    <li key={course.id} className="py-3 flex items-center justify-between">
+                                    <li key={course.id} className="py-2 flex items-center justify-between">
                                         <div className="flex-1 min-w-0">
                                             <div className="font-medium">{course.code} - {course.name}</div>
                                             {course.description && (
@@ -356,19 +379,23 @@ export default function StudentDashboard() {
                             </ul>
                         )}
                     </div>
+                </Card>
                 )}
 
                 {/* Enrolled Courses Section */}
-                <div className="bg-white rounded-md shadow p-4">
-                    <h2 className="text-lg font-semibold mb-3">My Enrolled Courses</h2>
+                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                    <h2 className="text-lg font-semibold text-gray-900">My Enrolled Courses</h2>
+                    </div>
+                    <div className="px-4 py-2">
                     {loading ? (
-                        <p className="text-gray-600">Loading...</p>
+                        <p className="text-gray-500 py-4">Loading...</p>
                     ) : enrolledCourses.length === 0 ? (
-                        <p className="text-gray-600 text-sm">No enrolled courses yet. Courses you enrol in will appear here.</p>
+                        <p className="text-gray-500 text-sm py-4">No enrolled courses yet. Courses you enrol in will appear here.</p>
                     ) : (
-                        <ul className="divide-y">
+                        <ul className="divide-y divide-gray-100">
                             {enrolledCourses.map((course) => (
-                                <li key={course.id} className="py-3 flex items-center justify-between group">
+                                <li key={course.id} className="py-2 flex items-center justify-between group">
                                     <div className="flex-1 min-w-0">
                                         <div className="font-medium">{course.code} - {course.name}</div>
                                         {course.description && (
@@ -391,7 +418,8 @@ export default function StudentDashboard() {
                             ))}
                         </ul>
                     )}
-                </div>
+                    </div>
+                </Card>
             </div>
 
             <Dialog open={!!courseToDrop} onOpenChange={(open) => !open && setCourseToDrop(null)}>

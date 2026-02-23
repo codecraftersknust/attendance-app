@@ -162,8 +162,9 @@ echo -e "${GREEN}Backend is running!${NC}"
 
 # Start mobile app
 echo -e "${YELLOW}Starting Expo development server...${NC}"
-echo -e "${CYAN}Using tunnel mode - works even if phone is on different network${NC}"
-(cd mobile && npx expo start --tunnel) &
+echo -e "${CYAN}Using LAN mode - ensure your phone is on the same WiFi as this machine${NC}"
+echo -e "${YELLOW}(Use 'npx expo start --tunnel' in mobile/ if you need tunnel mode)${NC}"
+(cd mobile && npx expo start) &
 MOBILE_PID=$!
 
 echo ""

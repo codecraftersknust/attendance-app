@@ -267,10 +267,10 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
     }, [checkingDevice, deviceStatus]);
 
     return (
-        <div className="bg-white rounded-md shadow p-4 space-y-6">
+        <div className="border-gray-200/80 bg-white rounded-lg shadow-md overflow-hidden p-6 space-y-6">
             <div>
-                <h2 className="text-lg font-semibold">{session.course_code} — {session.course_name}</h2>
-                <div className="text-xs text-gray-500">Session #{session.id}</div>
+                <h2 className="text-lg font-semibold text-gray-900">{session.course_code} — {session.course_name}</h2>
+                <div className="text-xs text-gray-500 mt-0.5">Session #{session.id}</div>
             </div>
 
             {/* Device ID section hidden but logic active */}

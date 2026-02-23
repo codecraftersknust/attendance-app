@@ -35,7 +35,12 @@ export default function ProfileScreen() {
     const [editFullName, setEditFullName] = useState('');
     const [editEmail, setEditEmail] = useState('');
     const [editUserId, setEditUserId] = useState('');
+    const [editLevel, setEditLevel] = useState<number>(100);
+    const [editProgramme, setEditProgramme] = useState('');
     const [saving, setSaving] = useState(false);
+
+    const PROGRAMMES = ['Computer Engineering', 'Telecommunication Engineering', 'Electrical Engineering', 'Biomedical Engineering'];
+    const LEVELS = [100, 200, 300, 400];
 
     // Change password modal
     const [passwordVisible, setPasswordVisible] = useState(false);
@@ -85,6 +90,8 @@ export default function ProfileScreen() {
         setEditFullName(profile.full_name || '');
         setEditEmail(profile.email);
         setEditUserId(profile.user_id || '');
+        setEditLevel(profile.level ?? 100);
+        setEditProgramme(profile.programme || '');
         setEditVisible(true);
     };
 
@@ -92,10 +99,14 @@ export default function ProfileScreen() {
         if (!profile) return;
         setSaving(true);
         try {
-            const updates: Record<string, string> = {};
+            const updates: Record<string, string | number> = {};
             if (editFullName !== (profile.full_name || '')) updates.full_name = editFullName;
             if (editEmail !== profile.email) updates.email = editEmail;
             if (editUserId !== (profile.user_id || '')) updates.user_id = editUserId;
+            if (profile.role === 'student') {
+                if (editLevel !== (profile.level ?? 0)) updates.level = editLevel;
+                if (editProgramme !== (profile.programme || '')) updates.programme = editProgramme;
+            }
 
             if (Object.keys(updates).length === 0) {
                 showToast('No changes to save', 'info');
@@ -177,13 +188,18 @@ export default function ProfileScreen() {
             style={[styles.container, { backgroundColor: colors.background }]}
             contentContainerStyle={styles.content}
         >
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
-            </View>
-
             {/* Profile Card */}
-            <View style={[styles.profileCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+            <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
+                <TouchableOpacity
+                    style={[styles.editButtonTop, { borderColor: colors.tint }]}
+                    activeOpacity={0.7}
+                    onPress={openEditModal}
+                >
+                    <IconSymbol name="pencil" size={14} color={colors.tint} />
+                    <Text style={[styles.editButtonTopText, { color: colors.tint }]}>
+                        Edit
+                    </Text>
+                </TouchableOpacity>
                 <View style={[styles.avatar, { backgroundColor: colors.tint }]}>
                     <Text style={styles.avatarText}>
                         {getInitials(profile?.full_name || user?.email)}
@@ -212,17 +228,6 @@ export default function ProfileScreen() {
                         </Text>
                     </View>
                 )}
-
-                <TouchableOpacity
-                    style={[styles.editButton, { borderColor: colors.tint }]}
-                    activeOpacity={0.7}
-                    onPress={openEditModal}
-                >
-                    <IconSymbol name="pencil" size={16} color={colors.tint} />
-                    <Text style={[styles.editButtonText, { color: colors.tint }]}>
-                        Edit Profile
-                    </Text>
-                </TouchableOpacity>
             </View>
 
             {/* Account Details */}
@@ -255,7 +260,34 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                <View style={styles.detailRow}>
+                {profile?.role === 'student' && (
+                    <>
+                        <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
+                            <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                                <IconSymbol name="graduationcap.fill" size={16} color={colors.tint} />
+                            </View>
+                            <View style={styles.detailContent}>
+                                <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Level</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>
+                                    {profile?.level ? `Level ${profile.level}` : 'Not set'}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
+                            <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                                <IconSymbol name="book.fill" size={16} color={colors.tint} />
+                            </View>
+                            <View style={styles.detailContent}>
+                                <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Programme</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>
+                                    {profile?.programme || 'Not set'}
+                                </Text>
+                            </View>
+                        </View>
+                    </>
+                )}
+
+                <View style={[styles.detailRow, styles.detailRowLast]}>
                     <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
                         <IconSymbol name="calendar" size={16} color={colors.tint} />
                     </View>
@@ -338,6 +370,47 @@ export default function ProfileScreen() {
                             placeholderTextColor={colors.tabIconDefault}
                             autoCapitalize="none"
                         />
+
+                        {profile?.role === 'student' && (
+                            <>
+                                <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Level</Text>
+                                <View style={styles.levelRow}>
+                                    {LEVELS.map((lvl) => (
+                                        <TouchableOpacity
+                                            key={lvl}
+                                            style={[
+                                                styles.levelChip,
+                                                { borderColor: cardBorder, backgroundColor: inputBg },
+                                                editLevel === lvl && { backgroundColor: colors.tint + '25', borderColor: colors.tint },
+                                            ]}
+                                            onPress={() => setEditLevel(lvl)}
+                                        >
+                                            <Text style={[styles.levelChipText, { color: editLevel === lvl ? colors.tint : colors.text }]}>
+                                                {lvl}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                                <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Programme</Text>
+                                <View style={styles.programmeRow}>
+                                    {PROGRAMMES.map((prog) => (
+                                        <TouchableOpacity
+                                            key={prog}
+                                            style={[
+                                                styles.programmeChip,
+                                                { borderColor: cardBorder, backgroundColor: inputBg },
+                                                editProgramme === prog && { backgroundColor: colors.tint + '25', borderColor: colors.tint },
+                                            ]}
+                                            onPress={() => setEditProgramme(prog)}
+                                        >
+                                            <Text style={[styles.programmeChipText, { color: editProgramme === prog ? colors.tint : colors.text }]} numberOfLines={1}>
+                                                {prog}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </>
+                        )}
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -453,22 +526,31 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: 20,
-        paddingTop: 60,
+        paddingTop: 34,
         paddingBottom: 100,
-    },
-    header: {
-        marginBottom: 24,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
     },
     profileCard: {
         borderRadius: 16,
-        borderWidth: 1,
         padding: 24,
         alignItems: 'center',
         marginBottom: 20,
+        position: 'relative',
+    },
+    editButtonTop: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    editButtonTopText: {
+        fontSize: 13,
+        fontWeight: '600',
     },
     avatar: {
         width: 80,
@@ -566,6 +648,9 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         borderBottomWidth: 1,
     },
+    detailRowLast: {
+        borderBottomWidth: 0,
+    },
     detailContent: {
         flex: 1,
     },
@@ -650,6 +735,39 @@ const styles = StyleSheet.create({
     saveBtnText: {
         color: '#ffffff',
         fontSize: 15,
+        fontWeight: '600',
+    },
+    levelRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 4,
+    },
+    levelChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    levelChipText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    programmeRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 4,
+    },
+    programmeChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        borderWidth: 1,
+        maxWidth: '48%',
+    },
+    programmeChipText: {
+        fontSize: 12,
         fontWeight: '600',
     },
 });

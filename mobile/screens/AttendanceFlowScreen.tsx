@@ -192,11 +192,31 @@ export default function AttendanceFlowScreen() {
                 selfie: selfieUri,
             });
 
-            Alert.alert(
-                'Success',
-                `Attendance marked successfully!\nStatus: ${result.status}`,
-                [{ text: 'OK', onPress: () => router.back() }]
-            );
+            const successMsg = `Attendance marked successfully!\nStatus: ${result.status}`;
+            const withinGeofence = result.within_geofence !== false;
+            const distanceM = result.distance_m;
+
+            if (withinGeofence) {
+                Alert.alert('Success', successMsg, [{ text: 'OK', onPress: () => router.back() }]);
+            } else {
+                const distText = distanceM != null ? ` (${Math.round(distanceM)} m away)` : '';
+                Alert.alert(
+                    'Success',
+                    successMsg,
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => {
+                                Alert.alert(
+                                    'Location Notice',
+                                    `You were outside the class location${distText}. Your attendance may be flagged for review.`,
+                                    [{ text: 'OK', onPress: () => router.back() }]
+                                );
+                            },
+                        },
+                    ]
+                );
+            }
         } catch (error: any) {
             console.error('Attendance submission error:', error);
 

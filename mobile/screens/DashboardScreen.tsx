@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, Platform, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Colors, Emerald } from '@/constants/theme';
@@ -8,9 +8,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/ToastContext';
 import apiClientService from '@/services/apiClient.service';
-import type { DashboardStats, Course, AttendanceHistoryItem } from '@/types/api.types';
+import type { DashboardStats, Course, AttendanceHistoryItem, RecommendedCourse } from '@/types/api.types';
 
 export default function DashboardScreen() {
+  const { width: screenWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user } = useAuth();
@@ -20,9 +21,12 @@ export default function DashboardScreen() {
   // State
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [recommendedCourses, setRecommendedCourses] = useState<RecommendedCourse[]>([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
   const [recentSessions, setRecentSessions] = useState<AttendanceHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
 
   // Get user initials
   const getInitials = (name: string | undefined) => {
@@ -82,6 +86,19 @@ export default function DashboardScreen() {
       setStats(dashboardStats);
       setCourses(enrolledCourses);
       setRecentSessions(history.slice(0, 5));
+
+      // Load recommended courses when profile is complete
+      if (dashboardStats?.profile_complete) {
+        setLoadingRecommended(true);
+        try {
+          const recommended = await apiClientService.studentGetRecommendedCourses();
+          setRecommendedCourses(recommended);
+        } catch {
+          // Non-critical
+        } finally {
+          setLoadingRecommended(false);
+        }
+      }
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
       showToast('Failed to load dashboard data', 'error');
@@ -89,6 +106,45 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const handleEnroll = async (courseId: number) => {
+    if (enrollingIds.has(courseId)) return;
+    try {
+      setEnrollingIds((prev) => new Set(prev).add(courseId));
+      await apiClientService.studentEnrollInCourse(courseId);
+      showToast('Course added successfully', 'success');
+      await loadDashboardData();
+    } catch (error: any) {
+      showToast(error?.message || 'Failed to enroll in course', 'error');
+    } finally {
+      setEnrollingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
+    }
+  };
+
+  const handleDropCourse = async (course: { id: number; code: string; name: string }) => {
+    try {
+      await apiClientService.studentUnenrollFromCourse(course.id);
+      showToast('Dropped course', 'success');
+      await loadDashboardData();
+    } catch (error: any) {
+      showToast(error?.message || 'Failed to drop course', 'error');
+    }
+  };
+
+  const confirmDropCourse = (course: { id: number; code: string; name: string }) => {
+    Alert.alert(
+      'Drop course?',
+      `You will be removed from ${course.code} – ${course.name}. You can search and re-enroll later if needed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Drop course', style: 'destructive', onPress: () => handleDropCourse(course) },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -195,6 +251,50 @@ export default function DashboardScreen() {
         </View>
       ) : (
         <>
+          {/* Incomplete profile alert */}
+          {stats && !stats.profile_complete && (
+            <TouchableOpacity
+              style={[styles.incompleteProfileBanner, { backgroundColor: '#fef3c7', borderColor: '#f59e0b' }]}
+              onPress={() => router.push('/(tabs)/profile')}
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="exclamationmark.triangle.fill" size={20} color="#d97706" />
+              <View style={styles.incompleteProfileContent}>
+                <Text style={styles.incompleteProfileTitle}>Incomplete profile</Text>
+                <Text style={styles.incompleteProfileText}>
+                  Your level and programme are not set. Tap to complete your setup.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Stats row */}
+          {stats && (
+            <View style={[styles.statsRow, { width: screenWidth - 40 }]}>
+              <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e7eb' }, styles.statCardShadow]}>
+                <View style={styles.statCardIconWrap}>
+                  <IconSymbol name="book.fill" size={20} color={Emerald[600]} />
+                </View>
+                <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.enrolled_courses}</Text>
+                <Text style={[styles.statCardLabel, { color: colors.tabIconDefault }]}>Enrolled</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e7eb' }, styles.statCardShadow]}>
+                <View style={styles.statCardIconWrap}>
+                  <IconSymbol name="person.fill" size={20} color={Emerald[600]} />
+                </View>
+                <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.attendance_marked_count}</Text>
+                <Text style={[styles.statCardLabel, { color: colors.tabIconDefault }]}>Marked</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e7eb' }, styles.statCardShadow]}>
+                <View style={styles.statCardIconWrap}>
+                  <IconSymbol name="checkmark.circle.fill" size={20} color={Emerald[600]} />
+                </View>
+                <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.confirmed_count}</Text>
+                <Text style={[styles.statCardLabel, { color: colors.tabIconDefault }]}>Confirmed</Text>
+              </View>
+            </View>
+          )}
+
           {/* Overall Attendance Card */}
           <View style={[styles.attendanceCard, { backgroundColor: colors.tint }]}>
             <View style={styles.attendanceCardContent}>
@@ -293,6 +393,120 @@ export default function DashboardScreen() {
               </>
             )}
           </View>
+
+          {/* Recommended Courses (when profile complete) */}
+          {stats?.profile_complete && (
+            <View style={styles.sessionsSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Courses for {stats.current_semester || 'this semester'}
+                  {stats.academic_year ? ` (${stats.academic_year})` : ''}
+                </Text>
+              </View>
+              {!stats.enrollment_open && (
+                <View style={[styles.enrollmentBanner, { backgroundColor: '#dbeafe', borderColor: '#3b82f6' }]}>
+                  <IconSymbol name="exclamationmark.triangle.fill" size={16} color="#2563eb" />
+                  <Text style={styles.enrollmentBannerText}>
+                    Enrolment is currently closed. Courses will be available at the start of the next semester.
+                  </Text>
+                </View>
+              )}
+              {loadingRecommended ? (
+                <ActivityIndicator size="small" color={colors.tint} style={{ marginVertical: 16 }} />
+              ) : recommendedCourses.length === 0 ? (
+                <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
+                  No courses found for your programme and level this semester.
+                </Text>
+              ) : (
+                recommendedCourses.map((course) => (
+                  <View
+                    key={course.id}
+                    style={[
+                      styles.recommendedCard,
+                      { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5' },
+                    ]}
+                  >
+                    <View style={styles.recommendedInfo}>
+                      <Text style={[styles.recommendedCode, { color: colors.tint }]}>{course.code}</Text>
+                      <Text style={[styles.recommendedName, { color: colors.text }]} numberOfLines={1}>{course.name}</Text>
+                      {course.description && (
+                        <Text style={[styles.recommendedDesc, { color: colors.tabIconDefault }]} numberOfLines={1}>{course.description}</Text>
+                      )}
+                      <View style={styles.recommendedMetaRow}>
+                        <IconSymbol name="calendar" size={12} color={colors.tabIconDefault} />
+                        <Text style={[styles.recommendedMeta, { color: colors.tabIconDefault }]}>
+                          {course.semester}{course.lecturer_name ? ` • ${course.lecturer_name}` : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    {course.is_enrolled ? (
+                      <View style={[styles.enrolledBadge, { backgroundColor: Emerald[100] }]}>
+                        <Text style={[styles.enrolledBadgeText, { color: Emerald[700] }]}>Enrolled</Text>
+                      </View>
+                    ) : stats.enrollment_open ? (
+                      <TouchableOpacity
+                        style={[styles.enrollBtn, { borderColor: colors.tint }]}
+                        onPress={() => handleEnroll(course.id)}
+                        disabled={enrollingIds.has(course.id)}
+                      >
+                        {enrollingIds.has(course.id) ? (
+                          <ActivityIndicator size="small" color={colors.tint} />
+                        ) : (
+                          <>
+                            <IconSymbol name="plus" size={14} color={colors.tint} />
+                            <Text style={[styles.enrollBtnText, { color: colors.tint }]}>Enrol</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+          {/* Enrolled Courses */}
+          <View style={styles.sessionsSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>My Enrolled Courses</Text>
+            </View>
+            {courses.length === 0 ? (
+              <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
+                No enrolled courses yet. Courses you enrol in will appear here.
+              </Text>
+            ) : (
+              courses.map((course) => (
+                <View
+                  key={course.id}
+                  style={[
+                    styles.enrolledCard,
+                    { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5' },
+                  ]}
+                >
+                  <View style={styles.enrolledInfo}>
+                    <Text style={[styles.enrolledCode, { color: colors.tint }]}>{course.code}</Text>
+                    <Text style={[styles.enrolledName, { color: colors.text }]} numberOfLines={1}>{course.name}</Text>
+                    {course.description && (
+                      <Text style={[styles.enrolledDesc, { color: colors.tabIconDefault }]} numberOfLines={1}>{course.description}</Text>
+                    )}
+                    <View style={styles.enrolledMetaRow}>
+                      <IconSymbol name="calendar" size={12} color={colors.tabIconDefault} />
+                      <Text style={[styles.enrolledMeta, { color: colors.tabIconDefault }]}>
+                        {course.semester}{course.lecturer_name ? ` • ${course.lecturer_name}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => confirmDropCourse({ id: course.id, code: course.code, name: course.name })}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <IconSymbol name="trash" size={20} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </View>
+
         </>
       )}
     </ScrollView>
@@ -305,7 +519,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 34,
     paddingBottom: 100,
   },
   header: {
@@ -546,5 +760,178 @@ const styles = StyleSheet.create({
   sessionStatusText: {
     fontSize: 10,
     fontWeight: '700',
+  },
+  // Incomplete profile
+  incompleteProfileBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  incompleteProfileContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  incompleteProfileTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  incompleteProfileText: {
+    fontSize: 13,
+    color: '#92400e',
+    marginTop: 4,
+  },
+  // Stats row - vertical layout: icon, number, label (mobile-optimized)
+  statsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  statCardShadow: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  statCardIconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statCardValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  statCardLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  // Recommended
+  enrollmentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  enrollmentBannerText: {
+    fontSize: 12,
+    color: '#1e40af',
+    marginLeft: 8,
+    flex: 1,
+  },
+  recommendedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  recommendedInfo: {
+    flex: 1,
+  },
+  recommendedCode: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  recommendedName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  recommendedDesc: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  recommendedMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  recommendedMeta: {
+    fontSize: 11,
+    marginLeft: 4,
+  },
+  enrolledBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  enrolledBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  enrollBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginLeft: 12,
+  },
+  enrollBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  // Enrolled
+  enrolledCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  enrolledInfo: {
+    flex: 1,
+  },
+  enrolledCode: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  enrolledName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  enrolledDesc: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  enrolledMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  enrolledMeta: {
+    fontSize: 11,
+    marginLeft: 4,
   },
 });

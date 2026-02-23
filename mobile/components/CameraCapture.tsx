@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 16,
-        paddingTop: 60,
+        paddingTop: 34,
         backgroundColor: '#1c1c1e',
     },
     cancelText: {

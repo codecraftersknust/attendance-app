@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, X, BookOpen, Calendar, UserCheck, AlertTriangle, Gauge, Plus, Loader2 } from 'lucide-react';
+import { Search, X, BookOpen, Calendar, UserCheck, AlertTriangle, Gauge, Plus, Loader2, BarChart } from 'lucide-react';
 import { CourseDetailsDialog } from '@/components/lecturer/course-details-dialog';
 import {
 	Dialog,
@@ -143,152 +143,188 @@ export default function LecturerDashboard() {
 
 	return (
 		<ProtectedRoute allowedRoles={['lecturer']}>
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:px-8 space-y-6">
-				<div>
-					<h1 className="text-lg sm:text-xl font-semibold text-gray-900">Welcome, {user?.full_name || user?.email}</h1>
-					<p className="text-sm text-gray-500 mt-0.5">Overview of your courses and attendance</p>
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:px-8 space-y-8">
+				{/* Welcome section */}
+				<div className="relative overflow-hidden rounded-2xl bg-emerald-900 px-6 py-8 shadow-xl">
+					<div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
+					<div className="relative">
+						<h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+							Welcome back, {user?.full_name || user?.email}
+						</h1>
+						<p className="mt-1.5 text-emerald-100/90 text-sm sm:text-base">
+							Here&apos;s an overview of your courses and attendance activity
+						</p>
+					</div>
 				</div>
 
+				{/* Stats grid */}
 				{stats && (
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-						<Card className="border-gray-200/80 bg-white">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600">Courses</CardTitle>
-								<BookOpen className="h-4 w-4 text-emerald-600" />
+						<Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+							<div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+								<CardTitle className="text-sm font-semibold text-gray-600">Courses</CardTitle>
+								<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200/80 transition-colors">
+									<BookOpen className="h-4 w-4" />
+								</div>
 							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-gray-900">{stats.total_courses}</div>
-								<p className="text-xs text-gray-500 mt-0.5">Active courses</p>
+							<CardContent className="pl-5">
+								<div className="text-3xl font-bold text-gray-900 tracking-tight">{stats.total_courses}</div>
+								<p className="text-xs text-gray-500 mt-1">Active courses</p>
 							</CardContent>
 						</Card>
-						<Card className="border-gray-200/80 bg-white">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600">Active sessions</CardTitle>
-								<Calendar className="h-4 w-4 text-blue-600" />
+						<Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+							<div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+								<CardTitle className="text-sm font-semibold text-gray-600">Active sessions</CardTitle>
+								<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200/80 transition-colors">
+									<Calendar className="h-4 w-4" />
+								</div>
 							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-gray-900">{stats.active_sessions}</div>
-								<p className="text-xs text-gray-500 mt-0.5">{stats.total_sessions} total sessions</p>
+							<CardContent className="pl-5">
+								<div className="text-3xl font-bold text-gray-900 tracking-tight">{stats.active_sessions}</div>
+								<p className="text-xs text-gray-500 mt-1">{stats.total_sessions} total sessions</p>
 							</CardContent>
 						</Card>
-						<Card className="border-gray-200/80 bg-white">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600">Attendance marks</CardTitle>
-								<UserCheck className="h-4 w-4 text-emerald-600" />
+						<Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+							<div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+								<CardTitle className="text-sm font-semibold text-gray-600">Attendance marks</CardTitle>
+								<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 group-hover:bg-emerald-200/80 transition-colors">
+									<UserCheck className="h-4 w-4" />
+								</div>
 							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-emerald-700">{stats.confirmed_records}</div>
-								<p className="text-xs text-gray-500 mt-0.5">{stats.total_attendance_records} total submissions</p>
+							<CardContent className="pl-5">
+								<div className="text-3xl font-bold text-emerald-700 tracking-tight">{stats.confirmed_records}</div>
+								<p className="text-xs text-gray-500 mt-1">{stats.total_attendance_records} total submissions</p>
 							</CardContent>
 						</Card>
-						<Card className="border-gray-200/80 bg-white">
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium text-gray-600">Needs review</CardTitle>
-								<AlertTriangle className="h-4 w-4 text-amber-500" />
+						<Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+							<div className="absolute left-0 top-0 h-full w-1 bg-amber-500" />
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+								<CardTitle className="text-sm font-semibold text-gray-600">Needs review</CardTitle>
+								<div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600 group-hover:bg-amber-200/80 transition-colors">
+									<AlertTriangle className="h-4 w-4" />
+								</div>
 							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold text-amber-600">{stats.flagged_records}</div>
-								<p className="text-xs text-gray-500 mt-0.5">Flagged attendance</p>
+							<CardContent className="pl-5">
+								<div className="text-3xl font-bold text-amber-600 tracking-tight">{stats.flagged_records}</div>
+								<p className="text-xs text-gray-500 mt-1">Flagged attendance</p>
 							</CardContent>
 						</Card>
 					</div>
 				)}
 
 				{stats && stats.total_attendance_records > 0 && (
-					<Card className="border-gray-200/80 bg-white">
+					<Card className="border-gray-200/80 bg-white shadow-md">
 						<CardHeader className="pb-2">
-							<CardTitle className="text-sm font-medium text-gray-700 flex items-center gap-2">
-								<Gauge className="h-4 w-4" />
+							<CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+									<Gauge className="h-4 w-4 text-emerald-600" />
+								</div>
 								Attendance confirmed rate
 							</CardTitle>
-							<CardDescription className="text-xs text-gray-500">
+							<CardDescription className="text-xs text-gray-500 mt-1">
 								Share of submissions you have confirmed (vs flagged for review).
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div className="flex items-center gap-4">
-								<div className="relative h-1 flex-1 max-w-xs rounded-full bg-gray-100 overflow-hidden">
+								<div className="relative h-3 flex-1 max-w-md rounded-full bg-gray-100 overflow-hidden">
 									<div
 										className="absolute inset-y-0 left-0 rounded-full bg-emerald-600 transition-all duration-500"
 										style={{ width: `${confirmedRate}%` }}
 									/>
 								</div>
-								<span className="font-bold text-gray-900 tabular-nums">{confirmedRate}%</span>
+								<span className="font-bold text-gray-900 tabular-nums text-lg">{confirmedRate}%</span>
 							</div>
 						</CardContent>
 					</Card>
 				)}
 
-				<div className="flex flex-wrap gap-2">
+				{/* Quick actions */}
+				<div className="flex flex-wrap gap-3">
 					<Link href="/lecturer/create-session">
-						<Button size="sm" className="bg-emerald-900 hover:bg-emerald-900/90 text-white">
+						<Button size="default" className="bg-emerald-900 hover:bg-emerald-900/90 text-white px-5">
+							<Plus className="h-4 w-4 mr-2" />
 							Create session
 						</Button>
 					</Link>
 					<Link href="/lecturer/reports">
-						<Button variant="outline" size="sm">
+						<Button variant="outline" size="default" className="border-gray-200 hover:bg-gray-50 px-5">
+							<BarChart className="h-4 w-4 mr-2" />
 							View reports
 						</Button>
 					</Link>
 				</div>
 
-				<div className="bg-white rounded-md shadow p-4">
-					<div className="flex items-center justify-between mb-3">
-						<h2 className="text-lg font-semibold">Your Courses</h2>
+				{/* Your courses */}
+				<Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
+					<div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+						<h2 className="text-lg font-semibold text-gray-900">Your Courses</h2>
 						<Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={() => setShowBrowse(true)}>
-							<Plus className="h-4 w-4 mr-1" />
+							<Plus className="h-4 w-4 mr-2" />
 							Add Course
 						</Button>
 					</div>
-					{loading ? (
-						<p className="text-gray-500">Loading...</p>
-					) : courses.length === 0 ? (
-						<div className="text-center py-10 text-gray-500">
-							<BookOpen className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-							<p className="font-medium">No courses yet</p>
-							<p className="text-sm mt-1">Search for courses and add the ones you teach.</p>
-							<Button variant="outline" size="sm" className="mt-4" onClick={() => setShowBrowse(true)}>
-								<Search className="h-4 w-4 mr-1" />
-								Browse courses
-							</Button>
-						</div>
-					) : (
-						<ul className="divide-y">
-							{courses.map((c) => (
-								<li
-									key={c.id}
-									className="py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-md px-2 -mx-2 group"
-									onClick={() => {
-										setSelectedCourseId(c.id);
-										setShowCourseDetails(true);
-									}}
-								>
-									<div className="flex-1 min-w-0">
-										<div className="font-medium">{c.code} - {c.name}</div>
-										{c.description && (
-											<div className="text-sm text-gray-600 truncate">{c.description}</div>
-										)}
-									</div>
-									<div className="flex items-center gap-2 shrink-0">
-										<span className="text-sm text-gray-500">{c.semester}</span>
-										<Button
-											variant="ghost"
-											size="sm"
-											className="text-gray-400 hover:text-red-600 hover:bg-red-50"
-											onClick={(e) => {
-												e.stopPropagation();
-												setCourseToRemove(c);
-											}}
-										>
-											<X className="h-4 w-4 mr-1" />
-											Remove
-										</Button>
-									</div>
-								</li>
-							))}
-						</ul>
-					)}
-				</div>
+					<div className="p-4">
+						{loading ? (
+							<div className="flex items-center gap-2 py-8 text-gray-500">
+								<Loader2 className="h-5 w-5 animate-spin" />
+								<span>Loading courses...</span>
+							</div>
+						) : courses.length === 0 ? (
+							<div className="text-center py-12">
+								<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+									<BookOpen className="h-8 w-8" />
+								</div>
+								<p className="mt-4 font-medium text-gray-600">No courses yet</p>
+								<p className="mt-1 text-sm text-gray-500">Search for courses and add the ones you teach.</p>
+								<Button variant="outline" size="sm" className="mt-5" onClick={() => setShowBrowse(true)}>
+									<Search className="h-4 w-4 mr-2" />
+									Browse courses
+								</Button>
+							</div>
+						) : (
+							<ul className="divide-y divide-gray-100">
+								{courses.map((c) => (
+									<li
+										key={c.id}
+										className="py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-lg px-3 -mx-1 group"
+										onClick={() => {
+											setSelectedCourseId(c.id);
+											setShowCourseDetails(true);
+										}}
+									>
+										<div className="flex-1 min-w-0">
+											<div className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
+												{c.code} — {c.name}
+											</div>
+											{c.description && (
+												<div className="text-sm text-gray-600 truncate mt-0.5">{c.description}</div>
+											)}
+										</div>
+										<div className="flex items-center gap-3 shrink-0">
+											<span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md">{c.semester}</span>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+												onClick={(e) => {
+													e.stopPropagation();
+													setCourseToRemove(c);
+												}}
+											>
+												<X className="h-4 w-4 mr-1" />
+												Remove
+											</Button>
+										</div>
+									</li>
+								))}
+							</ul>
+						)}
+					</div>
+				</Card>
 			</div>
 
 			{/* Browse & Add courses dialog */}

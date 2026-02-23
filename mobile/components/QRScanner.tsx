@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         padding: 20,
-        paddingTop: 60,
+        paddingTop: 34,
         zIndex: 10,
     },
     closeButton: {

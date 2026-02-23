@@ -11,8 +11,13 @@ export default function MarkAttendancePage() {
 
     return (
         <ProtectedRoute allowedRoles={["student"]}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 py-4">
-                <h1 className="text-xl font-semibold">Mark Attendance</h1>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 py-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Mark Attendance</h1>
+                    <p className="mt-1 text-sm text-gray-500">
+                        Select an active session below to record your attendance
+                    </p>
+                </div>
                 {selected ? (
                     <AttendanceFlow session={selected} onDone={() => setSelected(null)} />
                 ) : (

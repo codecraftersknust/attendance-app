@@ -56,10 +56,10 @@ export default function AdminSessionsPage() {
 
     return (
         <ProtectedRoute allowedRoles={['admin']}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:px-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:px-8 space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Sessions</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Sessions</h1>
                         <p className="text-sm text-gray-500 mt-0.5">All attendance sessions across the school</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={loadSessions}>
@@ -68,10 +68,12 @@ export default function AdminSessionsPage() {
                     </Button>
                 </div>
 
-                <Card className="border-gray-200/80 bg-white">
+                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base font-medium text-gray-700 flex items-center gap-2">
-                            <CalendarClock className="h-4 w-4" />
+                        <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                                <CalendarClock className="h-4 w-4 text-emerald-600" />
+                            </div>
                             Sessions
                             {!loading && <span className="text-sm font-normal text-gray-400">({sessions.length})</span>}
                         </CardTitle>

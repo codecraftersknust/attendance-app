@@ -46,16 +46,18 @@ export default function AdminManualMarkPage() {
 
     return (
         <ProtectedRoute allowedRoles={['admin']}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 lg:px-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:px-8 space-y-6">
                 <div>
-                    <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Manual Mark</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Manual Mark</h1>
                     <p className="text-sm text-gray-500 mt-0.5">Manually mark attendance for a student in a session</p>
                 </div>
 
-                <Card className="border-gray-200/80 bg-white max-w-2xl">
+                <Card className="border-gray-200/80 bg-white shadow-md max-w-2xl overflow-hidden">
                     <CardHeader>
-                        <CardTitle className="text-base font-medium text-gray-700 flex items-center gap-2">
-                            <CheckSquare className="h-4 w-4" />
+                        <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                                <CheckSquare className="h-4 w-4 text-emerald-600" />
+                            </div>
                             Manual Attendance Mark
                         </CardTitle>
                         <CardDescription>
