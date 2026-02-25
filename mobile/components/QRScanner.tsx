@@ -49,10 +49,10 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
             <Modal visible={visible} animationType="slide">
                 <View style={styles.container}>
                     <Text style={styles.message}>Camera permission is required to scan QR codes</Text>
-                    <TouchableOpacity style={styles.button} onPress={requestPermission}>
+                    <TouchableOpacity style={styles.button} onPress={requestPermission} activeOpacity={0.8}>
                         <Text style={styles.buttonText}>Grant Permission</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={onClose}>
+                    <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={onClose} activeOpacity={0.8}>
                         <Text style={styles.buttonTextSecondary}>Cancel</Text>
                     </TouchableOpacity>
                 </View>
@@ -74,7 +74,7 @@ export function QRScanner({ visible, onClose, onScan }: QRScannerProps) {
 
                 {/* Close button */}
                 <View style={styles.topBar}>
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                    <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.8}>
                         <IconSymbol name="xmark" size={24} color="#ffffff" />
                     </TouchableOpacity>
                 </View>

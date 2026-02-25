@@ -48,7 +48,9 @@ export interface RegisterRequest {
     password: string;
     full_name?: string;
     role: 'student' | 'lecturer';
-    user_id?: string; // student_id or lecturer_id unified
+    user_id?: string;
+    level?: number;
+    programme?: string;
 }
 
 export interface LoginRequest {
@@ -443,6 +445,10 @@ class ApiClient {
 
     async lecturerConfirmFlagged(recordId: number): Promise<{ record_id: number; status: string }> {
         return this.request(`/lecturer/attendance/${recordId}/confirm`, { method: "POST" });
+    }
+
+    async lecturerRejectFlagged(recordId: number): Promise<{ record_id: number; status: string }> {
+        return this.request(`/lecturer/attendance/${recordId}/reject`, { method: "POST" });
     }
 
     async lecturerSessionAnalytics(sessionId: number): Promise<{

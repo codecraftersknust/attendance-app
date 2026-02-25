@@ -13,6 +13,8 @@ export interface RegisterRequest {
     full_name?: string;
     user_id?: string; // Student ID
     role?: 'student' | 'lecturer' | 'admin';
+    level?: number;
+    programme?: string;
 }
 
 export interface AuthTokens {

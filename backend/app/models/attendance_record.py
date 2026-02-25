@@ -8,6 +8,7 @@ from ..db.session import Base
 class AttendanceStatus(str, enum.Enum):
     confirmed = "confirmed"
     flagged = "flagged"
+    absent = "absent"
 
 
 class AttendanceRecord(Base):

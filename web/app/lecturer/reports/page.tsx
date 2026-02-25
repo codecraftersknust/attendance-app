@@ -55,6 +55,7 @@ export default function ReportsPage() {
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [loadingReport, setLoadingReport] = useState<boolean>(false);
     const [confirmingId, setConfirmingId] = useState<number | null>(null);
+    const [rejectingId, setRejectingId] = useState<number | null>(null);
 
     useEffect(() => {
         loadSessions();
@@ -113,6 +114,19 @@ export default function ReportsPage() {
             toast.error(e?.message || 'Failed to confirm attendance');
         } finally {
             setConfirmingId(null);
+        }
+    };
+
+    const handleRejectFlagged = async (recordId: number) => {
+        try {
+            setRejectingId(recordId);
+            await apiClient.lecturerRejectFlagged(recordId);
+            toast.success('Attendance rejected (marked absent)');
+            if (selectedSessionId) loadReport(Number(selectedSessionId));
+        } catch (e: any) {
+            toast.error(e?.message || 'Failed to reject attendance');
+        } finally {
+            setRejectingId(null);
         }
     };
 
@@ -261,15 +275,26 @@ export default function ReportsPage() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {record.status === 'flagged' ? (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                                                            onClick={() => handleConfirmFlagged(record.id)}
-                                                            disabled={confirmingId === record.id}
-                                                        >
-                                                            {confirmingId === record.id ? 'Confirming…' : 'Confirm attendance'}
-                                                        </Button>
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                                                onClick={() => handleConfirmFlagged(record.id)}
+                                                                disabled={confirmingId === record.id || rejectingId === record.id}
+                                                            >
+                                                                {confirmingId === record.id ? 'Confirming…' : 'Approve'}
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-red-700 border-red-200 hover:bg-red-50"
+                                                                onClick={() => handleRejectFlagged(record.id)}
+                                                                disabled={confirmingId === record.id || rejectingId === record.id}
+                                                            >
+                                                                {rejectingId === record.id ? 'Rejecting…' : 'Reject'}
+                                                            </Button>
+                                                        </div>
                                                     ) : (
                                                         <span className="text-xs text-gray-400">—</span>
                                                     )}

@@ -13,11 +13,13 @@ import {
     Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Colors, Emerald } from '@/constants/theme';
+import { Colors, Emerald, Amber } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { useToast } from '@/contexts/ToastContext';
+import { getErrorMessage } from '@/utils/error';
 import apiClientService, { UserProfile } from '@/services/apiClient.service';
 
 export default function ProfileScreen() {
@@ -55,7 +57,7 @@ export default function ProfileScreen() {
             const data = await apiClientService.getProfile();
             setProfile(data);
         } catch (err: any) {
-            showToast(err.message || 'Failed to load profile', 'error');
+            showToast(getErrorMessage(err), 'error');
         } finally {
             setLoading(false);
         }
@@ -119,7 +121,7 @@ export default function ProfileScreen() {
             showToast('Profile updated', 'success');
             setEditVisible(false);
         } catch (err: any) {
-            showToast(err.message || 'Failed to update profile', 'error');
+            showToast(getErrorMessage(err), 'error');
         } finally {
             setSaving(false);
         }
@@ -147,7 +149,7 @@ export default function ProfileScreen() {
             setNewPassword('');
             setConfirmPassword('');
         } catch (err: any) {
-            showToast(err.message || 'Failed to change password', 'error');
+            showToast(getErrorMessage(err), 'error');
         } finally {
             setChangingPassword(false);
         }
@@ -184,340 +186,346 @@ export default function ProfileScreen() {
     }
 
     return (
-        <ScrollView
-            style={[styles.container, { backgroundColor: colors.background }]}
-            contentContainerStyle={styles.content}
-        >
-            {/* Profile Card */}
-            <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
-                <TouchableOpacity
-                    style={[styles.editButtonTop, { borderColor: colors.tint }]}
-                    activeOpacity={0.7}
-                    onPress={openEditModal}
-                >
-                    <IconSymbol name="pencil" size={14} color={colors.tint} />
-                    <Text style={[styles.editButtonTopText, { color: colors.tint }]}>
-                        Edit
-                    </Text>
-                </TouchableOpacity>
-                <View style={[styles.avatar, { backgroundColor: colors.tint }]}>
-                    <Text style={styles.avatarText}>
-                        {getInitials(profile?.full_name || user?.email)}
-                    </Text>
-                </View>
-
-                <Text style={[styles.userName, { color: colors.text }]}>
-                    {profile?.full_name || 'No name set'}
-                </Text>
-                <Text style={[styles.userEmail, { color: colors.tabIconDefault }]}>
-                    {profile?.email || user?.email}
-                </Text>
-
-                {/* Role badge */}
-                <View style={[styles.roleBadge, { backgroundColor: colors.tint + '15' }]}>
-                    <Text style={[styles.roleBadgeText, { color: colors.tint }]}>
-                        {getRoleLabel(profile?.role || user?.role || 'student')}
-                    </Text>
-                </View>
-
-                {profile?.has_face_enrolled && (
-                    <View style={[styles.faceBadge, { backgroundColor: '#8b5cf615' }]}>
-                        <IconSymbol name="faceid" size={14} color="#8b5cf6" />
-                        <Text style={[styles.faceBadgeText, { color: '#8b5cf6' }]}>
-                            Face Enrolled
-                        </Text>
-                    </View>
-                )}
-            </View>
-
-            {/* Account Details */}
-            <View style={[styles.menuCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Details</Text>
-
-                <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                        <IconSymbol name="envelope.fill" size={16} color={colors.tint} />
-                    </View>
-                    <View style={styles.detailContent}>
-                        <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Email</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>
-                            {profile?.email}
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                        <IconSymbol name="person.text.rectangle.fill" size={16} color={colors.tint} />
-                    </View>
-                    <View style={styles.detailContent}>
-                        <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>
-                            {profile?.role === 'student' ? 'Student ID' : profile?.role === 'lecturer' ? 'Lecturer ID' : 'User ID'}
-                        </Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>
-                            {profile?.user_id || 'Not set'}
-                        </Text>
-                    </View>
-                </View>
-
-                {profile?.role === 'student' && (
-                    <>
-                        <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                            <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                                <IconSymbol name="graduationcap.fill" size={16} color={colors.tint} />
-                            </View>
-                            <View style={styles.detailContent}>
-                                <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Level</Text>
-                                <Text style={[styles.detailValue, { color: colors.text }]}>
-                                    {profile?.level ? `Level ${profile.level}` : 'Not set'}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                            <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                                <IconSymbol name="book.fill" size={16} color={colors.tint} />
-                            </View>
-                            <View style={styles.detailContent}>
-                                <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Programme</Text>
-                                <Text style={[styles.detailValue, { color: colors.text }]}>
-                                    {profile?.programme || 'Not set'}
-                                </Text>
-                            </View>
-                        </View>
-                    </>
-                )}
-
-                <View style={[styles.detailRow, styles.detailRowLast]}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                        <IconSymbol name="calendar" size={16} color={colors.tint} />
-                    </View>
-                    <View style={styles.detailContent}>
-                        <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Member Since</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>
-                            {formatDate(profile?.created_at ?? null)}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-
-            {/* Security */}
-            <View style={[styles.menuCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => setPasswordVisible(true)}
-                    activeOpacity={0.7}
-                >
-                    <View style={[styles.menuIconContainer, { backgroundColor: '#f59e0b15' }]}>
-                        <IconSymbol name="lock.fill" size={16} color="#f59e0b" />
-                    </View>
-                    <Text style={[styles.menuLabel, { color: colors.text }]}>Change Password</Text>
-                    <IconSymbol name="chevron.right" size={16} color={colors.tabIconDefault} />
-                </TouchableOpacity>
-            </View>
-
-            {/* Logout Button */}
-            <TouchableOpacity
-                style={[styles.logoutButton, { backgroundColor: colors.error + '15' }]}
-                onPress={handleLogout}
-                activeOpacity={0.7}
+        <View style={[styles.container, { backgroundColor: '#ffffff' }]}>
+            <ScreenHeader title="Profile" />
+            <ScrollView
+                style={[styles.scrollView, { backgroundColor: '#ffffff' }]}
+                contentContainerStyle={styles.content}
             >
-                <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color={colors.error} />
-                <Text style={[styles.logoutText, { color: colors.error }]}>Logout</Text>
-            </TouchableOpacity>
-
-            <Text style={[styles.versionText, { color: colors.tabIconDefault }]}>
-                Version 1.0.0
-            </Text>
-
-            {/* ─── Edit Profile Modal ─── */}
-            <Modal visible={editVisible} animationType="slide" transparent>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.modalOverlay}
-                >
-                    <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Profile</Text>
-
-                        <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Full Name</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
-                            value={editFullName}
-                            onChangeText={setEditFullName}
-                            placeholder="Enter your full name"
-                            placeholderTextColor={colors.tabIconDefault}
-                        />
-
-                        <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Email</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
-                            value={editEmail}
-                            onChangeText={setEditEmail}
-                            placeholder="Enter your email"
-                            placeholderTextColor={colors.tabIconDefault}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
-
-                        <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>
-                            {profile?.role === 'student' ? 'Student ID' : profile?.role === 'lecturer' ? 'Lecturer ID' : 'User ID'}
+                {/* Profile Card */}
+                <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
+                    <TouchableOpacity
+                        style={[styles.editButtonTop, { borderColor: colors.accent }]}
+                        activeOpacity={0.7}
+                        onPress={openEditModal}
+                    >
+                        <IconSymbol name="pencil" size={14} color={colors.accent} />
+                        <Text style={[styles.editButtonTopText, { color: colors.accent }]}>
+                            Edit
                         </Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
-                            value={editUserId}
-                            onChangeText={setEditUserId}
-                            placeholder="Enter your ID"
-                            placeholderTextColor={colors.tabIconDefault}
-                            autoCapitalize="none"
-                        />
+                    </TouchableOpacity>
+                    <View style={[styles.avatar, { backgroundColor: colors.tint }]}>
+                        <Text style={styles.avatarText}>
+                            {getInitials(profile?.full_name || user?.email)}
+                        </Text>
+                    </View>
 
-                        {profile?.role === 'student' && (
-                            <>
-                                <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Level</Text>
-                                <View style={styles.levelRow}>
-                                    {LEVELS.map((lvl) => (
-                                        <TouchableOpacity
-                                            key={lvl}
-                                            style={[
-                                                styles.levelChip,
-                                                { borderColor: cardBorder, backgroundColor: inputBg },
-                                                editLevel === lvl && { backgroundColor: colors.tint + '25', borderColor: colors.tint },
-                                            ]}
-                                            onPress={() => setEditLevel(lvl)}
-                                        >
-                                            <Text style={[styles.levelChipText, { color: editLevel === lvl ? colors.tint : colors.text }]}>
-                                                {lvl}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                                <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Programme</Text>
-                                <View style={styles.programmeRow}>
-                                    {PROGRAMMES.map((prog) => (
-                                        <TouchableOpacity
-                                            key={prog}
-                                            style={[
-                                                styles.programmeChip,
-                                                { borderColor: cardBorder, backgroundColor: inputBg },
-                                                editProgramme === prog && { backgroundColor: colors.tint + '25', borderColor: colors.tint },
-                                            ]}
-                                            onPress={() => setEditProgramme(prog)}
-                                        >
-                                            <Text style={[styles.programmeChipText, { color: editProgramme === prog ? colors.tint : colors.text }]} numberOfLines={1}>
-                                                {prog}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </>
-                        )}
+                    <Text style={[styles.userName, { color: colors.text }]}>
+                        {profile?.full_name || 'No name set'}
+                    </Text>
+                    <Text style={[styles.userEmail, { color: colors.tabIconDefault }]}>
+                        {profile?.email || user?.email}
+                    </Text>
 
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.cancelBtn, { borderColor: cardBorder }]}
-                                onPress={() => setEditVisible(false)}
-                                disabled={saving}
-                            >
-                                <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.saveBtn, { backgroundColor: colors.tint }]}
-                                onPress={handleSaveProfile}
-                                disabled={saving}
-                            >
-                                {saving ? (
-                                    <ActivityIndicator size="small" color="#fff" />
-                                ) : (
-                                    <Text style={styles.saveBtnText}>Save Changes</Text>
-                                )}
-                            </TouchableOpacity>
+                    {/* Role badge */}
+                    <View style={[styles.roleBadge, { backgroundColor: colors.tint + '15' }]}>
+                        <Text style={[styles.roleBadgeText, { color: colors.tint }]}>
+                            {getRoleLabel(profile?.role || user?.role || 'student')}
+                        </Text>
+                    </View>
+
+                    {profile?.has_face_enrolled && (
+                        <View style={[styles.faceBadge, { backgroundColor: colors.accentLight }]}>
+                            <IconSymbol name="faceid" size={14} color={colors.accent} />
+                            <Text style={[styles.faceBadgeText, { color: colors.accent }]}>
+                                Face Enrolled
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Account Details */}
+                <View style={[styles.menuCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Details</Text>
+
+                    <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
+                        <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                            <IconSymbol name="envelope.fill" size={16} color={colors.tint} />
+                        </View>
+                        <View style={styles.detailContent}>
+                            <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Email</Text>
+                            <Text style={[styles.detailValue, { color: colors.text }]}>
+                                {profile?.email}
+                            </Text>
                         </View>
                     </View>
-                </KeyboardAvoidingView>
-            </Modal>
 
-            {/* ─── Change Password Modal ─── */}
-            <Modal visible={passwordVisible} animationType="slide" transparent>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.modalOverlay}
+                    <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
+                        <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                            <IconSymbol name="person.text.rectangle.fill" size={16} color={colors.tint} />
+                        </View>
+                        <View style={styles.detailContent}>
+                            <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>
+                                {profile?.role === 'student' ? 'Student ID' : profile?.role === 'lecturer' ? 'Lecturer ID' : 'User ID'}
+                            </Text>
+                            <Text style={[styles.detailValue, { color: colors.text }]}>
+                                {profile?.user_id || 'Not set'}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {profile?.role === 'student' && (
+                        <>
+                            <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
+                                <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                                    <IconSymbol name="graduationcap.fill" size={16} color={colors.tint} />
+                                </View>
+                                <View style={styles.detailContent}>
+                                    <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Level</Text>
+                                    <Text style={[styles.detailValue, profile?.level ? { color: colors.text } : { color: Amber[600] }]}>
+                                        {profile?.level ? `Level ${profile.level}` : 'Not set'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
+                                <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                                    <IconSymbol name="book.fill" size={16} color={colors.tint} />
+                                </View>
+                                <View style={styles.detailContent}>
+                                    <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Programme</Text>
+                                    <Text style={[styles.detailValue, profile?.programme ? { color: colors.text } : { color: Amber[600] }]}>
+                                        {profile?.programme || 'Not set'}
+                                    </Text>
+                                </View>
+                            </View>
+                        </>
+                    )}
+
+                    <View style={[styles.detailRow, styles.detailRowLast]}>
+                        <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                            <IconSymbol name="calendar" size={16} color={colors.tint} />
+                        </View>
+                        <View style={styles.detailContent}>
+                            <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Member Since</Text>
+                            <Text style={[styles.detailValue, { color: colors.text }]}>
+                                {formatDate(profile?.created_at ?? null)}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Security */}
+                <View style={[styles.menuCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
+                    <TouchableOpacity
+                        style={styles.menuItem}
+                        onPress={() => setPasswordVisible(true)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[styles.menuIconContainer, { backgroundColor: colors.accentLight }]}>
+                            <IconSymbol name="lock.fill" size={16} color={colors.accent} />
+                        </View>
+                        <Text style={[styles.menuLabel, { color: colors.text }]}>Change Password</Text>
+                        <IconSymbol name="chevron.right" size={16} color={colors.tabIconDefault} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Logout Button */}
+                <TouchableOpacity
+                    style={[styles.logoutButton, { backgroundColor: colors.error + '15' }]}
+                    onPress={handleLogout}
+                    activeOpacity={0.7}
                 >
-                    <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Change Password</Text>
+                    <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color={colors.error} />
+                    <Text style={[styles.logoutText, { color: colors.error }]}>Logout</Text>
+                </TouchableOpacity>
 
-                        <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Current Password</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
-                            value={currentPassword}
-                            onChangeText={setCurrentPassword}
-                            placeholder="Enter current password"
-                            placeholderTextColor={colors.tabIconDefault}
-                            secureTextEntry
-                        />
+                <Text style={[styles.versionText, { color: colors.tabIconDefault }]}>
+                    Version 1.0.0
+                </Text>
 
-                        <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>New Password</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
-                            value={newPassword}
-                            onChangeText={setNewPassword}
-                            placeholder="Enter new password"
-                            placeholderTextColor={colors.tabIconDefault}
-                            secureTextEntry
-                        />
+                {/* ─── Edit Profile Modal ─── */}
+                <Modal visible={editVisible} animationType="slide" transparent>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={styles.modalOverlay}
+                    >
+                        <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Profile</Text>
 
-                        <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Confirm Password</Text>
-                        <TextInput
-                            style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            placeholder="Confirm new password"
-                            placeholderTextColor={colors.tabIconDefault}
-                            secureTextEntry
-                        />
+                            <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Full Name</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
+                                value={editFullName}
+                                onChangeText={setEditFullName}
+                                placeholder="Enter your full name"
+                                placeholderTextColor={colors.tabIconDefault}
+                            />
 
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.cancelBtn, { borderColor: cardBorder }]}
-                                onPress={() => {
-                                    setPasswordVisible(false);
-                                    setCurrentPassword('');
-                                    setNewPassword('');
-                                    setConfirmPassword('');
-                                }}
-                                disabled={changingPassword}
-                            >
-                                <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[
-                                    styles.modalBtn,
-                                    styles.saveBtn,
-                                    {
-                                        backgroundColor:
-                                            !currentPassword || !newPassword || !confirmPassword
-                                                ? colors.tint + '60'
-                                                : colors.tint,
-                                    },
-                                ]}
-                                onPress={handleChangePassword}
-                                disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
-                            >
-                                {changingPassword ? (
-                                    <ActivityIndicator size="small" color="#fff" />
-                                ) : (
-                                    <Text style={styles.saveBtnText}>Change Password</Text>
-                                )}
-                            </TouchableOpacity>
+                            <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Email</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
+                                value={editEmail}
+                                onChangeText={setEditEmail}
+                                placeholder="Enter your email"
+                                placeholderTextColor={colors.tabIconDefault}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+
+                            <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>
+                                {profile?.role === 'student' ? 'Student ID' : profile?.role === 'lecturer' ? 'Lecturer ID' : 'User ID'}
+                            </Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
+                                value={editUserId}
+                                onChangeText={setEditUserId}
+                                placeholder="Enter your ID"
+                                placeholderTextColor={colors.tabIconDefault}
+                                autoCapitalize="none"
+                            />
+
+                            {profile?.role === 'student' && (
+                                <>
+                                    <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Level</Text>
+                                    <View style={styles.levelRow}>
+                                        {LEVELS.map((lvl) => (
+                                            <TouchableOpacity
+                                                key={lvl}
+                                                style={[
+                                                    styles.levelChip,
+                                                    { borderColor: cardBorder, backgroundColor: inputBg },
+                                                    editLevel === lvl && { backgroundColor: colors.tint + '25', borderColor: colors.tint },
+                                                ]}
+                                                onPress={() => setEditLevel(lvl)}
+                                            >
+                                                <Text style={[styles.levelChipText, { color: editLevel === lvl ? colors.tint : colors.text }]}>
+                                                    {lvl}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                    <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Programme</Text>
+                                    <View style={styles.programmeRow}>
+                                        {PROGRAMMES.map((prog) => (
+                                            <TouchableOpacity
+                                                key={prog}
+                                                style={[
+                                                    styles.programmeChip,
+                                                    { borderColor: cardBorder, backgroundColor: inputBg },
+                                                    editProgramme === prog && { backgroundColor: colors.tint + '25', borderColor: colors.tint },
+                                                ]}
+                                                onPress={() => setEditProgramme(prog)}
+                                            >
+                                                <Text style={[styles.programmeChipText, { color: editProgramme === prog ? colors.tint : colors.text }]} numberOfLines={1}>
+                                                    {prog}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </>
+                            )}
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.modalBtn, styles.cancelBtn, { borderColor: cardBorder }]}
+                                    onPress={() => setEditVisible(false)}
+                                    disabled={saving}
+                                >
+                                    <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalBtn, styles.saveBtn, { backgroundColor: colors.tint }]}
+                                    onPress={handleSaveProfile}
+                                    disabled={saving}
+                                >
+                                    {saving ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <Text style={styles.saveBtnText}>Save Changes</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
-        </ScrollView>
+                    </KeyboardAvoidingView>
+                </Modal>
+
+                {/* ─── Change Password Modal ─── */}
+                <Modal visible={passwordVisible} animationType="slide" transparent>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={styles.modalOverlay}
+                    >
+                        <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Change Password</Text>
+
+                            <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Current Password</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
+                                value={currentPassword}
+                                onChangeText={setCurrentPassword}
+                                placeholder="Enter current password"
+                                placeholderTextColor={colors.tabIconDefault}
+                                secureTextEntry
+                            />
+
+                            <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>New Password</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
+                                value={newPassword}
+                                onChangeText={setNewPassword}
+                                placeholder="Enter new password"
+                                placeholderTextColor={colors.tabIconDefault}
+                                secureTextEntry
+                            />
+
+                            <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Confirm Password</Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                placeholder="Confirm new password"
+                                placeholderTextColor={colors.tabIconDefault}
+                                secureTextEntry
+                            />
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.modalBtn, styles.cancelBtn, { borderColor: cardBorder }]}
+                                    onPress={() => {
+                                        setPasswordVisible(false);
+                                        setCurrentPassword('');
+                                        setNewPassword('');
+                                        setConfirmPassword('');
+                                    }}
+                                    disabled={changingPassword}
+                                >
+                                    <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.modalBtn,
+                                        styles.saveBtn,
+                                        {
+                                            backgroundColor:
+                                                !currentPassword || !newPassword || !confirmPassword
+                                                    ? colors.tint + '60'
+                                                    : colors.tint,
+                                        },
+                                    ]}
+                                    onPress={handleChangePassword}
+                                    disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+                                >
+                                    {changingPassword ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <Text style={styles.saveBtnText}>Change Password</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </KeyboardAvoidingView>
+                </Modal>
+            </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
+        flex: 1,
+    },
+    scrollView: {
         flex: 1,
     },
     centered: {
@@ -569,6 +577,7 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
         marginBottom: 4,
+        letterSpacing: 0.3,
     },
     userEmail: {
         fontSize: 14,
@@ -583,6 +592,8 @@ const styles = StyleSheet.create({
     roleBadgeText: {
         fontSize: 12,
         fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
     },
     faceBadge: {
         flexDirection: 'row',
@@ -611,11 +622,13 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     sectionTitle: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: '700',
         paddingHorizontal: 16,
         paddingTop: 16,
         paddingBottom: 8,
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
     },
     menuCard: {
         borderRadius: 16,
@@ -658,7 +671,7 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 0.8,
         marginBottom: 2,
     },
     detailValue: {
@@ -681,6 +694,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 12,
         marginBottom: 20,
+        letterSpacing: 0.5,
     },
     // Modal styles
     modalOverlay: {

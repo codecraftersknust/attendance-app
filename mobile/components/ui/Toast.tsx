@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -21,23 +22,22 @@ export const Toast: React.FC<ToastProps> = ({
     duration = 3000
 }) => {
     const colorScheme = useColorScheme();
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(-100)).current;
+    const opacity = useSharedValue(0);
+    const translateY = useSharedValue(-100);
+
+    const hide = () => {
+        opacity.value = withTiming(0, { duration: 300 });
+        translateY.value = withTiming(-100, { duration: 300 }, (finished) => {
+            if (finished && onHide) {
+                runOnJS(onHide)();
+            }
+        });
+    };
 
     useEffect(() => {
         if (visible) {
-            Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 1,
-                    duration: 300,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(slideAnim, {
-                    toValue: 0,
-                    duration: 300,
-                    useNativeDriver: true,
-                }),
-            ]).start();
+            opacity.value = withTiming(1, { duration: 300 });
+            translateY.value = withSpring(0, { mass: 0.8, damping: 12, stiffness: 100 });
 
             const timer = setTimeout(() => {
                 hide();
@@ -49,22 +49,12 @@ export const Toast: React.FC<ToastProps> = ({
         }
     }, [visible]);
 
-    const hide = () => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-                toValue: -100,
-                duration: 300,
-                useNativeDriver: true,
-            }),
-        ]).start(() => {
-            if (onHide) onHide();
-        });
-    };
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            opacity: opacity.value,
+            transform: [{ translateY: translateY.value }],
+        };
+    });
 
     if (!visible) return null;
 
@@ -132,11 +122,10 @@ export const Toast: React.FC<ToastProps> = ({
             style={[
                 styles.container,
                 {
-                    opacity: fadeAnim,
-                    transform: [{ translateY: slideAnim }],
                     backgroundColor: getBackgroundColor(),
                     borderColor: getBorderColor(),
                 },
+                animatedStyle,
             ]}
         >
             <View style={styles.content}>

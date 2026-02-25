@@ -339,8 +339,12 @@ export default function ProfilePage() {
                                                         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Level
                                                         </p>
-                                                        <p className="text-sm text-gray-900 mt-0.5">
-                                                            {profile.level ? `Level ${profile.level}` : 'Not set'}
+                                                        <p className="text-sm mt-0.5">
+                                                            {profile.level ? (
+                                                                <span className="text-gray-900">{`Level ${profile.level}`}</span>
+                                                            ) : (
+                                                                <span className="text-amber-600 font-medium">Not set</span>
+                                                            )}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -353,8 +357,12 @@ export default function ProfilePage() {
                                                         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Programme
                                                         </p>
-                                                        <p className="text-sm text-gray-900 mt-0.5">
-                                                            {profile.programme || 'Not set'}
+                                                        <p className="text-sm mt-0.5">
+                                                            {profile.programme ? (
+                                                                <span className="text-gray-900">{profile.programme}</span>
+                                                            ) : (
+                                                                <span className="text-amber-600 font-medium">Not set</span>
+                                                            )}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -525,7 +533,7 @@ export default function ProfilePage() {
                             <Button
                                 onClick={handleSaveProfile}
                                 disabled={saving}
-                                className="bg-emerald-900 hover:bg-emerald-700 text-white"
+                                variant="primary"
                             >
                                 {saving ? (
                                     <>
@@ -596,7 +604,7 @@ export default function ProfilePage() {
                             </Button>
                             <Button
                                 onClick={handleChangePassword}
-                                className="bg-emerald-900 hover:bg-emerald-800 text-white"
+                                variant="primary"
                                 disabled={
                                     changingPassword ||
                                     !currentPassword ||

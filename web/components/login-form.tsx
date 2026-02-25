@@ -83,7 +83,7 @@ export function LoginForm({
                             </Field>
                             <Field>
                                 <Button
-                                    className="bg-emerald-900 hover:bg-emerald-900/90"
+                                    variant="primary"
                                     type="submit"
                                     disabled={!email || !password || isLoading}
                                 >
@@ -91,7 +91,7 @@ export function LoginForm({
                                 </Button>
                             </Field>
                             <FieldDescription className="text-center">
-                                Don&apos;t have an account? <Link className="hover:text-white/80" href="/auth/register">Sign up</Link>
+                                Don&apos;t have an account? <Link className="text-amber-600 hover:text-amber-700 active:text-amber-800 font-medium underline-offset-2 hover:underline transition-colors" href="/auth/register">Sign up</Link>
                             </FieldDescription>
                         </FieldGroup>
                     </form>
@@ -105,8 +105,8 @@ export function LoginForm({
                 </CardContent>
             </Card>
             <FieldDescription className="px-6 text-center text-white">
-                By clicking continue, you agree to our <Link className="hover:text-white/80" href="#">Terms of Service</Link>{" "}
-                and <Link className="hover:text-white/80" href="#">Privacy Policy</Link>.
+                By clicking continue, you agree to our <Link className="hover:text-white/80" href="/terms">Terms of Service</Link>{" "}
+                and <Link className="hover:text-white/80" href="/privacy">Privacy Policy</Link>.
             </FieldDescription>
         </div>
     )

@@ -112,7 +112,7 @@ export function SessionList() {
                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 mt-1">Active</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Button size="sm" className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={() => setQrSessionId(s.id)}>
+                                            <Button variant="primary" size="sm" onClick={() => setQrSessionId(s.id)}>
                                                 <QrCode className="mr-1 h-4 w-4" />
                                                 Show QR
                                             </Button>

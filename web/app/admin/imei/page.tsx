@@ -77,7 +77,7 @@ export default function AdminDeviceResetPage() {
                             <Button
                                 type="submit"
                                 disabled={submitting}
-                                className="bg-emerald-900 hover:bg-emerald-900/90 text-white"
+                                variant="primary"
                             >
                                 {submitting ? 'Submitting...' : 'Approve Reset'}
                             </Button>

@@ -17,6 +17,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
 type Course = {
@@ -154,7 +155,7 @@ export default function StudentDashboard() {
     };
 
     const attendanceRate = stats && stats.total_sessions > 0
-        ? Math.round((stats.confirmed_count / stats.total_sessions) * 100)
+        ? Math.round((stats.attendance_marked_count / stats.total_sessions) * 100)
         : 0;
 
     return (
@@ -187,6 +188,18 @@ export default function StudentDashboard() {
                                 to complete your setup.
                             </p>
                         </div>
+                    </div>
+                )}
+
+                {/* Skeletons while loading stats */}
+                {loading && !stats && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <Skeleton className="h-[104px] w-full rounded-xl" />
+                            <Skeleton className="h-[104px] w-full rounded-xl" />
+                            <Skeleton className="h-[104px] w-full rounded-xl" />
+                        </div>
+                        <Skeleton className="h-[120px] w-full rounded-xl" />
                     </div>
                 )}
 
@@ -246,7 +259,7 @@ export default function StudentDashboard() {
                                 Overall attendance rate
                             </CardTitle>
                             <CardDescription className="text-xs text-gray-500 mt-1">
-                                {stats.confirmed_count} confirmed out of {stats.total_sessions} total sessions across your enrolled courses.
+                                {stats.attendance_marked_count} marked sessions out of {stats.total_sessions} total sessions across your enrolled courses.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -266,7 +279,7 @@ export default function StudentDashboard() {
                 {/* Quick action */}
                 <div>
                     <Link href="/student/mark-attendance">
-                        <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white px-5">
+                        <Button variant="primary" className="px-5">
                             <Plus className="h-4 w-4 mr-2" />
                             Mark attendance
                         </Button>
@@ -275,149 +288,173 @@ export default function StudentDashboard() {
 
                 {/* Attendance History */}
                 <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900">Recent Attendance History</h2>
+                    <div className="px-6 py-4 border-b border-gray-100">
+                        <h2 className="text-lg font-semibold text-gray-900">Recent Attendance History</h2>
                     </div>
                     <div className="p-4">
-                    {loading ? (
-                        <p className="text-gray-500 py-6">Loading history...</p>
-                    ) : history.length === 0 ? (
-                        <p className="text-gray-500 py-6">No attendance history available yet.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead>
-                                    <tr>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {history.map((record) => (
-                                        <tr key={record.session_id}>
-                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                                {new Date(record.starts_at || '').toLocaleDateString()}
-                                            </td>
-                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                                {record.course_code}
-                                            </td>
-                                            <td className="px-3 py-2 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                                    ${record.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                                                        record.status === 'flagged' ? 'bg-yellow-100 text-yellow-800' :
-                                                            'bg-red-100 text-red-800'}`}>
-                                                    {record.status === 'confirmed' ? 'Present' :
-                                                        record.status === 'flagged' ? 'Flagged' : 'Absent'}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                                                {record.session_code}
-                                            </td>
+                        {loading ? (
+                            <div className="space-y-3 py-2">
+                                {[1, 2, 3].map((i) => (
+                                    <Skeleton key={i} className="h-12 w-full rounded-md" />
+                                ))}
+                            </div>
+                        ) : history.length === 0 ? (
+                            <p className="text-gray-500 py-6">No attendance history available yet.</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead>
+                                        <tr>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {history.map((record) => (
+                                            <tr key={record.session_id}>
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                    {new Date(record.starts_at || '').toLocaleDateString()}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                    {record.course_code}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                    ${record.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
+                                                            record.status === 'flagged' ? 'bg-amber-100 text-amber-700' :
+                                                                'bg-red-100 text-red-800'}`}>
+                                                        {record.status === 'confirmed' ? 'Present' :
+                                                            record.status === 'flagged' ? 'Flagged' : 'Absent'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                                                    {record.session_code}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </Card>
 
                 {/* Recommended Courses for this Semester */}
                 {stats?.profile_complete && (
                     <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-100">
-                        <h2 className="text-lg font-semibold text-gray-900">
-                            Courses for {stats.current_semester}
-                            {stats.academic_year && <span className="ml-1 text-sm font-normal text-gray-500">({stats.academic_year})</span>}
-                        </h2>
-                        {/* Enrolment closed banner */}
-                        {!stats.enrollment_open && (
-                            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 mt-4">
-                                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-500" />
-                                <p className="text-sm">Enrolment is currently <strong>closed</strong>. Courses will be available to join at the start of the next semester.</p>
-                            </div>
-                        )}
-                    </div>
-                    <div className="px-4 py-2">
-                        {loadingRecommended ? (
-                            <p className="text-gray-500 text-sm py-4">Loading courses...</p>
-                        ) : recommendedCourses.length === 0 ? (
-                            <p className="text-gray-500 text-sm py-4">No courses found for your programme and level this semester.</p>
-                        ) : (
-                            <ul className="divide-y divide-gray-100">
-                                {recommendedCourses.map((course) => (
-                                    <li key={course.id} className="py-2 flex items-center justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-medium">{course.code} - {course.name}</div>
-                                            {course.description && (
-                                                <div className="text-sm text-gray-600 mt-0.5 truncate">{course.description}</div>
-                                            )}
-                                            <div className="text-xs text-gray-500 mt-0.5">
-                                                {course.semester} {course.lecturer_name && `• ${course.lecturer_name}`}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                            <h2 className="text-lg font-semibold text-gray-900">
+                                Courses for {stats.current_semester}
+                                {stats.academic_year && <span className="ml-1 text-sm font-normal text-gray-500">({stats.academic_year})</span>}
+                            </h2>
+                            {/* Enrolment closed banner */}
+                            {!stats.enrollment_open && (
+                                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 mt-4">
+                                    <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-500" />
+                                    <p className="text-sm">Enrolment is currently <strong>closed</strong>. Courses will be available to join at the start of the next semester.</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="px-4 py-2">
+                            {loadingRecommended ? (
+                                <div className="space-y-4 py-2">
+                                    {[1, 2].map((i) => (
+                                        <div key={i} className="flex justify-between items-center">
+                                            <div className="space-y-2 flex-1 mr-4">
+                                                <Skeleton className="h-5 w-3/4" />
+                                                <Skeleton className="h-4 w-1/2" />
                                             </div>
+                                            <Skeleton className="h-8 w-20 rounded-md" />
                                         </div>
-                                        {course.is_enrolled ? (
-                                            <span className="ml-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                                Enrolled
-                                            </span>
-                                        ) : stats.enrollment_open ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => handleEnroll(course.id)}
-                                                disabled={enrollingIds.has(course.id)}
-                                                className="ml-4 shrink-0"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                                {enrollingIds.has(course.id) ? 'Adding...' : 'Enrol'}
-                                            </Button>
-                                        ) : null}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                </Card>
+                                    ))}
+                                </div>
+                            ) : recommendedCourses.length === 0 ? (
+                                <p className="text-gray-500 text-sm py-4">No courses found for your programme and level this semester.</p>
+                            ) : (
+                                <ul className="divide-y divide-gray-100">
+                                    {recommendedCourses.map((course) => (
+                                        <li key={course.id} className="py-2 flex items-center justify-between">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium">{course.code} - {course.name}</div>
+                                                {course.description && (
+                                                    <div className="text-sm text-gray-600 mt-0.5 truncate">{course.description}</div>
+                                                )}
+                                                <div className="text-xs text-gray-500 mt-0.5">
+                                                    {course.semester} {course.lecturer_name && `• ${course.lecturer_name}`}
+                                                </div>
+                                            </div>
+                                            {course.is_enrolled ? (
+                                                <span className="ml-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                    Enrolled
+                                                </span>
+                                            ) : stats.enrollment_open ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleEnroll(course.id)}
+                                                    disabled={enrollingIds.has(course.id)}
+                                                    className="ml-4 shrink-0"
+                                                >
+                                                    <Plus className="h-4 w-4" />
+                                                    {enrollingIds.has(course.id) ? 'Adding...' : 'Enrol'}
+                                                </Button>
+                                            ) : null}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </Card>
                 )}
 
                 {/* Enrolled Courses Section */}
                 <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900">My Enrolled Courses</h2>
+                    <div className="px-4 py-3 border-b border-gray-100">
+                        <h2 className="text-lg font-semibold text-gray-900">My Enrolled Courses</h2>
                     </div>
                     <div className="px-4 py-2">
-                    {loading ? (
-                        <p className="text-gray-500 py-4">Loading...</p>
-                    ) : enrolledCourses.length === 0 ? (
-                        <p className="text-gray-500 text-sm py-4">No enrolled courses yet. Courses you enrol in will appear here.</p>
-                    ) : (
-                        <ul className="divide-y divide-gray-100">
-                            {enrolledCourses.map((course) => (
-                                <li key={course.id} className="py-2 flex items-center justify-between group">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-medium">{course.code} - {course.name}</div>
-                                        {course.description && (
-                                            <div className="text-sm text-gray-600 mt-1 truncate">{course.description}</div>
-                                        )}
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            {course.semester} {course.lecturer_name && `• ${course.lecturer_name}`}
+                        {loading ? (
+                            <div className="space-y-4 py-2">
+                                {[1, 2].map((i) => (
+                                    <div key={i} className="flex justify-between items-center">
+                                        <div className="space-y-2 flex-1 mr-4">
+                                            <Skeleton className="h-5 w-3/4" />
+                                            <Skeleton className="h-4 w-1/2" />
                                         </div>
+                                        <Skeleton className="h-8 w-8 rounded-md" />
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                        onClick={() => setCourseToDrop({ id: course.id, code: course.code, name: course.name })}
-                                        aria-label="Drop course"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                                ))}
+                            </div>
+                        ) : enrolledCourses.length === 0 ? (
+                            <p className="text-gray-500 text-sm py-4">No enrolled courses yet. Courses you enrol in will appear here.</p>
+                        ) : (
+                            <ul className="divide-y divide-gray-100">
+                                {enrolledCourses.map((course) => (
+                                    <li key={course.id} className="py-2 flex items-center justify-between group">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium">{course.code} - {course.name}</div>
+                                            {course.description && (
+                                                <div className="text-sm text-gray-600 mt-1 truncate">{course.description}</div>
+                                            )}
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                {course.semester} {course.lecturer_name && `• ${course.lecturer_name}`}
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => setCourseToDrop({ id: course.id, code: course.code, name: course.name })}
+                                            aria-label="Drop course"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 </Card>
             </div>

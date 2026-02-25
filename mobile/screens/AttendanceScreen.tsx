@@ -12,9 +12,11 @@ import {
 import { Colors, Emerald } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useToast } from '@/contexts/ToastContext';
+import { getErrorMessage } from '@/utils/error';
 import AttendanceService from '@/services/attendance.service';
 import apiClientService from '@/services/apiClient.service';
 import type { ActiveSession, AttendanceHistoryItem } from '@/types/api.types';
@@ -57,10 +59,10 @@ export default function AttendanceScreen() {
     try {
       const activeSessions = await AttendanceService.getActiveSessions();
       setSessions(activeSessions);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to load active sessions:', error);
       if (!sessionsRefreshing && sessions.length === 0) {
-        Alert.alert('Error', error.message || 'Failed to load active sessions');
+        Alert.alert('Error', getErrorMessage(error));
       }
     } finally {
       setSessionsLoading(false);
@@ -73,9 +75,9 @@ export default function AttendanceScreen() {
     try {
       const data = await apiClientService.getAttendanceHistory();
       setHistory(data);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to load attendance history:', error);
-      showToast('Failed to load attendance history', 'error');
+      showToast(getErrorMessage(error), 'error');
     } finally {
       setHistoryLoading(false);
       setHistoryRefreshing(false);
@@ -289,16 +291,18 @@ export default function AttendanceScreen() {
             <View style={styles.listContainer}>
               {sessions.map((session) => (
                 <TouchableOpacity
+                  activeOpacity={0.7}
                   key={session.id}
                   style={[
                     styles.sessionCard,
                     {
                       backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
                       borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                      borderLeftWidth: 3,
+                      borderLeftColor: session.already_marked ? Emerald[500] : '#10b981',
                     },
                   ]}
                   onPress={() => !session.already_marked && handleOpenSession(session)}
-                  activeOpacity={0.7}
                   disabled={session.already_marked}
                 >
                   <View style={styles.sessionInfo}>
@@ -386,6 +390,8 @@ export default function AttendanceScreen() {
                     {
                       backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
                       borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                      borderTopWidth: 3,
+                      borderTopColor: colors.tint,
                     },
                   ]}
                 >
@@ -398,6 +404,8 @@ export default function AttendanceScreen() {
                     {
                       backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
                       borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                      borderTopWidth: 3,
+                      borderTopColor: Emerald[500],
                     },
                   ]}
                 >
@@ -410,6 +418,8 @@ export default function AttendanceScreen() {
                     {
                       backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
                       borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                      borderTopWidth: 3,
+                      borderTopColor: '#d97706',
                     },
                   ]}
                 >
@@ -422,6 +432,8 @@ export default function AttendanceScreen() {
                     {
                       backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
                       borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                      borderTopWidth: 3,
+                      borderTopColor: '#dc2626',
                     },
                   ]}
                 >
@@ -448,6 +460,7 @@ export default function AttendanceScreen() {
                   const isActive = statusFilter === filter.key;
                   return (
                     <TouchableOpacity
+                      activeOpacity={0.7}
                       key={filter.key}
                       style={[
                         styles.filterChip,
@@ -465,7 +478,6 @@ export default function AttendanceScreen() {
                         },
                       ]}
                       onPress={() => setStatusFilter(filter.key)}
-                      activeOpacity={0.7}
                     >
                       <Text
                         style={[
@@ -511,6 +523,8 @@ export default function AttendanceScreen() {
                           {
                             backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
                             borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                            borderLeftWidth: 3,
+                            borderLeftColor: statusStyle.color,
                           },
                         ]}
                       >
@@ -563,6 +577,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  contentWrapper: {
+    flex: 1,
+  },
   header: {
     paddingHorizontal: 20,
     paddingTop: 34,
@@ -609,6 +626,7 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 14,
     marginBottom: 16,
+    letterSpacing: 0.3,
   },
   centeredContainer: {
     alignItems: 'center',
@@ -655,6 +673,7 @@ const styles = StyleSheet.create({
   courseCode: {
     fontSize: 14,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   activeBadge: {
     flexDirection: 'row',
@@ -727,6 +746,8 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   filterRow: {
     marginBottom: 16,
@@ -777,6 +798,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   historyBottom: {
     flexDirection: 'row',

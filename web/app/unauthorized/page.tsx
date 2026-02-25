@@ -14,7 +14,7 @@ export default function UnauthorizedPage() {
                         You don't have permission to access this page. Please contact your administrator if you believe this is an error.
                     </p>
                     <div className="space-y-2">
-                        <Button asChild className="w-full bg-emerald-900 hover:bg-emerald-900/90">
+                        <Button asChild variant="primary" className="w-full">
                             <Link href="/dashboard">Go to Dashboard</Link>
                         </Button>
                         <Button asChild variant="outline" className="w-full">

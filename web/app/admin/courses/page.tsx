@@ -244,7 +244,7 @@ export default function AdminCoursesPage() {
                         <p className="text-sm text-gray-500 mt-0.5">Manage all courses across the school</p>
                     </div>
                     <Button
-                        className="bg-emerald-900 hover:bg-emerald-900/90 text-white"
+                        variant="primary"
                         onClick={() => setShowCreate(true)}
                     >
                         <Plus className="h-4 w-4 mr-1" />
@@ -452,7 +452,7 @@ export default function AdminCoursesPage() {
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => !creating && setShowCreate(false)}>Cancel</Button>
-                            <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" type="submit" disabled={creating}>
+                            <Button variant="primary" type="submit" disabled={creating}>
                                 {creating ? 'Creating...' : 'Create Course'}
                             </Button>
                         </DialogFooter>
@@ -550,7 +550,7 @@ export default function AdminCoursesPage() {
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => !updating && setShowEdit(false)}>Cancel</Button>
-                            <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" type="submit" disabled={updating}>
+                            <Button variant="primary" type="submit" disabled={updating}>
                                 {updating ? 'Saving...' : 'Save Changes'}
                             </Button>
                         </DialogFooter>

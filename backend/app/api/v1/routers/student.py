@@ -401,27 +401,43 @@ def student_dashboard(
         .all()
     ]
 
-    # Total past sessions across all enrolled courses (true denominator)
+    # Total sessions: Past sessions for enrolled courses OR any active session the student has marked
     now = utcnow()
     total_sessions = 0
     if enrolled_course_ids:
-        total_sessions = (
+        # Get all records for this student in enrolled courses
+        my_records = (
+            db.query(AttendanceRecord.session_id, AttendanceRecord.status)
+            .join(AttendanceSession, AttendanceRecord.session_id == AttendanceSession.id)
+            .filter(
+                AttendanceRecord.student_id == current.id,
+                AttendanceSession.course_id.in_(enrolled_course_ids)
+            )
+            .all()
+        )
+        marked_session_ids = {r.session_id for r in my_records}
+
+        # Count past sessions that the student didn't mark
+        past_unmarked_count = (
             db.query(AttendanceSession)
             .filter(
                 AttendanceSession.course_id.in_(enrolled_course_ids),
                 AttendanceSession.ends_at < now,
+                ~AttendanceSession.id.in_(marked_session_ids) if marked_session_ids else True
             )
             .count()
         )
 
-    attendance_marked_count = (
-        db.query(AttendanceRecord).filter(AttendanceRecord.student_id == current.id).count()
-    )
-    confirmed_count = (
-        db.query(AttendanceRecord)
-        .filter(AttendanceRecord.student_id == current.id, AttendanceRecord.status == AttendanceStatus.confirmed)
-        .count()
-    )
+        total_sessions = len(marked_session_ids) + past_unmarked_count
+
+    # Count confirmed records for enrolled courses
+    attendance_marked_count = 0
+    confirmed_count = 0
+    if enrolled_course_ids:
+        confirmed_count = sum(1 for r in my_records if r.status == AttendanceStatus.confirmed)
+        # As per user request, only confirmed sessions count towards the overall marked/attended count
+        attendance_marked_count = confirmed_count
+        
     profile_complete = bool(current.level and current.programme)
     school = get_or_create_settings(db)
     write_audit(db, "student.dashboard", current.id)
@@ -609,7 +625,9 @@ def get_attendance_history(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
 ):
-    """Get full attendance history including present, late, and absent sessions"""
+    """Get full attendance history including present, flagged, and absent sessions."""
+    now = utcnow()
+
     # 1. Get all courses the student is currently enrolled in
     enrollments = (
         db.query(StudentCourseEnrollment)
@@ -617,43 +635,72 @@ def get_attendance_history(
         .all()
     )
     enrolled_course_ids = [e.course_id for e in enrollments]
-    
-    if not enrolled_course_ids:
-        return []
 
-    # 2. Get all sessions for these courses that have ENDED
-    # We only count Absense if the session is over
-    from datetime import datetime
-    now = utcnow()
-    
-    past_sessions = (
-        db.query(AttendanceSession)
-        .filter(
-            AttendanceSession.course_id.in_(enrolled_course_ids),
-            AttendanceSession.ends_at < now
-        )
-        .order_by(AttendanceSession.ends_at.desc())
-        .all()
-    )
-    
-    # 3. Get all attendance records for this student
+    # 2. Get all attendance records for this student (to ensure present/flagged sessions always show)
     my_records = {
         r.session_id: r
         for r in db.query(AttendanceRecord)
         .filter(AttendanceRecord.student_id == current.id)
         .all()
     }
-    
+
+    # 3. Build set of session IDs we need to include:
+    #    - Past sessions for enrolled courses (for absent)
+    #    - Sessions where student has a record (for present/flagged - must always show)
+    session_ids_to_include = set()
+
+    if enrolled_course_ids:
+        past_sessions_query = (
+            db.query(AttendanceSession.id)
+            .filter(
+                AttendanceSession.course_id.in_(enrolled_course_ids),
+                AttendanceSession.ends_at != None,
+                AttendanceSession.ends_at < now,
+            )
+        )
+        session_ids_to_include.update(r[0] for r in past_sessions_query.all())
+
+    # Always include sessions where student has a record (marked present or flagged)
+    session_ids_to_include.update(my_records.keys())
+
+    if not session_ids_to_include:
+        write_audit(db, "student.get_attendance_history", current.id)
+        return []
+
+    # 4. Fetch all sessions we need
+    sessions = (
+        db.query(AttendanceSession)
+        .filter(AttendanceSession.id.in_(session_ids_to_include))
+        .all()
+    )
+
+    # Sort by ends_at desc (most recent first); sessions with null ends_at go last
+    sessions_sorted = sorted(
+        sessions,
+        key=lambda s: (s.ends_at is None, -(s.ends_at.timestamp() if s.ends_at else 0)),
+    )
+
     history = []
-    
-    for session in past_sessions:
+    seen_session_ids = set()
+
+    for session in sessions_sorted:
+        if session.id in seen_session_ids:
+            continue
+        seen_session_ids.add(session.id)
+
+        # Only include past sessions for "absent" - or any session where we have a record
         record = my_records.get(session.id)
-        status = "absent"
         if record:
-            status = record.status.value # confirmed or flagged
-            
+            status = record.status.value
+        else:
+            # No record - only count as absent if session has ended and student is enrolled
+            if session.ends_at is None or session.ends_at >= now:
+                continue
+            if session.course_id not in enrolled_course_ids:
+                continue
+            status = "absent"
+
         course = db.get(Course, session.course_id)
-        
         history.append({
             "session_id": session.id,
             "session_code": session.code,
@@ -662,8 +709,8 @@ def get_attendance_history(
             "starts_at": session.starts_at.isoformat() if session.starts_at else None,
             "ends_at": session.ends_at.isoformat() if session.ends_at else None,
             "status": status,
-            "record_id": record.id if record else None
+            "record_id": record.id if record else None,
         })
-        
+
     write_audit(db, "student.get_attendance_history", current.id)
     return history

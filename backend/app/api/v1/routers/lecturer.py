@@ -667,6 +667,20 @@ def confirm_flagged_attendance(record_id: int, db: Session = Depends(get_db), cu
     return {"record_id": record.id, "status": record.status.value}
 
 
+@router.post("/attendance/{record_id}/reject", response_model=dict)
+def reject_flagged_attendance(record_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
+    record = db.get(AttendanceRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+    session = db.get(AttendanceSession, record.session_id)
+    if not session or session.lecturer_id != current.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    record.status = AttendanceStatus.absent
+    db.commit()
+    write_audit(db, "lecturer.reject_attendance", current.id, f"record_id={record_id}")
+    return {"record_id": record.id, "status": record.status.value}
+
+
 @router.get("/dashboard", response_model=dict)
 def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     from datetime import datetime

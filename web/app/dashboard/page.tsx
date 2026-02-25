@@ -14,7 +14,7 @@ export default function DashboardPage() {
             router.replace('/auth/login');
             return;
         }
-        // Redirect based on user role
+
         switch (user.role) {
             case 'student':
                 router.replace('/student/dashboard');

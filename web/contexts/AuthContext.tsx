@@ -8,7 +8,7 @@ interface AuthContextType {
     user: User | null;
     loading: boolean;
     login: (email: string, password: string) => Promise<void>;
-    register: (data: { email: string; password: string; full_name?: string; role: 'student' | 'lecturer'; user_id?: string }) => Promise<void>;
+    register: (data: { email: string; password: string; full_name?: string; role: 'student' | 'lecturer'; user_id?: string; level?: number; programme?: string }) => Promise<void>;
     logout: () => void;
     refreshAuth: () => Promise<void>;
 }
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     };
 
-    const register = async (data: { email: string; password: string; full_name?: string; role: 'student' | 'lecturer'; user_id?: string }) => {
+    const register = async (data: { email: string; password: string; full_name?: string; role: 'student' | 'lecturer'; user_id?: string; level?: number; programme?: string }) => {
         try {
             setLoading(true);
             const userData = await apiClient.register(data);

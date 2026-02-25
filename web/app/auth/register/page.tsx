@@ -11,7 +11,12 @@ export default function SignupPage() {
 
     useEffect(() => {
         if (!loading && user) {
-            router.replace("/dashboard");
+            // Students must complete face setup first; others go to dashboard
+            if (user.role === "student") {
+                router.replace("/auth/setup-face");
+            } else {
+                router.replace("/dashboard");
+            }
         }
     }, [user, loading, router]);
 

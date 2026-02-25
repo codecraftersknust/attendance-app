@@ -1,43 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import { QRScanner } from "@/components/qr-scanner";
 import { FaceCapture } from "@/components/face-capture";
 import { ActiveSession } from "./types";
+import { CheckCircle2, Clock, MapPin, Camera, QrCode, ChevronRight, Loader2 } from "lucide-react";
 
 const DEVICE_STORAGE_KEY = "absense.device_id";
 
 export function AttendanceFlow(props: { session: ActiveSession; onDone: () => void }) {
     const { session, onDone } = props;
 
-    // Auto-exit when session expires
+    // Session countdown
+    const [timeLeft, setTimeLeft] = useState<string | null>(null);
+    const [timeLeftSeconds, setTimeLeftSeconds] = useState<number | null>(null);
+
     useEffect(() => {
         if (!session.ends_at) return;
 
-        const checkExpiration = () => {
+        const updateCountdown = () => {
             const now = new Date();
             const end = new Date(session.ends_at!);
-            const diff = end.getTime() - now.getTime();
+            const diffMs = end.getTime() - now.getTime();
 
-            if (diff <= 0) {
+            if (diffMs <= 0) {
                 toast.error("Session has ended");
                 onDone();
+                return;
+            }
+
+            const totalSeconds = Math.ceil(diffMs / 1000);
+            setTimeLeftSeconds(totalSeconds);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            if (minutes > 0) {
+                setTimeLeft(`${minutes}m ${seconds}s`);
             } else {
-                // Schedule exit
-                const timer = setTimeout(() => {
-                    toast.error("Session has ended");
-                    onDone();
-                }, diff);
-                return () => clearTimeout(timer);
+                setTimeLeft(`${seconds}s`);
             }
         };
 
-        return checkExpiration();
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000);
+        return () => clearInterval(interval);
     }, [session.ends_at, onDone]);
 
     const [deviceId, setDeviceId] = useState<string>("");
@@ -65,7 +74,6 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
         if (typeof window === "undefined") return "";
         let id = localStorage.getItem(DEVICE_STORAGE_KEY);
         if (!id) {
-            // Generate a persistent random ID
             if (typeof crypto !== 'undefined' && crypto.randomUUID) {
                 id = crypto.randomUUID();
             } else {
@@ -81,8 +89,17 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
         setDeviceId(id);
     }, [getDeviceId]);
 
-    const getErrorMessage = useCallback((error: unknown) => {
-        if (error instanceof Error) return error.message;
+    const getErrorMessage = useCallback((error: unknown): string => {
+        if (!error) return "Something went wrong";
+        const err = error as { message?: string; response?: { data?: { detail?: string | Array<{ msg?: string }> } } };
+        if (typeof err.message === "string" && err.message) return err.message;
+        const detail = err.response?.data?.detail;
+        if (typeof detail === "string" && detail) return detail;
+        if (Array.isArray(detail) && detail.length > 0) {
+            const first = detail[0];
+            return typeof first === "object" && first?.msg ? first.msg : String(detail[0]);
+        }
+        if (error instanceof Error && error.message) return error.message;
         if (typeof error === "string") return error;
         return "Something went wrong";
     }, []);
@@ -91,7 +108,6 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
         try {
             setBinding(true);
             await apiClient.studentBindDevice(id);
-            // toast.success("Device bound automatically");
             return true;
         } catch (error) {
             console.error("Auto-bind failed", error);
@@ -107,13 +123,11 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
             const status = await apiClient.studentDeviceStatus();
             setDeviceStatus(status);
 
-            // Auto-bind if not bound
             if (!status.has_device) {
                 const id = getDeviceId();
                 if (id) {
                     const success = await bindDevice(id);
                     if (success) {
-                        // Refresh status after binding
                         const newStatus = await apiClient.studentDeviceStatus();
                         setDeviceStatus(newStatus);
                     }
@@ -130,8 +144,6 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
     useEffect(() => {
         refreshDeviceStatus();
     }, [refreshDeviceStatus]);
-
-    // Removed manual handleBind since it's automatic now
 
     const getLocation = useCallback(() => {
         if (!navigator.geolocation) {
@@ -206,7 +218,7 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
             toast.success("Reference face enrolled");
             setRefFaceFile(null);
             setRefCaptureKey((key) => key + 1);
-            refreshDeviceStatus(); // Update status to hide enrollment section
+            refreshDeviceStatus();
         } catch (error) {
             toast.error(getErrorMessage(error));
         } finally {
@@ -219,6 +231,10 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
             toast.error("Scan the QR code displayed by your lecturer");
             return;
         }
+        if (!selfieFile) {
+            toast.error("Capture a selfie for attendance");
+            return;
+        }
         if (!coords) {
             toast.error("Capture your current location");
             return;
@@ -226,10 +242,6 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
         const value = deviceId.trim();
         if (!value) {
             toast.error("Device ID missing");
-            return;
-        }
-        if (!selfieFile) {
-            toast.error("Capture a selfie for this attendance");
             return;
         }
         try {
@@ -259,112 +271,247 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
         }
     };
 
-    const deviceStatusText = useMemo(() => {
-        if (checkingDevice) return "Checking device status…";
-        if (!deviceStatus?.has_device) return "Binding device...";
-        if (!deviceStatus.is_active) return "Device pending approval";
-        return "Device verified";
-    }, [checkingDevice, deviceStatus]);
+    // Step tracking
+    const steps = [
+        { key: "qr", label: "Scan QR", done: !!qrPayload },
+        { key: "selfie", label: "Selfie", done: !!selfieFile },
+        { key: "location", label: "Location", done: !!coords },
+    ];
+    const completedCount = steps.filter((s) => s.done).length;
+    const currentStepIndex = steps.findIndex((s) => !s.done);
+    const allDone = completedCount === steps.length;
+
+    // Countdown styles
+    const getCountdownStyles = () => {
+        if (timeLeftSeconds == null) return "bg-gray-50 text-gray-500 border-gray-200";
+        if (timeLeftSeconds < 60) return "bg-red-50 text-red-600 border-red-200 font-bold";
+        if (timeLeftSeconds < 300) return "bg-amber-50 text-amber-600 border-amber-200 font-semibold";
+        return "bg-gray-50 text-gray-600 border-gray-200";
+    };
 
     return (
-        <div className="border-gray-200/80 bg-white rounded-lg shadow-md overflow-hidden p-6 space-y-6">
-            <div>
-                <h2 className="text-lg font-semibold text-gray-900">{session.course_code} — {session.course_name}</h2>
-                <div className="text-xs text-gray-500 mt-0.5">Session #{session.id}</div>
+        <div className="max-w-lg mx-auto space-y-5">
+            {/* Header with countdown */}
+            <div className="border border-gray-200 bg-white rounded-xl shadow-sm p-5">
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">{session.course_code} — {session.course_name}</h2>
+                        <div className="text-xs text-gray-500 mt-0.5">Session #{session.id}</div>
+                    </div>
+                    {timeLeft && (
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${getCountdownStyles()}`}>
+                            <Clock className="h-3.5 w-3.5" />
+                            <span className="text-xs">{timeLeft}</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Device ID section hidden but logic active */}
-            {/* <section className="space-y-3">
-                <Label>Device Identifier</Label>
-                <div className="text-xs text-gray-500 font-mono">{deviceId}</div>
-                <p className="text-xs text-emerald-700">{deviceStatusText}</p>
-            </section> */}
+            {/* Step progress bar */}
+            <div className="border border-gray-200 bg-white rounded-xl shadow-sm p-5">
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
+                    Step {Math.min(completedCount + 1, 3)} of 3
+                </div>
+                <div className="flex items-start">
+                    {steps.map((step, i) => (
+                        <Fragment key={step.key}>
+                            {/* Step column: dot + label */}
+                            <div className="flex flex-col items-center shrink-0 w-16">
+                                <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${step.done
+                                    ? "bg-emerald-500 text-white"
+                                    : i === currentStepIndex
+                                        ? "bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500"
+                                        : "bg-gray-100 text-gray-400"
+                                    }`}>
+                                    {step.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                                </div>
+                                <span className={`mt-2 text-[10px] font-bold uppercase tracking-wide text-center ${step.done ? "text-gray-900" : i === currentStepIndex ? "text-gray-900" : "text-gray-400"
+                                    }`}>
+                                    {step.label}
+                                </span>
+                            </div>
 
-            <section className="grid gap-6 lg:grid-cols-2">
-                {!isFaceEnrolled ? (
-                    <div className="space-y-4 border-r pr-4">
-                        <Label className="text-amber-600 font-bold">Step 1: Reference Face Enrollment</Label>
-                        <p className="text-xs text-gray-600">You must enroll your face once before marking attendance.</p>
-                        <FaceCapture
-                            key={`ref-${refCaptureKey}`}
-                            label="Capture a clear reference selfie"
-                            allowUpload
-                            note="Use good lighting, remove face coverings, and center your face."
-                            onCapture={(file) => setRefFaceFile(file)}
-                            onClear={() => setRefFaceFile(null)}
-                        />
-                        <Button
-                            variant="outline"
-                            onClick={enrollFace}
-                            disabled={!refFaceFile || enrolling}
-                            className="w-full"
-                        >
-                            {enrolling ? "Uploading..." : "Enroll Reference Face"}
+                            {/* Connecting line */}
+                            {i < steps.length - 1 && (
+                                <div className="flex-1 pt-3.5">
+                                    <div className={`h-0.5 mx-1 rounded ${step.done && steps[i + 1].done ? "bg-emerald-400" : "bg-gray-200"
+                                        }`} />
+                                </div>
+                            )}
+                        </Fragment>
+                    ))}
+                </div>
+            </div>
+
+            {/* Face enrollment banner (prerequisite) */}
+            {!isFaceEnrolled && (
+                <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-5 space-y-4">
+                    <div>
+                        <p className="text-sm font-bold text-amber-800">⚠️ Reference Face Required</p>
+                        <p className="text-xs text-amber-700 mt-1">You must enroll your face once before marking attendance.</p>
+                    </div>
+                    <FaceCapture
+                        key={`ref-${refCaptureKey}`}
+                        label="Capture a clear reference selfie"
+                        allowUpload
+                        note="Use good lighting, remove face coverings, and center your face."
+                        onCapture={(file) => setRefFaceFile(file)}
+                        onClear={() => setRefFaceFile(null)}
+                    />
+                    <Button
+                        variant="outline"
+                        onClick={enrollFace}
+                        disabled={!refFaceFile || enrolling}
+                        className="w-full"
+                    >
+                        {enrolling ? "Uploading..." : "Enroll Reference Face"}
+                    </Button>
+                </div>
+            )}
+
+            {/* Step 1: QR Scanner */}
+            <div className={`border rounded-xl p-5 transition-all ${qrPayload ? "border-emerald-200 bg-emerald-50/30" : "border-gray-200 bg-white shadow-sm"
+                }`}>
+                <div className="flex items-center gap-3 mb-3">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${qrPayload ? "bg-emerald-500" : "bg-gray-100"
+                        }`}>
+                        {qrPayload ? (
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                        ) : (
+                            <QrCode className="h-4 w-4 text-gray-500" />
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-gray-900">Step 1: Scan QR Code</p>
+                        <p className="text-xs text-gray-500">Scan the rotating QR displayed by your lecturer</p>
+                    </div>
+                </div>
+
+                {qrPayload ? (
+                    <p className="text-sm text-emerald-700 font-medium flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4" /> QR locked for session #{qrPayload.session_id}
+                    </p>
+                ) : (
+                    <QRScanner onDecode={onScan} />
+                )}
+            </div>
+
+            {/* Step 2: Selfie */}
+            <div className={`border rounded-xl p-5 transition-all ${selfieFile ? "border-emerald-200 bg-emerald-50/30" : !qrPayload ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-200 bg-white shadow-sm"
+                }`}>
+                <div className="flex items-center gap-3 mb-3">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${selfieFile ? "bg-emerald-500" : "bg-gray-100"
+                        }`}>
+                        {selfieFile ? (
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                        ) : (
+                            <Camera className="h-4 w-4 text-gray-500" />
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-gray-900">Step 2: Capture Selfie</p>
+                        <p className="text-xs text-gray-500">Take a selfie for this attendance submission</p>
+                    </div>
+                </div>
+
+                {selfieFile ? (
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-emerald-700 font-medium flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4" /> Selfie captured
+                        </p>
+                        <Button variant="secondary" size="sm" onClick={() => { setSelfieFile(null); setSelfieCaptureKey(k => k + 1); }}>
+                            Retake
                         </Button>
                     </div>
                 ) : (
-                    <div className="hidden lg:block space-y-4 border-r pr-4 opacity-50 pointer-events-none">
-                        <Label>Reference Face</Label>
-                        <div className="h-40 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-sm">
-                            Enrolled
-                        </div>
+                    <div className={!qrPayload ? "pointer-events-none" : ""}>
+                        <FaceCapture
+                            key={`selfie-${selfieCaptureKey}`}
+                            label="Capture real-time selfie"
+                            allowUpload
+                            note="This selfie is uploaded with your attendance submission."
+                            onCapture={(file) => setSelfieFile(file)}
+                            onClear={() => setSelfieFile(null)}
+                        />
                     </div>
                 )}
+            </div>
 
-                <div className="space-y-4">
-                    <Label className={!isFaceEnrolled ? "opacity-50" : "font-bold"}>
-                        {!isFaceEnrolled ? "Step 2: Attendance Selfie" : "Attendance Selfie"}
-                    </Label>
-                    <FaceCapture
-                        key={`selfie-${selfieCaptureKey}`}
-                        label="Capture real-time selfie"
-                        allowUpload
-                        note="This selfie is uploaded with your attendance submission."
-                        onCapture={(file) => setSelfieFile(file)}
-                        onClear={() => setSelfieFile(null)}
-                    />
-                </div>
-            </section>
-
-            <section className="space-y-4 pt-4 border-t">
-                <div className="space-y-2">
-                    <Label>Scan QR from lecturer</Label>
-                    <QRScanner onDecode={onScan} />
-                    {qrPayload ? (
-                        <p className="text-sm text-emerald-700 font-medium">
-                            ✓ QR locked for session #{qrPayload.session_id}
-                        </p>
-                    ) : (
-                        <p className="text-xs text-gray-500">Position the rotating QR code inside the frame.</p>
-                    )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <Button variant="outline" onClick={getLocation} disabled={locating}>
-                        {locating ? "Locating..." : "Capture location"}
-                    </Button>
-                    <div className="text-xs text-gray-600">
-                        {coords ? `✓ Location captured` : "Location required"}
+            {/* Step 3: Location */}
+            <div className={`border rounded-xl p-5 transition-all ${coords ? "border-emerald-200 bg-emerald-50/30" : !selfieFile ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-200 bg-white shadow-sm"
+                }`}>
+                <div className="flex items-center gap-3 mb-3">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${coords ? "bg-emerald-500" : "bg-gray-100"
+                        }`}>
+                        {coords ? (
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                        ) : (
+                            <MapPin className="h-4 w-4 text-gray-500" />
+                        )}
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-gray-900">Step 3: Capture Location</p>
+                        <p className="text-xs text-gray-500">Your location verifies you&apos;re in the right place</p>
                     </div>
                 </div>
-            </section>
 
-            <div className="pt-2">
+                {coords ? (
+                    <p className="text-sm text-emerald-700 font-medium flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4" /> Location captured
+                    </p>
+                ) : (
+                    <Button
+                        variant="outline"
+                        onClick={getLocation}
+                        disabled={locating || !selfieFile}
+                        className="w-full"
+                    >
+                        {locating ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Locating...
+                            </>
+                        ) : (
+                            <>
+                                <MapPin className="mr-2 h-4 w-4" />
+                                Capture Location
+                            </>
+                        )}
+                    </Button>
+                )}
+            </div>
+
+            {/* Submit */}
+            <div>
                 <Button
-                    className="w-full bg-emerald-900 hover:bg-emerald-900/90 text-white py-6 text-lg"
+                    variant="primary"
+                    className="w-full py-6 text-lg"
                     onClick={submit}
-                    disabled={submitting || !isFaceEnrolled}
+                    disabled={submitting || !isFaceEnrolled || !allDone}
                 >
-                    {submitting ? "Submitting..." : "Submit Attendance"}
+                    {submitting ? (
+                        <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Submitting...
+                        </>
+                    ) : (
+                        <>
+                            Submit Attendance
+                            <ChevronRight className="ml-2 h-5 w-5" />
+                        </>
+                    )}
                 </Button>
                 {!isFaceEnrolled && (
                     <p className="text-center text-xs text-red-500 mt-2">
                         Please enroll your reference face first.
                     </p>
                 )}
+                {isFaceEnrolled && !allDone && (
+                    <p className="text-center text-xs text-gray-400 mt-2">
+                        Complete all steps above to submit.
+                    </p>
+                )}
             </div>
         </div>
     );
 }
-
-

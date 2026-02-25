@@ -95,7 +95,7 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
                     <Input type="number" min={1} value={duration} onChange={(e) => setDuration(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                    <Button className="w-full bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={create} disabled={creating}>
+                    <Button variant="primary" className="w-full" onClick={create} disabled={creating}>
                         {creating ? "Creating..." : "Create Session"}
                     </Button>
                 </div>

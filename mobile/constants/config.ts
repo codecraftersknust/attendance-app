@@ -10,7 +10,7 @@ export const API_CONFIG = {
         ? 'http://172.20.10.2:8000/api/v1'
         : 'https://api.absense.com/api/v1',
 
-    TIMEOUT: 10000,
+    TIMEOUT: 20000,
     QR_EXPIRY_WARNING_SECONDS: 5,
     GEOFENCE_DEFAULT_RADIUS: 100,
 } as const;

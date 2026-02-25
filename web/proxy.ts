@@ -20,7 +20,10 @@ export function proxy(req: NextRequest) {
         return NextResponse.redirect(url);
     }
 
+    // Allow setup-face for authenticated users (students must complete face enrollment)
     if (token && isAuthPage) {
+        const isSetupFace = path === '/auth/setup-face' || path.startsWith('/auth/setup-face/');
+        if (isSetupFace) return NextResponse.next();
         return NextResponse.redirect(new URL('/dashboard', nextUrl));
     }
 

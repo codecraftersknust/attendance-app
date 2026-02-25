@@ -19,6 +19,8 @@ class UserCreate(BaseModel):
     full_name: Optional[str] = None
     user_id: Optional[str] = None
     role: str = "student"
+    level: Optional[int] = None
+    programme: Optional[str] = None
 
 
 class UserRead(BaseModel):

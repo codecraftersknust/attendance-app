@@ -19,10 +19,8 @@ export function Footer() {
                     <div>
                         <h4 className="text-sm font-semibold text-gray-900 mb-3">Product</h4>
                         <ul className="space-y-2 text-sm text-gray-600">
-                            <li><Link href="/getting-started" className="hover:text-gray-900 transition-colors">Getting Started</Link></li>
-                            <li><Link href="/instructor-resources" className="hover:text-gray-900 transition-colors">Instructor Resources</Link></li>
-                            <li><Link href="/support" className="hover:text-gray-900 transition-colors">Support & Help</Link></li>
-                            <li><Link href="/about" className="hover:text-gray-900 transition-colors">About</Link></li>
+                            <li><Link href="/auth/register" className="hover:text-gray-900 transition-colors">Get Started</Link></li>
+                            <li><Link href="/auth/login" className="hover:text-gray-900 transition-colors">Sign In</Link></li>
                         </ul>
                     </div>
 
@@ -40,7 +38,6 @@ export function Footer() {
                         <ul className="space-y-2 text-sm text-gray-600">
                             <li><Link href="/privacy" className="hover:text-gray-900 transition-colors">Privacy Policy</Link></li>
                             <li><Link href="/terms" className="hover:text-gray-900 transition-colors">Terms of Service</Link></li>
-                            <li><Link href="/contact" className="hover:text-gray-900 transition-colors">Contact</Link></li>
                         </ul>
                     </div>
                 </div>

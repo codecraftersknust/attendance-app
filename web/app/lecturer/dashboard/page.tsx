@@ -18,6 +18,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
 type MyCourse = {
@@ -157,6 +158,19 @@ export default function LecturerDashboard() {
 					</div>
 				</div>
 
+				{/* Skeletons while loading stats */}
+				{loading && !stats && (
+					<div className="space-y-4">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+							<Skeleton className="h-[104px] w-full rounded-xl" />
+							<Skeleton className="h-[104px] w-full rounded-xl" />
+							<Skeleton className="h-[104px] w-full rounded-xl" />
+							<Skeleton className="h-[104px] w-full rounded-xl" />
+						</div>
+						<Skeleton className="h-[120px] w-full rounded-xl" />
+					</div>
+				)}
+
 				{/* Stats grid */}
 				{stats && (
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -245,13 +259,13 @@ export default function LecturerDashboard() {
 				{/* Quick actions */}
 				<div className="flex flex-wrap gap-3">
 					<Link href="/lecturer/create-session">
-						<Button size="default" className="bg-emerald-900 hover:bg-emerald-900/90 text-white px-5">
+						<Button variant="primary" size="default" className="px-5">
 							<Plus className="h-4 w-4 mr-2" />
 							Create session
 						</Button>
 					</Link>
 					<Link href="/lecturer/reports">
-						<Button variant="outline" size="default" className="border-gray-200 hover:bg-gray-50 px-5">
+						<Button variant="outline-accent" size="default" className="px-5">
 							<BarChart className="h-4 w-4 mr-2" />
 							View reports
 						</Button>
@@ -262,16 +276,23 @@ export default function LecturerDashboard() {
 				<Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
 					<div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
 						<h2 className="text-lg font-semibold text-gray-900">Your Courses</h2>
-						<Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={() => setShowBrowse(true)}>
+						<Button variant="primary" onClick={() => setShowBrowse(true)}>
 							<Plus className="h-4 w-4 mr-2" />
 							Add Course
 						</Button>
 					</div>
 					<div className="p-4">
 						{loading ? (
-							<div className="flex items-center gap-2 py-8 text-gray-500">
-								<Loader2 className="h-5 w-5 animate-spin" />
-								<span>Loading courses...</span>
+							<div className="space-y-4 py-2">
+								{[1, 2, 3].map((i) => (
+									<div key={i} className="flex justify-between items-center py-2">
+										<div className="space-y-2 flex-1 mr-4">
+											<Skeleton className="h-5 w-2/3" />
+											<Skeleton className="h-4 w-1/3" />
+										</div>
+										<Skeleton className="h-8 w-20 rounded-md" />
+									</div>
+								))}
 							</div>
 						) : courses.length === 0 ? (
 							<div className="text-center py-12">
@@ -384,7 +405,8 @@ export default function LecturerDashboard() {
 											) : (
 												<Button
 													size="sm"
-													className="bg-emerald-900 hover:bg-emerald-900/90 text-white h-7 text-xs"
+													variant="primary"
+													className="h-7 text-xs"
 													disabled={claimingId === c.id}
 													onClick={() => handleClaim(c.id)}
 												>

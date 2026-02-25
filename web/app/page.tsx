@@ -1,21 +1,11 @@
 import { Navbar } from "@/components/landing/navbar";
-import { Footer } from "@/components/landing/footer";
-import { Hero } from "@/components/landing/hero";
-import { WhatWeDo } from "@/components/landing/what-we-do";
-import { MeasureWhatMatters } from "@/components/landing/measure-what-matters";
-import { CTA } from "@/components/landing/cta";
-import { Resources } from "@/components/landing/resources";
+import { LandingPage } from "@/components/landing/landing-page";
 
 export default function Home() {
 	return (
-		<>
+		<div className="h-screen flex flex-col overflow-hidden">
 			<Navbar />
-			<Hero />
-			<WhatWeDo />
-			<MeasureWhatMatters />
-			<CTA />
-			<Resources />
-			<Footer />
-		</>
+			<LandingPage />
+		</div>
 	);
 }

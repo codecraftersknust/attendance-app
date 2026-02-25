@@ -23,27 +23,43 @@ export const Emerald = {
   900: '#064e3b',
 };
 
+// Amber Color Palette (secondary accent)
+export const Amber = {
+  50: '#fffbeb',
+  100: '#fef3c7',
+  200: '#fde68a',
+  300: '#fcd34d',
+  400: '#fbbf24',
+  500: '#f59e0b',
+  600: '#d97706',
+  700: '#b45309',
+  800: '#92400e',
+  900: '#78350f',
+};
+
 export const Colors = {
   light: {
     text: '#11181C',
     background: '#fff',
     tint: tintColorLight,
     icon: Emerald[900],
-    tabIconDefault: '#9ca3af',
+    tabIconDefault: '#6b7280', // Adjusted from #9ca3af for WCAG AA contrast
     tabIconSelected: tintColorLight,
     card: '#ffffff',
     surface: '#f8fafc',
     border: '#e5e7eb',
     primary: Emerald[900],
     primaryLight: Emerald[700],
+    accent: '#d97706', // Amber 600
+    accentLight: '#fef3c7', // Amber 100
     success: Emerald[600],
     successLight: Emerald[100],
     // Additional semantic colors
-    error: '#ef4444',
+    error: '#dc2626', // red-600
     errorLight: '#fee2e2',
-    warning: '#f59e0b',
+    warning: '#b45309', // amber-700
     warningLight: '#fef3c7',
-    info: '#3b82f6',
+    info: '#2563eb', // blue-600
     infoLight: '#dbeafe',
   },
   dark: {
@@ -58,6 +74,8 @@ export const Colors = {
     border: 'rgba(71, 85, 105, 0.3)',
     primary: Emerald[500],
     primaryLight: Emerald[400],
+    accent: '#fbbf24', // Amber 400 for dark
+    accentLight: 'rgba(251, 191, 36, 0.2)',
     success: Emerald[500],
     successLight: 'rgba(16, 185, 129, 0.2)',
     // Additional semantic colors
@@ -68,6 +86,13 @@ export const Colors = {
     info: '#60a5fa',
     infoLight: 'rgba(96, 165, 250, 0.2)',
   },
+};
+
+export const FontFamily = {
+  regular: 'DMSans-Regular',
+  medium: 'DMSans-Medium',
+  semiBold: 'DMSans-SemiBold',
+  bold: 'DMSans-Bold',
 };
 
 export const Fonts = Platform.select({

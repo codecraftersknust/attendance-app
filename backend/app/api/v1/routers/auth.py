@@ -45,6 +45,8 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
         role=role,
+        level=user_in.level,
+        programme=user_in.programme,
     )
     db.add(user)
     db.commit()

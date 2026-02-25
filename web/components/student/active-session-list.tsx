@@ -34,7 +34,7 @@ export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => v
         <div className="border-gray-200/80 bg-white rounded-lg shadow-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h2 className="text-lg font-semibold text-gray-900">Active Sessions</h2>
-                <Button variant="outline" size="sm" onClick={load} disabled={loading} className="border-gray-200 hover:bg-gray-50">
+                <Button variant="outline" size="sm" onClick={load} disabled={loading}>
                     Refresh
                 </Button>
             </div>
@@ -57,7 +57,7 @@ export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => v
                             {s.already_marked ? (
                                 <span className="text-sm text-gray-500">Marked</span>
                             ) : (
-                                <Button className="bg-emerald-900 hover:bg-emerald-900/90 text-white" onClick={() => onOpen(s)}>Open</Button>
+                                <Button variant="primary" onClick={() => onOpen(s)}>Open</Button>
                             )}
                         </li>
                     ))}

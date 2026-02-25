@@ -3,7 +3,6 @@
 import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 type QRScannerProps = {
@@ -19,7 +18,6 @@ export function QRScanner({ onDecode, paused = false, className }: QRScannerProp
 
     const [status, setStatus] = useState<string>("Requesting camera access…");
     const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
-    const [manualValue, setManualValue] = useState<string>("");
 
     const supported = useMemo(() => {
         if (typeof window === "undefined" || typeof navigator === "undefined") return false;
@@ -84,13 +82,6 @@ export function QRScanner({ onDecode, paused = false, className }: QRScannerProp
         };
     }, [paused, startScanner, stopScanner, supported]);
 
-    const handleManualSubmit = () => {
-        if (!manualValue.trim()) return;
-        lastResultRef.current = manualValue.trim();
-        onDecode(manualValue.trim());
-        setManualValue("");
-    };
-
     return (
         <div className={cn("space-y-3", className)}>
             <div className="relative rounded-xl border border-dashed border-gray-300 bg-black/80">
@@ -122,18 +113,6 @@ export function QRScanner({ onDecode, paused = false, className }: QRScannerProp
                     </div>
                 </div>
             )}
-
-            <div className="space-y-2">
-                <p className="text-sm text-gray-600">No camera? Enter the QR payload manually.</p>
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <Input
-                        value={manualValue}
-                        onChange={(e) => setManualValue(e.target.value)}
-                        placeholder="ABSENSE:123:nonce or JSON payload"
-                    />
-                    <Button variant="secondary" onClick={handleManualSubmit}>Submit</Button>
-                </div>
-            </div>
         </div>
     );
 }

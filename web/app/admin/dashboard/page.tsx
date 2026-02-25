@@ -112,7 +112,7 @@ export default function AdminDashboard() {
                                 Academic Calendar
                             </CardTitle>
                             <div className="flex items-center gap-2">
-                                <Button size="sm" variant="outline" onClick={() => setShowSettingsDialog(true)}>
+                                <Button size="sm" variant="outline-accent" onClick={() => setShowSettingsDialog(true)}>
                                     <Settings2 className="h-3.5 w-3.5 mr-1" /> Update Settings
                                 </Button>
                                 <Button size="sm" variant="destructive" onClick={() => setShowCloseSemester(true)}>
@@ -134,13 +134,13 @@ export default function AdminDashboard() {
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 mb-1">School Status</p>
-                                    <Badge variant={schoolSettings.is_on_break ? 'secondary' : 'default'} className={schoolSettings.is_on_break ? '' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'}>
+                                    <Badge variant={schoolSettings.is_on_break ? 'secondary' : 'default'} className={schoolSettings.is_on_break ? 'bg-amber-100 text-amber-800 hover:bg-amber-100' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'}>
                                         {schoolSettings.is_on_break ? 'On Break' : 'Active'}
                                     </Badge>
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 mb-1">Enrolment</p>
-                                    <Badge variant={schoolSettings.enrollment_open ? 'default' : 'secondary'} className={schoolSettings.enrollment_open ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100' : ''}>
+                                    <Badge variant={schoolSettings.enrollment_open ? 'default' : 'secondary'} className={schoolSettings.enrollment_open ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100' : 'bg-amber-100 text-amber-800 hover:bg-amber-100'}>
                                         {schoolSettings.enrollment_open ? 'Open' : 'Closed'}
                                     </Badge>
                                 </div>
@@ -212,13 +212,13 @@ export default function AdminDashboard() {
 
                         <div className="flex flex-wrap gap-3">
                             <Link href="/admin/courses">
-                                <Button size="default" className="bg-emerald-900 hover:bg-emerald-900/90 text-white px-5">
+                                <Button size="default" variant="primary">
                                     <BookOpen className="h-4 w-4 mr-2" />
                                     Manage Courses
                                 </Button>
                             </Link>
                             <Link href="/admin/flagged">
-                                <Button variant="outline" size="default" className="border-gray-200 hover:bg-gray-50 px-5">
+                                <Button variant="outline-accent" size="default" className="px-5">
                                     <Flag className="h-4 w-4 mr-2" />
                                     View Flagged
                                 </Button>
@@ -281,7 +281,7 @@ export default function AdminDashboard() {
                         </div>
                         <DialogFooter className="pt-2">
                             <Button type="button" variant="outline" onClick={() => setShowSettingsDialog(false)} disabled={savingSettings}>Cancel</Button>
-                            <Button type="submit" className="bg-emerald-900 hover:bg-emerald-900/90 text-white" disabled={savingSettings}>
+                            <Button type="submit" variant="primary" disabled={savingSettings}>
                                 {savingSettings ? 'Saving...' : 'Save Settings'}
                             </Button>
                         </DialogFooter>

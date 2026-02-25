@@ -88,9 +88,18 @@ apiClient.interceptors.response.use(
         }
 
         // Transform error to consistent format
-        // FastAPI returns errors in 'detail' field, not 'message'
+        // FastAPI returns errors in 'detail' field (string or array of {msg})
+        const data = error.response?.data as { detail?: string | Array<{ msg?: string }>; message?: string } | undefined;
+        let message = data?.message || error.message || 'An error occurred';
+        const detail = data?.detail;
+        if (typeof detail === 'string' && detail) {
+            message = detail;
+        } else if (Array.isArray(detail) && detail.length > 0) {
+            const first = detail[0];
+            message = typeof first === 'object' && first?.msg ? first.msg : String(detail[0]);
+        }
         const apiError: ApiError = {
-            message: (error.response?.data as any)?.detail || (error.response?.data as any)?.message || error.message || 'An error occurred',
+            message,
             status: error.response?.status,
             errors: (error.response?.data as any)?.errors,
         };

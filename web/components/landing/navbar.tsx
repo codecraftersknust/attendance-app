@@ -23,123 +23,90 @@ export function Navbar() {
     };
 
     return (
-        <header className="w-full border-b max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 relative z-50">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 sm:space-x-8">
-                    <Link className="font-semibold text-lg" href="/">
-                        Absense
-                    </Link>
-                    <nav className="hidden lg:flex items-center space-x-4 text-sm font-medium">
-                        <Link href="/getting-started" className="hover:text-emerald-900">
-                            Getting Started
-                        </Link>
-                        <Link href="/support" className="hover:text-emerald-900">
-                            Support & Help
-                        </Link>
-                        <Link href="/about" className="hover:text-emerald-900">
-                            About
-                        </Link>
-                    </nav>
-                </div>
+        <header className="w-full border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shrink-0">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+                <div className="flex items-center justify-between gap-4 min-w-0">
+                <Link className="font-semibold text-lg" href="/">
+                    Absense
+                </Link>
 
-                {/* Desktop Auth Section */}
-                <div className="hidden sm:flex items-center space-x-4">
+                {/* Auth: one Sign in link + one Get Started button */}
+                <div className="hidden sm:flex items-center gap-4">
                     {loading ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-900"></div>
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-700"></div>
                     ) : user ? (
                         <UserMenu />
                     ) : (
                         <>
-                            <Link href="/auth/register">
-                                <Button variant="outline" size="sm">
-                                    Create an Account
-                                </Button>
+                            <Link href="/auth/login" className="text-sm font-medium text-gray-600 hover:text-emerald-700 active:text-emerald-800 transition-colors">
+                                Sign in
                             </Link>
-                            <Link href="/auth/login">
-                                <Button className="bg-emerald-900 hover:bg-emerald-900/90" size="sm">
-                                    Sign In
+                            <Link href="/auth/register">
+                                <Button variant="primary" size="sm">
+                                    Get Started
                                 </Button>
                             </Link>
                         </>
                     )}
                 </div>
 
-                {/* Mobile Menu Button - always visible on small screens */}
+                {/* Mobile Menu Button - visible on small screens, min 44px touch target */}
                 <button
                     onClick={toggleMenu}
-                    className="sm:hidden p-2 rounded-md hover:bg-gray-200 w-10 h-10 flex items-center justify-center"
+                    className="sm:hidden p-2.5 -m-2.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
                     aria-label="Toggle menu"
+                    aria-expanded={isMenuOpen}
                 >
-                    {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                    {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
                 </button>
+                </div>
             </div>
 
-            {/* Mobile Menu - shows for both guests and authenticated users (overlay) */}
+            {/* Mobile Menu - full width dropdown */}
             {isMenuOpen && (
-                <div className="sm:hidden absolute left-0 right-0 top-full border-t bg-white z-40 shadow-lg">
-                    <nav className="px-4 py-4 space-y-4">
-                        <Link
-                            href="/getting-started"
-                            className="block text-sm font-medium hover:text-emerald-900"
-                            onClick={() => setIsMenuOpen(false)}
-                        >
-                            Getting Started
-                        </Link>
-                        <Link
-                            href="/support"
-                            className="block text-sm font-medium hover:text-emerald-900"
-                            onClick={() => setIsMenuOpen(false)}
-                        >
-                            Support & Help
-                        </Link>
-                        <Link
-                            href="/about"
-                            className="block text-sm font-medium hover:text-emerald-900"
-                            onClick={() => setIsMenuOpen(false)}
-                        >
-                            About
-                        </Link>
-
-                        {/* Auth actions for mobile */}
-                        <div className="pt-4 border-t">
-                            {loading ? (
-                                <div className="flex justify-center py-2">
-                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-900"></div>
-                                </div>
-                            ) : user ? (
-                                <div className="flex flex-col space-y-2">
-                                    <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
-                                        <Button variant="outline" className="w-full">
-                                            Dashboard
-                                        </Button>
-                                    </Link>
-                                    <Link href="/profile" onClick={() => setIsMenuOpen(false)}>
-                                        <Button variant="outline" className="w-full">
-                                            My Profile
-                                        </Button>
-                                    </Link>
-                                    <Button
-                                        onClick={() => { handleLogout(); setIsMenuOpen(false); }}
-                                        className="bg-emerald-900 hover:bg-emerald-900/90 w-full"
-                                    >
-                                        Sign Out
+                <div className="sm:hidden border-t bg-white shadow-lg">
+                    <nav className="px-4 sm:px-6 py-4">
+                        {loading ? (
+                            <div className="flex justify-center py-2">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-700"></div>
+                            </div>
+                        ) : user ? (
+                            <div className="flex flex-col gap-2">
+                                <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                                    <Button variant="outline" className="w-full min-h-[44px]">
+                                        Dashboard
                                     </Button>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col space-y-2">
-                                    <Link href="/auth/register" onClick={() => setIsMenuOpen(false)}>
-                                        <Button variant="outline" className="w-full">
-                                            Create an Account
-                                        </Button>
-                                    </Link>
-                                    <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>
-                                        <Button className="bg-emerald-900 hover:bg-emerald-900/90 w-full">
-                                            Sign In
-                                        </Button>
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
+                                </Link>
+                                <Link href="/profile" onClick={() => setIsMenuOpen(false)}>
+                                    <Button variant="outline" className="w-full min-h-[44px]">
+                                        My Profile
+                                    </Button>
+                                </Link>
+                                <Button
+                                    onClick={() => { handleLogout(); setIsMenuOpen(false); }}
+                                    variant="primary"
+                                    className="w-full min-h-[44px]"
+                                >
+                                    Sign Out
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                <Link
+                                    href="/auth/login"
+                                    className="block text-sm font-medium text-gray-600 hover:text-emerald-700 active:text-emerald-800 py-3 min-h-[44px] flex items-center transition-colors"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    Sign in
+                                </Link>
+                                <Link href="/auth/register" onClick={() => setIsMenuOpen(false)} className="block">
+                                    <Button variant="primary"
+                                    className="w-full min-h-[44px]">
+                                        Get Started
+                                    </Button>
+                                </Link>
+                            </div>
+                        )}
                     </nav>
                 </div>
             )}
