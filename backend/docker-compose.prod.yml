@@ -1,9 +1,0 @@
-services:
-  app:
-    build: .
-    container_name: absense-backend-prod
-    restart: unless-stopped
-    env_file:
-      - .env
-    ports:
-      - "8001:8000"

@@ -18,7 +18,7 @@
 
 ## Tech Stack
 
-- **Backend:** FastAPI, PostgreSQL, Redis, SQLAlchemy, Alembic
+- **Backend:** FastAPI, PostgreSQL, SQLAlchemy, Alembic
 - **Web:** Next.js 16, React 19, Tailwind CSS, Radix UI
 - **Mobile:** Expo (React Native), Expo Router
 - **Verification:** DeepFace (facial), QR rotation, GPS geofencing
@@ -28,8 +28,7 @@
 
 - Node.js 18+
 - Python 3.10+
-- PostgreSQL (for Docker deployment)
-- Redis (for Docker deployment)
+- PostgreSQL (for production) or SQLite (for development)
 
 ## Getting Started
 
@@ -92,16 +91,7 @@ npm install
 
 Update `mobile/constants/config.ts` with your local IP. Scan the QR code with Expo Go.
 
-**Docker** (production-like):
-```bash
-cd backend
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-- **API:** http://localhost:8001
-- **API docs:** http://localhost:8001/docs
-
-See `backend/README.md` for migrations and seeding.
+See `backend/README.md` for migrations, seeding, and production deployment.
 
 ### 4. Seed development data
 
@@ -123,8 +113,7 @@ python scripts/seed.py
 attendance-app/
 ├── backend/              # FastAPI backend
 │   ├── app/              # Application code
-│   ├── scripts/          # Seed, migrations, dev scripts
-│   └── docker-compose.prod.yml
+│   └── scripts/          # Seed, migrations, dev scripts
 ├── web/                  # Next.js web application
 │   ├── app/              # App router (student, lecturer, admin routes)
 │   │   ├── admin/        # Admin dashboard & pages
@@ -169,7 +158,7 @@ attendance-app/
 
 ## API Overview
 
-Base URL: `http://localhost:8000/api/v1` (or `:8001` for Docker)
+Base URL: `http://localhost:8000/api/v1`
 
 | Area | Key Endpoints |
 |------|---------------|
@@ -178,11 +167,11 @@ Base URL: `http://localhost:8000/api/v1` (or `:8001` for Docker)
 | **Lecturer** | `GET/POST /lecturer/courses`, `POST /lecturer/sessions`, `GET /lecturer/qr/{id}/display`, `GET /lecturer/sessions/{id}/attendance` |
 | **Admin** | `GET /admin/users`, `GET /admin/sessions`, `POST /admin/attendance/manual-mark`, `GET /admin/flagged` |
 
-Full API documentation: http://localhost:8000/docs (or :8001 when using Docker)
+Full API documentation: http://localhost:8000/docs
 
 ## Deploy
 
-The web app can be deployed to [Vercel](https://vercel.com) or any Node.js host. The backend can run on any Python host or via Docker. Add the same environment variables in your deployment platform. For production, use PostgreSQL and set `CORS_ALLOW_ORIGINS` to your frontend URL(s).
+The web app can be deployed to [Vercel](https://vercel.com) or any Node.js host. The backend can run on any Python host (e.g. systemd + Gunicorn). Add the same environment variables in your deployment platform. For production, use PostgreSQL and set `CORS_ALLOW_ORIGINS` to your frontend URL(s).
 
 ## License
 

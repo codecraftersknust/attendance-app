@@ -4,38 +4,21 @@ A comprehensive attendance management system with multi-layered verification inc
 
 ## 🚀 Quick Start
 
-### Docker Deployment (Recommended)
-
-```bash
-cd web/backend
-
-# Start all services (PostgreSQL, Redis, Backend)
-sudo docker-compose -f docker-compose.prod.yml up -d
-
-# Check status
-docker ps
-
-# View logs
-docker logs absense-backend-prod
-
-# Access API
-# Swagger UI: http://localhost:8001/docs
-# Health: GET http://localhost:8001/api/v1/health
-```
-
-### Manual Development
-
 ```bash
 # 1. Setup environment
-cd web/backend
+cd backend
 python3 -m venv .venv
-./.venv/bin/pip install --upgrade pip
-./.venv/bin/pip install -r requirements.txt
+source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+pip install --upgrade pip
+pip install -r requirements.txt
 
-# 2. Run development server
+# 2. Configure .env (copy from .env.sample)
+# Set DATABASE_URL, SECRET_KEY, etc.
+
+# 3. Run development server
 ./scripts/dev.sh
 
-# 3. Access API docs
+# 4. Access API docs
 # Swagger UI: http://localhost:8000/docs
 # Health: GET /api/v1/health
 ```
@@ -115,20 +98,19 @@ python3 -m venv .venv
 
 ## 🔧 Environment
 
-### Docker (.env)
-```env
-SECRET_KEY=change-me-in-production
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/absense
-REDIS_URL=redis://redis:6379/0
-CORS_ALLOW_ORIGINS=http://localhost:3000,http://localhost:8001
-```
-
-### Manual Development (.env)
+### Development (.env)
 ```env
 SECRET_KEY=change-me-in-production
 DATABASE_URL=sqlite:///./absense_dev.db
 CORS_ALLOW_ORIGINS=*
-STORAGE_BACKEND=local
+```
+
+### Production (.env)
+```env
+SECRET_KEY=<strong-random-secret>
+DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/dbname
+CORS_ALLOW_ORIGINS=https://your-frontend-domain.com
+# Add SUPABASE_* vars if using Supabase
 ```
 
 ## 🧪 Testing
@@ -147,40 +129,39 @@ pytest tests/
 
 ## 🚀 Deployment
 
-### Docker (Recommended)
 ```bash
 # Production deployment
-cd web/backend
-sudo docker-compose -f docker-compose.prod.yml up -d
-
-# Seed database
-sudo docker exec absense-backend-prod python scripts/seed.py
+cd backend
+source .venv/bin/activate
 
 # Run migrations
-sudo docker exec absense-backend-prod python -m alembic upgrade head
-
-# View logs
-docker logs -f absense-backend-prod
-
-# Stop services
-sudo docker-compose -f docker-compose.prod.yml down
-```
-
-**Ports:**
-- Backend: `8001` (mapped from container port 8000)
-- PostgreSQL: `5434` (mapped from container port 5432)
-- Redis: `6379`
-
-### Manual
-```bash
-# Migrations
 alembic upgrade head
 
-# Seed data
+# Seed data (optional)
 python scripts/seed.py
 
-# Start server
+# Start server with Gunicorn
 gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+For production, use a process manager like **systemd** to keep the backend running:
+
+```ini
+[Unit]
+Description=Absense FastAPI Backend
+After=network.target
+
+[Service]
+Type=simple
+User=absense
+WorkingDirectory=/path/to/attendance-app/backend
+Environment="PATH=/path/to/attendance-app/backend/.venv/bin"
+ExecStart=/path/to/attendance-app/backend/.venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ## 👥 Default Users (after seeding)
