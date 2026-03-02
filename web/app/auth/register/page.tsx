@@ -3,22 +3,24 @@
 import { SignupForm } from "@/components/signup-form"
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useTopLoader } from "nextjs-toploader";
 import { useEffect } from "react";
 
 export default function SignupPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const { start } = useTopLoader();
 
     useEffect(() => {
         if (!loading && user) {
-            // Students must complete face setup first; others go to dashboard
+            start();
             if (user.role === "student") {
                 router.replace("/auth/setup-face");
             } else {
                 router.replace("/dashboard");
             }
         }
-    }, [user, loading, router]);
+    }, [user, loading, router, start]);
 
     if (!loading && user) {
         return null;

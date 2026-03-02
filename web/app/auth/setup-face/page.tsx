@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useTopLoader } from "nextjs-toploader";
 import { apiClient } from "@/lib/api";
 import { FaceCapture } from "@/components/face-capture";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ function getOrCreateDeviceId(): string {
 export default function SetupFacePage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
+    const { start } = useTopLoader();
     const [checking, setChecking] = useState(true);
     const [hasFaceEnrolled, setHasFaceEnrolled] = useState(false);
     const [refFaceFile, setRefFaceFile] = useState<File | null>(null);
@@ -34,9 +36,10 @@ export default function SetupFacePage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
+            start();
             router.replace("/auth/login");
         }
-    }, [authLoading, user, router]);
+    }, [authLoading, user, router, start]);
 
     useEffect(() => {
         if (!user || user.role !== "student") return;
@@ -83,18 +86,20 @@ export default function SetupFacePage() {
     };
 
     const handleContinue = () => {
+        start();
         router.replace("/dashboard");
     };
 
     if (authLoading || !user) {
         return (
             <div className="min-h-svh flex items-center justify-center bg-gradient-to-b from-emerald-50 to-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700" />
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-200 border-t-emerald-600" />
             </div>
         );
     }
 
     if (user.role !== "student") {
+        start();
         router.replace("/dashboard");
         return null;
     }
@@ -102,7 +107,7 @@ export default function SetupFacePage() {
     if (checking) {
         return (
             <div className="min-h-svh flex flex-col items-center justify-center bg-gradient-to-b from-emerald-50 to-white p-6">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700" />
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-200 border-t-emerald-600" />
                 <p className="mt-4 text-gray-600">Setting up...</p>
             </div>
         );

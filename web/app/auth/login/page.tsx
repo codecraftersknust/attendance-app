@@ -3,18 +3,20 @@
 import { LoginForm } from "@/components/login-form"
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useTopLoader } from "nextjs-toploader";
 import { useEffect } from "react";
 
 export default function LoginPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const { start } = useTopLoader();
 
     useEffect(() => {
         if (!loading && user) {
-            // Already authenticated; send to role router
+            start();
             router.replace("/dashboard");
         }
-    }, [user, loading, router]);
+    }, [user, loading, router, start]);
 
     if (!loading && user) {
         return null;

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import useSWR, { mutate as globalMutate } from "swr";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
@@ -20,28 +21,19 @@ type Course = { id: number; code: string; name: string };
 
 export function CreateSessionForm(props: { onCreated?: (session: { id: number; code: string }) => void }) {
     const { onCreated } = props;
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
     const [creating, setCreating] = useState<boolean>(false);
     const [courseId, setCourseId] = useState<string>("");
     const [duration, setDuration] = useState<string>("15");
     const [location, setLocation] = useState<SessionLocation | null>(null);
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                setLoadingCourses(true);
-                const list = await apiClient.lecturerCourses();
-                const minimal = (list as any[]).map((c) => ({ id: c.id, code: c.code, name: c.name }));
-                setCourses(minimal);
-            } catch (e: any) {
-                toast.error(e?.message || "Failed to load courses");
-            } finally {
-                setLoadingCourses(false);
-            }
-        };
-        load();
-    }, []);
+    const { data: coursesRaw = [], error: coursesError, isLoading: loadingCourses } = useSWR(
+        "lecturer-courses",
+        () => apiClient.lecturerCourses(),
+        { dedupingInterval: 30000 }
+    );
+    const courses = (coursesRaw as any[]).map((c) => ({ id: c.id, code: c.code, name: c.name })) as Course[];
+
+    useEffect(() => { if (coursesError) toast.error(coursesError?.message || "Failed to load courses"); }, [coursesError]);
 
     const [createdSessionId, setCreatedSessionId] = useState<number | null>(null);
 
@@ -65,6 +57,7 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
             toast.success("Session created");
             setCreatedSessionId(created.id);
             onCreated?.({ id: created.id, code: created.code });
+            await globalMutate("lecturer-sessions");
         } catch (e: any) {
             toast.error(e?.message || "Failed to create session");
         } finally {
@@ -103,9 +96,12 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
 
             {courseId && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                        Class location (optional)
+                    <h3 className="text-sm font-semibold text-gray-700 mb-1">
+                        Class location (recommended)
                     </h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                        Sessions without a location will flag all attendance for review. Set the class venue and radius for automatic verification.
+                    </p>
                     <SessionLocationMap value={location} onChange={setLocation} />
                 </div>
             )}

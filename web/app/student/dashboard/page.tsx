@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -31,93 +32,50 @@ type Course = {
     enrolled_at?: string;
 };
 
+type RecommendedCourse = { id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; lecturer_name: string | null; is_enrolled: boolean };
+
+const studentDashboardFetcher = async () => {
+    const [courses, dashboardData, historyData] = await Promise.all([
+        apiClient.studentGetCourses(),
+        apiClient.studentDashboard(),
+        apiClient.studentGetAttendanceHistory(),
+    ]);
+    return { enrolledCourses: courses, stats: dashboardData, history: historyData };
+};
+
 export default function StudentDashboard() {
     const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [searchResults, setSearchResults] = useState<Course[]>([]);
-    const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [searching, setSearching] = useState<boolean>(false);
+    const [debouncedSearch, setDebouncedSearch] = useState<string>('');
     const [enrollingIds, setEnrollingIds] = useState<Set<number>>(new Set());
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
     const [courseToDrop, setCourseToDrop] = useState<{ id: number; code: string; name: string } | null>(null);
     const [dropping, setDropping] = useState<boolean>(false);
-    const [stats, setStats] = useState<{
-        enrolled_courses: number;
-        total_sessions: number;
-        attendance_marked_count: number;
-        confirmed_count: number;
-        profile_complete: boolean;
-        enrollment_open: boolean;
-        current_semester: string;
-        is_on_break: boolean;
-        academic_year: string;
-    } | null>(null);
 
-    type RecommendedCourse = { id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; lecturer_name: string | null; is_enrolled: boolean };
-    const [recommendedCourses, setRecommendedCourses] = useState<RecommendedCourse[]>([]);
-    const [loadingRecommended, setLoadingRecommended] = useState(false);
+    const { data, error, isLoading, mutate } = useSWR('student-dashboard', studentDashboardFetcher, { dedupingInterval: 30000 });
+    const enrolledCourses = (data?.enrolledCourses ?? []) as Course[];
+    const stats = data?.stats ?? null;
+    const history = data?.history ?? [];
 
-    const [history, setHistory] = useState<any[]>([]);
+    const { data: recommendedCourses = [], isLoading: loadingRecommended, mutate: mutateRecommended } = useSWR(
+        data ? 'student-recommended-courses' : null,
+        () => apiClient.studentGetRecommendedCourses(),
+        { dedupingInterval: 30000 }
+    );
 
-    // Load enrolled courses (and dashboard stats) on mount
+    const { data: searchResults = [], isLoading: searching } = useSWR(
+        debouncedSearch ? ['student-search-courses', debouncedSearch] : null,
+        ([_, q]) => apiClient.studentSearchCourses(q),
+        { dedupingInterval: 2000 }
+    );
+
     useEffect(() => {
-        loadEnrolledCourses();
-        loadRecommendedCourses();
-    }, []);
-
-    // Debounced search
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (searchQuery.trim()) {
-                performSearch(searchQuery.trim());
-            } else {
-                setSearchResults([]);
-            }
-        }, 300);
-
-        return () => clearTimeout(timeoutId);
-    }, [searchQuery]);
-
-    const loadEnrolledCourses = async () => {
-        try {
-            setLoading(true);
-            const [courses, dashboardData, historyData] = await Promise.all([
-                apiClient.studentGetCourses(),
-                apiClient.studentDashboard(),
-                apiClient.studentGetAttendanceHistory(),
-            ]);
-            setEnrolledCourses(courses as Course[]);
-            setStats(dashboardData);
-            setHistory(historyData);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load data');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadRecommendedCourses = async () => {
-        try {
-            setLoadingRecommended(true);
-            const data = await apiClient.studentGetRecommendedCourses();
-            setRecommendedCourses(data);
-        } catch { /* profile may be incomplete */ } finally {
-            setLoadingRecommended(false);
-        }
-    };
-
-    const performSearch = async (query: string) => {
-        try {
-            setSearching(true);
-            const results = await apiClient.studentSearchCourses(query);
-            setSearchResults(results as Course[]);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to search courses');
-            setSearchResults([]);
-        } finally {
-            setSearching(false);
-        }
-    };
+        if (error) toast.error(error?.message || 'Failed to load data');
+    }, [error]);
 
     const handleEnroll = async (courseId: number) => {
         if (enrollingIds.has(courseId)) return;
@@ -126,8 +84,7 @@ export default function StudentDashboard() {
             setEnrollingIds((prev) => new Set(prev).add(courseId));
             await apiClient.studentEnrollInCourse(courseId);
             toast.success('Course added successfully');
-            // Refresh both lists
-            await Promise.all([loadEnrolledCourses(), loadRecommendedCourses()]);
+            await Promise.all([mutate(), mutateRecommended()]);
         } catch (e: any) {
             toast.error(e?.message || 'Failed to enroll in course');
         } finally {
@@ -146,7 +103,7 @@ export default function StudentDashboard() {
             await apiClient.studentUnenrollFromCourse(courseToDrop.id);
             toast.success('Dropped course');
             setCourseToDrop(null);
-            await loadEnrolledCourses();
+            await mutate();
         } catch (e: any) {
             toast.error(e?.message || 'Failed to drop course');
         } finally {
@@ -192,7 +149,7 @@ export default function StudentDashboard() {
                 )}
 
                 {/* Skeletons while loading stats */}
-                {loading && !stats && (
+                {isLoading && !stats && (
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <Skeleton className="h-[104px] w-full rounded-xl" />
@@ -292,7 +249,7 @@ export default function StudentDashboard() {
                         <h2 className="text-lg font-semibold text-gray-900">Recent Attendance History</h2>
                     </div>
                     <div className="p-4">
-                        {loading ? (
+                        {isLoading ? (
                             <div className="space-y-3 py-2">
                                 {[1, 2, 3].map((i) => (
                                     <Skeleton key={i} className="h-12 w-full rounded-md" />
@@ -415,7 +372,7 @@ export default function StudentDashboard() {
                         <h2 className="text-lg font-semibold text-gray-900">My Enrolled Courses</h2>
                     </div>
                     <div className="px-4 py-2">
-                        {loading ? (
+                        {isLoading ? (
                             <div className="space-y-4 py-2">
                                 {[1, 2].map((i) => (
                                     <div key={i} className="flex justify-between items-center">

@@ -5,7 +5,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { ChevronDown, LogOut, User as UserIcon, CalendarDays } from 'lucide-react'
 
-export default function UserMenu() {
+type UserMenuProps = { variant?: 'default' | 'dark' }
+
+export default function UserMenu({ variant = 'default' }: UserMenuProps) {
     const { user, logout } = useAuth()
     const [isOpen, setIsOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement | null>(null)
@@ -27,17 +29,23 @@ export default function UserMenu() {
 
     const displayName = user.full_name ?? user.email
 
+    const isDark = variant === 'dark'
+
     return (
         <div ref={containerRef} className="relative">
             <button
                 onClick={() => setIsOpen((v) => !v)}
-                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-200/70 rounded-md transition-colors"
+                className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+                    isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-200/70'
+                }`}
             >
-                <div className="size-8 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center text-sm font-medium">
+                <div className={`size-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    isDark ? 'bg-emerald-700/80 text-white' : 'bg-gray-300 text-gray-700'
+                }`}>
                     {displayName?.charAt(0)?.toUpperCase()}
                 </div>
-                <span className="hidden sm:block max-w-[18ch] truncate text-sm">{displayName}</span>
-                <ChevronDown className={`size-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <span className={`hidden sm:block max-w-[18ch] truncate text-sm ${isDark ? 'text-white' : ''}`}>{displayName}</span>
+                <ChevronDown className={`size-4 transition-transform ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-white' : ''}`} />
             </button>
 
             {isOpen && (

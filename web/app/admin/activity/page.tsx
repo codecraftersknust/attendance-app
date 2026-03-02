@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -17,24 +18,13 @@ import {
 import { CalendarClock, UserCheck, FileText, RefreshCw } from 'lucide-react';
 
 export default function AdminActivityPage() {
-    const [activity, setActivity] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const { data: activity, error, isLoading, mutate } = useSWR(
+        'admin-activity',
+        () => apiClient.adminActivity({ hours: 24, limit: 100 }),
+        { dedupingInterval: 30000 }
+    );
 
-    const loadActivity = async () => {
-        try {
-            setLoading(true);
-            const data = await apiClient.adminActivity({ hours: 24, limit: 100 });
-            setActivity(data);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load activity');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadActivity();
-    }, []);
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load activity'); }, [error]);
 
     return (
         <ProtectedRoute allowedRoles={['admin']}>
@@ -44,13 +34,13 @@ export default function AdminActivityPage() {
                         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Recent Activity</h1>
                         <p className="text-sm text-gray-500 mt-0.5">System activity in the last 24 hours</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={loadActivity}>
+                    <Button variant="outline" size="sm" onClick={() => mutate()}>
                         <RefreshCw className="h-4 w-4 mr-1" />
                         Refresh
                     </Button>
                 </div>
 
-                {loading ? (
+                {isLoading ? (
                     <p className="text-gray-500">Loading...</p>
                 ) : !activity ? (
                     <p className="text-gray-500">No activity data available.</p>

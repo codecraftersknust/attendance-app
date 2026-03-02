@@ -73,10 +73,31 @@ async def submit_attendance(
         logger.warning(f"Invalid QR nonce - expected={session.qr_nonce}, received={qr_nonce}")
         raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
 
+    # Enrollment check: student must be enrolled in the session's course
+    enrollment = (
+        db.query(StudentCourseEnrollment)
+        .filter(
+            StudentCourseEnrollment.student_id == current.id,
+            StudentCourseEnrollment.course_id == session.course_id,
+        )
+        .first()
+    )
+    if not enrollment:
+        logger.warning(f"Student {current.id} not enrolled in course {session.course_id} for session {qr_session_id}")
+        raise HTTPException(status_code=403, detail="You are not enrolled in this course")
+
     # Geofence check: student must be within radius of lecturer's set location
+    # When geofence is not configured, treat as location not verified (flag for review)
     within_geofence = True
     distance_m = None
-    if session.latitude is not None and session.longitude is not None and session.geofence_radius_m:
+    geofence_configured = (
+        session.latitude is not None
+        and session.longitude is not None
+        and session.geofence_radius_m is not None
+    )
+    if not geofence_configured:
+        within_geofence = False  # Location not verified when no geofence
+    else:
         def haversine(lat1, lon1, lat2, lon2):
             # Earth radius in meters
             R = 6371000.0
@@ -156,8 +177,11 @@ async def submit_attendance(
     if status == AttendanceStatus.flagged:
         if not device:
             flag_reasons.append("device_mismatch")
-        if not within_geofence and distance_m is not None:
-            flag_reasons.append("outside_geofence")
+        if not within_geofence:
+            if not geofence_configured:
+                flag_reasons.append("location_not_verified")
+            else:
+                flag_reasons.append("outside_geofence")
         if verification is not None and not verification.get("verified"):
             flag_reasons.append("face_not_verified")
 

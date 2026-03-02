@@ -14,6 +14,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useTopLoader } from "nextjs-toploader";
 
 const PROGRAMMES = [
     "Computer Engineering",
@@ -37,6 +38,7 @@ export function SignupForm({
     const [isLoading, setIsLoading] = useState(false);
     const { register } = useAuth();
     const router = useRouter();
+    const { start } = useTopLoader();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -85,6 +87,7 @@ export function SignupForm({
             });
 
             toast.success("Account created successfully!");
+            start();
             router.push("/auth/setup-face");
         } catch {
             // Error handled in register

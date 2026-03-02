@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans } from "next/font/google";
+import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthTopLoader } from "@/components/auth-top-loader";
+import { SWRProvider } from "@/components/swr-provider";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -33,8 +36,12 @@ export default function RootLayout({
       <body
         className={cn("min-h-screen bg-gray-50 text-gray-900", dmSans.variable, "font-sans")}
       >
+        <NextTopLoader color="#059669" height={3} showSpinner={false} />
         <AuthProvider>
-          {children}
+          <SWRProvider>
+            <AuthTopLoader />
+            {children}
+          </SWRProvider>
           <Toaster />
         </AuthProvider>
       </body>

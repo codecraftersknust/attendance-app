@@ -13,6 +13,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
+import { useTopLoader } from "nextjs-toploader"
 import toast from "react-hot-toast"
 
 export function LoginForm({
@@ -24,6 +25,7 @@ export function LoginForm({
     const [isLoading, setIsLoading] = useState(false)
     const { login } = useAuth()
     const router = useRouter()
+    const { start } = useTopLoader()
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -37,7 +39,8 @@ export function LoginForm({
             setIsLoading(true)
             await login(email, password)
 
-            // Redirect based on user role
+            // Redirect based on user role - trigger top loader for programmatic nav
+            start()
             router.push('/dashboard')
         } catch (error) {
             // Error is already handled in the login function

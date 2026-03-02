@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -17,41 +18,34 @@ import {
 import { CalendarClock, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function AdminSessionsPage() {
-    const [sessions, setSessions] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [expandedSession, setExpandedSession] = useState<number | null>(null);
-    const [sessionAttendance, setSessionAttendance] = useState<Record<number, any[]>>({});
 
-    const loadSessions = async () => {
-        try {
-            setLoading(true);
-            const data = await apiClient.adminSessions({ limit: 50 });
-            setSessions(data);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load sessions');
-        } finally {
-            setLoading(false);
-        }
+    const { data: sessions = [], error, isLoading, mutate } = useSWR(
+        'admin-sessions',
+        () => apiClient.adminSessions({ limit: 50 }),
+        { dedupingInterval: 30000 }
+    );
+
+    const { data: expandedAttendance, isLoading: attendanceLoading } = useSWR(
+        expandedSession ? ['admin-session-attendance', expandedSession] : null,
+        ([_, id]) => apiClient.adminSessionAttendance(id),
+        { dedupingInterval: 10000 }
+    );
+
+    const sessionAttendance: Record<number, any[]> = expandedSession && expandedAttendance
+        ? { [expandedSession]: expandedAttendance }
+        : {};
+
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load sessions'); }, [error]);
+
+    const isSessionEffectivelyActive = (s: { is_active?: boolean; ends_at?: string | null }) => {
+        if (!s.is_active) return false;
+        if (!s.ends_at) return true;
+        return new Date(s.ends_at) > new Date();
     };
 
-    useEffect(() => {
-        loadSessions();
-    }, []);
-
-    const toggleAttendance = async (sessionId: number) => {
-        if (expandedSession === sessionId) {
-            setExpandedSession(null);
-            return;
-        }
-        setExpandedSession(sessionId);
-        if (!sessionAttendance[sessionId]) {
-            try {
-                const rows = await apiClient.adminSessionAttendance(sessionId);
-                setSessionAttendance((prev) => ({ ...prev, [sessionId]: rows }));
-            } catch (e: any) {
-                toast.error(e?.message || 'Failed to load attendance');
-            }
-        }
+    const toggleAttendance = (sessionId: number) => {
+        setExpandedSession((prev) => (prev === sessionId ? null : sessionId));
     };
 
     return (
@@ -62,7 +56,7 @@ export default function AdminSessionsPage() {
                         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Sessions</h1>
                         <p className="text-sm text-gray-500 mt-0.5">All attendance sessions across the school</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={loadSessions}>
+                    <Button variant="outline" size="sm" onClick={() => mutate()}>
                         <RefreshCw className="h-4 w-4 mr-1" />
                         Refresh
                     </Button>
@@ -75,11 +69,11 @@ export default function AdminSessionsPage() {
                                 <CalendarClock className="h-4 w-4 text-emerald-600" />
                             </div>
                             Sessions
-                            {!loading && <span className="text-sm font-normal text-gray-400">({sessions.length})</span>}
+                            {!isLoading && <span className="text-sm font-normal text-gray-400">({sessions.length})</span>}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {loading && sessions.length === 0 ? (
+                        {isLoading && sessions.length === 0 ? (
                             <p className="text-gray-500 py-4">Loading...</p>
                         ) : sessions.length === 0 ? (
                             <p className="text-gray-500 py-4">No sessions found.</p>
@@ -105,11 +99,11 @@ export default function AdminSessionsPage() {
                                                     <TableCell className="text-gray-500">{s.lecturer_name || '-'}</TableCell>
                                                     <TableCell>
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                            s.is_active
+                                                            isSessionEffectivelyActive(s)
                                                                 ? 'bg-emerald-100 text-emerald-800'
                                                                 : 'bg-gray-100 text-gray-600'
                                                         }`}>
-                                                            {s.is_active ? 'Active' : 'Closed'}
+                                                            {isSessionEffectivelyActive(s) ? 'Active' : 'Closed'}
                                                         </span>
                                                     </TableCell>
                                                     <TableCell className="text-gray-500">
@@ -125,9 +119,9 @@ export default function AdminSessionsPage() {
                                                 {expandedSession === s.id && (
                                                     <TableRow key={`${s.id}-attendance`}>
                                                         <TableCell colSpan={6} className="bg-gray-50 p-4">
-                                                            {!sessionAttendance[s.id] ? (
+                                                            {attendanceLoading ? (
                                                                 <p className="text-gray-500 text-sm">Loading attendance...</p>
-                                                            ) : sessionAttendance[s.id].length === 0 ? (
+                                                            ) : !sessionAttendance[s.id] || sessionAttendance[s.id].length === 0 ? (
                                                                 <p className="text-gray-500 text-sm">No attendance records.</p>
                                                             ) : (
                                                                 <Table>

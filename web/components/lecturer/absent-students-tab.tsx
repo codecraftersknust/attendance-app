@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import useSWR from 'swr';
 import { apiClient } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import toast from 'react-hot-toast';
 import { Loader2, UserX } from 'lucide-react';
 
 interface AbsentStudent {
@@ -28,25 +30,13 @@ interface AbsentStudentsTabProps {
 }
 
 export function AbsentStudentsTab({ sessionId }: AbsentStudentsTabProps) {
-    const [students, setStudents] = useState<AbsentStudent[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { data: students = [], error, isLoading: loading } = useSWR(
+        ['lecturer-absent-students', sessionId],
+        ([_, id]) => apiClient.lecturerGetAbsentStudents(id),
+        { dedupingInterval: 10000 }
+    );
 
-    useEffect(() => {
-        loadAbsentStudents();
-    }, [sessionId]);
-
-    async function loadAbsentStudents() {
-        try {
-            setLoading(true);
-            const data = await apiClient.lecturerGetAbsentStudents(sessionId);
-            setStudents(data);
-        } catch (err: any) {
-            setError(err.message || 'Failed to load absent students');
-        } finally {
-            setLoading(false);
-        }
-    }
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load absent students'); }, [error]);
 
     function getInitials(name: string | null, email: string) {
         if (name) {
@@ -71,7 +61,7 @@ export function AbsentStudentsTab({ sessionId }: AbsentStudentsTabProps) {
     if (error) {
         return (
             <div className="p-4 text-center text-red-600 bg-red-50 rounded-lg">
-                {error}
+                {error.message || 'Failed to load absent students'}
             </div>
         );
     }

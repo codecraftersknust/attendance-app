@@ -148,71 +148,33 @@
   }
 }
 
-/* Lecturer layout – emerald sidebar */
-.lecturer-layout [data-sidebar="sidebar"] {
-  background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
-  border-right: 1px solid #a7f3d0;
-}
-
-.lecturer-layout [data-sidebar="group-label"] {
-  color: #047857;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-
-.lecturer-layout [data-sidebar="menu-button"][data-active="true"] {
-  background: #d1fae5 !important;
-  color: #065f46 !important;
-  font-weight: 600;
-  border-left: 3px solid #059669;
-}
-
-.lecturer-layout [data-sidebar="menu-button"]:hover {
-  background: #d1fae5 !important;
-}
-
-/* Admin layout – emerald sidebar */
-.admin-layout [data-sidebar="sidebar"] {
-  background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
-  border-right: 1px solid #a7f3d0;
-}
-
-.admin-layout [data-sidebar="group-label"] {
-  color: #047857;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-
-.admin-layout [data-sidebar="menu-button"][data-active="true"] {
-  background: #d1fae5 !important;
-  color: #065f46 !important;
-  font-weight: 600;
-  border-left: 3px solid #059669;
-}
-
-.admin-layout [data-sidebar="menu-button"]:hover {
-  background: #d1fae5 !important;
-}
-
-/* Student layout – emerald sidebar */
+/* Shared sidebar – white, emerald accents (lecturer, admin, student) */
+.lecturer-layout [data-sidebar="sidebar"],
+.admin-layout [data-sidebar="sidebar"],
 .student-layout [data-sidebar="sidebar"] {
-  background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
-  border-right: 1px solid #a7f3d0;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
 }
 
+.lecturer-layout [data-sidebar="group-label"],
+.admin-layout [data-sidebar="group-label"],
 .student-layout [data-sidebar="group-label"] {
-  color: #047857;
+  color: #6b7280;
   font-weight: 600;
   letter-spacing: 0.05em;
 }
 
+.lecturer-layout [data-sidebar="menu-button"][data-active="true"],
+.admin-layout [data-sidebar="menu-button"][data-active="true"],
 .student-layout [data-sidebar="menu-button"][data-active="true"] {
-  background: #d1fae5 !important;
-  color: #065f46 !important;
+  background: #f3f4f6 !important;
+  color: #111827 !important;
   font-weight: 600;
   border-left: 3px solid #059669;
 }
 
+.lecturer-layout [data-sidebar="menu-button"]:hover,
+.admin-layout [data-sidebar="menu-button"]:hover,
 .student-layout [data-sidebar="menu-button"]:hover {
-  background: #d1fae5 !important;
+  background: #f9fafb !important;
 }

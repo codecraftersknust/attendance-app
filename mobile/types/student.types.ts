@@ -26,7 +26,7 @@ export interface AttendanceRecord {
     student_id: number;
     device_id_hash: string;
     selfie_image_path?: string;
-    status: 'confirmed' | 'flagged';
+    status: 'confirmed' | 'flagged' | 'absent';
     created_at: string;
 }
 

@@ -2,7 +2,8 @@
 
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import useSWR from 'swr';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -44,78 +45,48 @@ type BrowseCourse = {
 	is_mine: boolean;
 };
 
+const fetcher = async () => {
+	const [coursesData, dashboardData] = await Promise.all([
+		apiClient.lecturerCourses(),
+		apiClient.lecturerDashboard(),
+	]);
+	return { courses: coursesData, stats: dashboardData };
+};
+
 export default function LecturerDashboard() {
 	const { user } = useAuth();
-	const [courses, setCourses] = useState<MyCourse[]>([]);
-	const [loading, setLoading] = useState(true);
 	const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
 	const [showCourseDetails, setShowCourseDetails] = useState(false);
-	const [stats, setStats] = useState<{
-		total_courses: number;
-		total_sessions: number;
-		active_sessions: number;
-		total_attendance_records: number;
-		confirmed_records: number;
-		flagged_records: number;
-	} | null>(null);
 
 	// Browse / claim dialog
 	const [showBrowse, setShowBrowse] = useState(false);
 	const [searchQuery, setSearchQuery] = useState('');
-	const [browseResults, setBrowseResults] = useState<BrowseCourse[]>([]);
-	const [browseLoading, setBrowseLoading] = useState(false);
 	const [claimingId, setClaimingId] = useState<number | null>(null);
 
 	// Unclaim dialog
 	const [courseToRemove, setCourseToRemove] = useState<MyCourse | null>(null);
 	const [removing, setRemoving] = useState(false);
 
-	const loadAll = useCallback(async () => {
-		try {
-			setLoading(true);
-			const [coursesData, dashboardData] = await Promise.all([
-				apiClient.lecturerCourses(),
-				apiClient.lecturerDashboard(),
-			]);
-			setCourses(coursesData as MyCourse[]);
-			setStats(dashboardData);
-		} catch (e: any) {
-			toast.error(e?.message || 'Failed to load dashboard');
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+	const { data, error, isLoading, mutate } = useSWR('lecturer-dashboard', fetcher, {
+		dedupingInterval: 30000,
+	});
+	const courses = (data?.courses ?? []) as MyCourse[];
+	const stats = data?.stats ?? null;
 
-	useEffect(() => {
-		loadAll();
-	}, [loadAll]);
+	const { data: browseResults = [], isLoading: browseLoading } = useSWR(
+		showBrowse ? ['lecturer-browse-courses', searchQuery] : null,
+		([_, q]) => apiClient.lecturerBrowseCourses({ search: q || undefined }),
+		{ dedupingInterval: 5000 }
+	);
 
-	// Browse courses search
-	const handleSearch = useCallback(async (query: string) => {
-		try {
-			setBrowseLoading(true);
-			const results = await apiClient.lecturerBrowseCourses({ search: query || undefined });
-			setBrowseResults(results);
-		} catch (e: any) {
-			toast.error(e?.message || 'Failed to search courses');
-		} finally {
-			setBrowseLoading(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		if (!showBrowse) return;
-		const timer = setTimeout(() => handleSearch(searchQuery), 300);
-		return () => clearTimeout(timer);
-	}, [searchQuery, showBrowse, handleSearch]);
+	if (error) toast.error(error?.message || 'Failed to load dashboard');
 
 	const handleClaim = async (courseId: number) => {
 		try {
 			setClaimingId(courseId);
 			const result = await apiClient.lecturerClaimCourse(courseId);
 			toast.success(result.message || 'Course added');
-			await handleSearch(searchQuery);
-			await loadAll();
+			await mutate();
 		} catch (e: any) {
 			toast.error(e?.message || 'Failed to add course');
 		} finally {
@@ -130,7 +101,7 @@ export default function LecturerDashboard() {
 			const result = await apiClient.lecturerUnclaimCourse(courseToRemove.id);
 			toast.success(result.message || 'Course removed');
 			setCourseToRemove(null);
-			await loadAll();
+			await mutate();
 		} catch (e: any) {
 			toast.error(e?.message || 'Failed to remove course');
 		} finally {
@@ -159,7 +130,7 @@ export default function LecturerDashboard() {
 				</div>
 
 				{/* Skeletons while loading stats */}
-				{loading && !stats && (
+				{isLoading && !stats && (
 					<div className="space-y-4">
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 							<Skeleton className="h-[104px] w-full rounded-xl" />
@@ -282,7 +253,7 @@ export default function LecturerDashboard() {
 						</Button>
 					</div>
 					<div className="p-4">
-						{loading ? (
+						{isLoading ? (
 							<div className="space-y-4 py-2">
 								{[1, 2, 3].map((i) => (
 									<div key={i} className="flex justify-between items-center py-2">

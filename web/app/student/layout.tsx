@@ -32,7 +32,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return (
         <SidebarProvider className="student-layout">
             <ShadSidebar collapsible="offcanvas">
-                <SidebarHeader className="border-b border-emerald-200 bg-emerald-50 px-4 py-4">
+                <SidebarHeader className="border-b border-gray-200 bg-white px-4 py-4">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-900 text-white">
                             <GraduationCap className="h-5 w-5" />
@@ -68,9 +68,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                 </SidebarFooter>
             </ShadSidebar>
             <SidebarInset>
-                <div className="flex-1 flex flex-col min-h-screen">
+                <div className="flex-1 flex flex-col min-h-screen bg-gray-50">
                     <Navbar />
-                    <main className="flex-1 bg-gray-50 overflow-auto">{children}</main>
+                    <main className="flex-1 overflow-auto">{children}</main>
                 </div>
             </SidebarInset>
         </SidebarProvider>

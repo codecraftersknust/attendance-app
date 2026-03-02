@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { apiClient, UserProfile, UserUpdateRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -46,8 +47,13 @@ export default function ProfilePage() {
     const { user, refreshAuth } = useAuth();
     const router = useRouter();
 
-    const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { data: profile, error, isLoading: loading, mutate } = useSWR(
+        'profile',
+        () => apiClient.getProfile(),
+        { dedupingInterval: 30000 }
+    );
+
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load profile'); }, [error]);
 
     // Edit profile dialog
     const [editOpen, setEditOpen] = useState(false);
@@ -64,22 +70,6 @@ export default function ProfilePage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [changingPassword, setChangingPassword] = useState(false);
-
-    useEffect(() => {
-        loadProfile();
-    }, []);
-
-    async function loadProfile() {
-        try {
-            setLoading(true);
-            const data = await apiClient.getProfile();
-            setProfile(data);
-        } catch (err: any) {
-            toast.error(err.message || 'Failed to load profile');
-        } finally {
-            setLoading(false);
-        }
-    }
 
     function openEditDialog() {
         if (!profile) return;
@@ -112,7 +102,7 @@ export default function ProfilePage() {
             }
 
             const updated = await apiClient.updateProfile(updates);
-            setProfile(updated);
+            mutate(updated, false);
             await refreshAuth();
             toast.success('Profile updated');
             setEditOpen(false);

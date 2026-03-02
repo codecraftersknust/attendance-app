@@ -677,6 +677,7 @@ def reject_flagged_attendance(record_id: int, db: Session = Depends(get_db), cur
         raise HTTPException(status_code=403, detail="Forbidden")
     record.status = AttendanceStatus.absent
     db.commit()
+    db.refresh(record)
     write_audit(db, "lecturer.reject_attendance", current.id, f"record_id={record_id}")
     return {"record_id": record.id, "status": record.status.value}
 
@@ -723,20 +724,27 @@ def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current
 @router.get("/sessions/{session_id}/analytics", response_model=dict)
 def get_session_analytics(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     """Get detailed analytics for a specific session - web-friendly endpoint"""
+    from ....models.student_course_enrollment import StudentCourseEnrollment
+
     session = db.get(AttendanceSession, session_id)
     if not session or session.lecturer_id != current.id:
         raise HTTPException(status_code=404, detail="Session not found")
     
+    # Total = enrolled students in the course
+    total_students = (
+        db.query(User)
+        .join(StudentCourseEnrollment, User.id == StudentCourseEnrollment.student_id)
+        .filter(StudentCourseEnrollment.course_id == session.course_id)
+        .count()
+    )
+    
     # Get attendance records for this session
     records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
-    
-    # Calculate analytics (status is confirmed or flagged only)
-    total_students = len(records)
     present_count = len([r for r in records if r.status == AttendanceStatus.confirmed])
-    absent_count = 0  # Absent = no record; we only have records for students who submitted
     flagged_count = len([r for r in records if r.status == AttendanceStatus.flagged])
+    absent_count = max(0, total_students - present_count - flagged_count)  # no record + status=absent (rejected)
     
-    # Attendance rate
+    # Attendance rate = present / total enrolled
     attendance_rate = (present_count / total_students * 100) if total_students > 0 else 0
     
     # Recent attendance (last 10 records)
@@ -847,7 +855,7 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
 
 @router.get("/sessions/{session_id}/absent", response_model=List[dict])
 def get_absent_students(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
-    """Get list of students who are enrolled but have no attendance record for this session"""
+    """Get list of students who are absent: either no record, or record with status=absent (rejected)"""
     from ....models.student_course_enrollment import StudentCourseEnrollment
 
     session = db.get(AttendanceSession, session_id)
@@ -862,18 +870,21 @@ def get_absent_students(session_id: int, db: Session = Depends(get_db), current:
         .all()
     )
     
-    # Get all students who have an attendance record for this session
-    present_student_ids = {
-        r.student_id 
-        for r in db.query(AttendanceRecord.student_id)
-        .filter(AttendanceRecord.session_id == session_id)
+    # Students who are present: have a record with status confirmed or flagged
+    present_or_flagged_ids = {
+        r.student_id
+        for r in db.query(AttendanceRecord)
+        .filter(
+            AttendanceRecord.session_id == session_id,
+            AttendanceRecord.status.in_([AttendanceStatus.confirmed, AttendanceStatus.flagged]),
+        )
         .all()
     }
     
-    # Filter out present students
+    # Absent = enrolled but not present/flagged: no record, or record with status=absent (rejected)
     absent_students = [
-        s for s in enrolled_students 
-        if s.id not in present_student_ids
+        s for s in enrolled_students
+        if s.id not in present_or_flagged_ids
     ]
     
     write_audit(db, "lecturer.get_absent", current.id, f"session_id={session_id}")
