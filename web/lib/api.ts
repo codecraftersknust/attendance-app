@@ -174,6 +174,12 @@ class ApiClient {
         });
     }
 
+    async deleteAccount(): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/auth/me', {
+            method: 'DELETE',
+        });
+    }
+
     // Admin endpoints
     async adminListFlagged(): Promise<Array<{
         record_id: number;

@@ -50,5 +50,12 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/auth/:path*', '/dashboard', '/student/:path*', '/lecturer/:path*', '/admin/:path*'],
+    // Exclude /auth/login and /auth/register so unauthenticated users can access them directly (fixes 404)
+    matcher: [
+        '/auth/setup-face/:path*',
+        '/dashboard/:path*',
+        '/student/:path*',
+        '/lecturer/:path*',
+        '/admin/:path*',
+    ],
 };

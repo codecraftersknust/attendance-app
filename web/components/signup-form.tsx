@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
     Field,
@@ -103,7 +104,8 @@ export function SignupForm({
             onSubmit={handleSubmit}
         >
             <FieldGroup>
-                <div className="flex flex-col items-center gap-2 text-center">
+                <div className="flex flex-col items-center gap-3 text-center">
+                    <Image src="/logo.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
                     <h1 className="text-2xl font-bold text-emerald-900">
                         Create your account
                     </h1>

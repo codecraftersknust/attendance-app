@@ -40,6 +40,7 @@ import {
     Loader2,
     GraduationCap,
     BookOpen,
+    Trash2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -417,6 +418,27 @@ export default function ProfilePage() {
                                             Change Password
                                         </Button>
                                     </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Delete Account card */}
+                            <Card className="border-red-200">
+                                <CardHeader>
+                                    <CardTitle className="text-lg text-red-700">Delete Account</CardTitle>
+                                    <CardDescription>
+                                        Permanently delete your account and all associated data. This cannot be undone.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
+                                        onClick={() => router.push('/delete-account')}
+                                    >
+                                        <Trash2 className="size-4 mr-2" />
+                                        Delete Account
+                                    </Button>
                                 </CardContent>
                             </Card>
                         </>

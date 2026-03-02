@@ -137,6 +137,10 @@ export function LandingPage() {
           <Link href="/terms" className="text-xs hover:text-white/90 transition-colors inline">
             Terms
           </Link>
+          <span className="mx-2 sm:mx-3 opacity-70">·</span>
+          <Link href="/delete-account" className="text-xs hover:text-white/90 transition-colors inline">
+            Delete Account
+          </Link>
         </div>
       </footer>
     </div>

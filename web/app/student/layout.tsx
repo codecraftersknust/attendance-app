@@ -19,7 +19,8 @@ import {
     SidebarProvider,
     SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Plus, LayoutDashboard, GraduationCap } from 'lucide-react'
+import { Plus, LayoutDashboard } from 'lucide-react'
+import Image from "next/image";
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -34,9 +35,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <ShadSidebar collapsible="offcanvas">
                 <SidebarHeader className="border-b border-gray-200 bg-white px-4 py-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-900 text-white">
-                            <GraduationCap className="h-5 w-5" />
-                        </div>
+                        <Image src="/logo.png" alt="Absense" className="h-10 w-10 rounded-xl object-cover" width={40} height={40} />
                         <div>
                             <p className="font-semibold text-emerald-900">Student</p>
                             <p className="text-xs text-emerald-700">Attendance Portal</p>

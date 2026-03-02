@@ -2,6 +2,7 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import Image from "next/image"
 import {
     Field,
     FieldDescription,
@@ -55,7 +56,8 @@ export function LoginForm({
                 <CardContent className="grid p-0 md:grid-cols-2">
                     <form className="p-6 md:p-8" onSubmit={handleSubmit}>
                         <FieldGroup>
-                            <div className="flex flex-col items-center gap-2 text-center">
+                            <div className="flex flex-col items-center gap-3 text-center">
+                                <Image src="/logo.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
                                 <h1 className="text-2xl font-bold text-emerald-900">Welcome back</h1>
                                 <p className="text-muted-foreground text-balance">
                                     Login to your Absense account

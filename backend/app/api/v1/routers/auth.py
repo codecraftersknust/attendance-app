@@ -13,7 +13,12 @@ from ....services.security import (
 from ....db.deps import get_db
 from ....api.deps.auth import get_current_user
 from ....models.user import User, UserRole
+from ....models.student_course_enrollment import StudentCourseEnrollment
+from ....models.attendance_session import AttendanceSession
+from ....models.course import Course
 from ....services.face_verification import FaceVerificationService
+from ....services.audit import write_audit
+from ....storage.base import get_storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -172,3 +177,45 @@ def refresh_token(token: str = Depends(oauth2_scheme)):
 def logout():
     # Stateless JWT: instruct client to delete tokens. For stateful revoke, add a denylist store.
     return {"message": "Logged out"}
+
+
+@router.delete("/me", response_model=dict)
+def delete_account(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """
+    Permanently delete the current user's account and all associated data.
+    This action cannot be undone.
+    """
+    user_id = current.id
+    role = current.role
+
+    # 1. Delete face reference from storage (if any)
+    try:
+        if face_service.has_reference_face(user_id):
+            storage = get_storage()
+            storage.delete(face_service.get_reference_key(user_id))
+    except Exception:
+        pass  # Best-effort; continue with account deletion
+
+    # 2. Delete student course enrollments
+    db.query(StudentCourseEnrollment).filter(StudentCourseEnrollment.student_id == user_id).delete(
+        synchronize_session=False
+    )
+
+    # 3. If lecturer: unclaim courses and delete their sessions
+    if role == UserRole.lecturer:
+        db.query(Course).filter(Course.lecturer_id == user_id).update(
+            {Course.lecturer_id: None}, synchronize_session=False
+        )
+        db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == user_id).delete(
+            synchronize_session=False
+        )
+
+    # 4. Audit and delete user (Device, AttendanceRecord, VerificationLog cascade via FK)
+    write_audit(db, "auth.delete_account", user_id, f"email={current.email}")
+    db.delete(current)
+    db.commit()
+
+    return {"message": "Account deleted successfully"}
