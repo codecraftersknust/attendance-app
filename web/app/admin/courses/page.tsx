@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -88,6 +89,12 @@ type CreateCoursePayload = {
 };
 
 const SEMESTER_OPTIONS = ['1st Semester', '2nd Semester'] as const;
+
+const isSessionEffectivelyActive = (s: { is_active?: boolean; ends_at?: string | null }) => {
+    if (!s.is_active) return false;
+    if (!s.ends_at) return true;
+    return new Date(s.ends_at) > new Date();
+};
 const LEVEL_OPTIONS = [100, 200, 300, 400] as const;
 const PROGRAMME_OPTIONS = [
     'Computer Engineering',
@@ -98,9 +105,21 @@ const PROGRAMME_OPTIONS = [
 const NONE_VALUE = '__none__';
 
 export default function AdminCoursesPage() {
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
+
+    const { data: courses = [], error, isLoading, mutate } = useSWR(
+        ['admin-courses', debouncedSearch || null],
+        ([_, q]) => apiClient.adminGetCourses({ search: q || undefined, limit: 100 }),
+        { dedupingInterval: 30000 }
+    );
+
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load courses'); }, [error]);
 
     const [showCreate, setShowCreate] = useState(false);
     const [createForm, setCreateForm] = useState<CreateCoursePayload>({ code: '', name: '', description: '', semester: '', level: 100, programme: '' });
@@ -118,29 +137,6 @@ export default function AdminCoursesPage() {
     const [editCourseId, setEditCourseId] = useState<number | null>(null);
     const [updating, setUpdating] = useState(false);
 
-
-    const loadCourses = async (search?: string) => {
-        try {
-            setLoading(true);
-            const data = await apiClient.adminGetCourses({ search, limit: 100 });
-            setCourses(data);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load courses');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadCourses();
-    }, []);
-
-    useEffect(() => {
-        const timeout = setTimeout(() => {
-            loadCourses(searchQuery.trim() || undefined);
-        }, 300);
-        return () => clearTimeout(timeout);
-    }, [searchQuery]);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -161,7 +157,7 @@ export default function AdminCoursesPage() {
             toast.success('Course created');
             setShowCreate(false);
             setCreateForm({ code: '', name: '', description: '', semester: '', level: 100, programme: '' });
-            await loadCourses(searchQuery.trim() || undefined);
+            await mutate();
         } catch (e: any) {
             toast.error(e?.message || 'Failed to create course');
         } finally {
@@ -190,7 +186,7 @@ export default function AdminCoursesPage() {
             await apiClient.adminDeleteCourse(courseToDelete.id);
             toast.success('Course deleted');
             setCourseToDelete(null);
-            await loadCourses(searchQuery.trim() || undefined);
+            await mutate();
         } catch (e: any) {
             toast.error(e?.message || 'Failed to delete course');
         } finally {
@@ -226,7 +222,7 @@ export default function AdminCoursesPage() {
             });
             toast.success('Course updated');
             setShowEdit(false);
-            await loadCourses(searchQuery.trim() || undefined);
+            await mutate();
         } catch (e: any) {
             toast.error(e?.message || 'Failed to update course');
         } finally {
@@ -271,11 +267,11 @@ export default function AdminCoursesPage() {
                                 <BookOpen className="h-4 w-4 text-emerald-600" />
                             </div>
                             All Courses
-                            {!loading && <span className="text-sm font-normal text-gray-400">({courses.length})</span>}
+                            {!isLoading && <span className="text-sm font-normal text-gray-400">({courses.length})</span>}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {loading ? (
+                        {isLoading ? (
                             <p className="text-gray-500 py-4">Loading courses...</p>
                         ) : courses.length === 0 ? (
                             <p className="text-gray-500 py-4">No courses found. Create one to get started.</p>
@@ -678,11 +674,11 @@ export default function AdminCoursesPage() {
                                                     <TableRow key={session.id}>
                                                         <TableCell className="font-medium">#{session.id} - {session.code}</TableCell>
                                                         <TableCell>
-                                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${session.is_active
+                                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isSessionEffectivelyActive(session)
                                                                 ? 'bg-emerald-100 text-emerald-800'
                                                                 : 'bg-gray-100 text-gray-800'
                                                                 }`}>
-                                                                {session.is_active ? 'Active' : 'Closed'}
+                                                                {isSessionEffectivelyActive(session) ? 'Active' : 'Closed'}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell>

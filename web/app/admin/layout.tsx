@@ -28,8 +28,8 @@ import {
     Activity,
     Smartphone,
     CheckSquare,
-    Shield,
 } from "lucide-react";
+import Image from "next/image";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -48,11 +48,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
         <SidebarProvider className="admin-layout">
             <ShadSidebar collapsible="offcanvas">
-                <SidebarHeader className="border-b border-emerald-200 bg-emerald-50 px-4 py-4">
+                <SidebarHeader className="border-b border-gray-200 bg-white px-4 py-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-900 text-white">
-                            <Shield className="h-5 w-5" />
-                        </div>
+                        <Image src="/logo.png" alt="Absense" className="h-10 w-10 rounded-xl object-cover" width={40} height={40} />
                         <div>
                             <p className="font-semibold text-emerald-900">Admin</p>
                             <p className="text-xs text-emerald-700">School Administration</p>
@@ -84,9 +82,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </SidebarFooter>
             </ShadSidebar>
             <SidebarInset>
-                <div className="flex-1 flex flex-col min-h-screen">
+                <div className="flex-1 flex flex-col min-h-screen bg-gray-50">
                     <Navbar />
-                    <main className="flex-1 bg-gray-50 overflow-auto">{children}</main>
+                    <main className="flex-1 overflow-auto">{children}</main>
                 </div>
             </SidebarInset>
         </SidebarProvider>

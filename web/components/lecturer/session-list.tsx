@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, QrCode, XCircle } from "lucide-react";
 import { QRDisplayDialog } from "./qr-display-dialog";
 
-type SessionRow = { id: number; code: string; is_active: boolean };
+type SessionRow = { id: number; code: string; is_active: boolean; ends_at?: string | null };
 
 export function SessionList() {
-    const [sessions, setSessions] = useState<any[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
     const [busyId, setBusyId] = useState<number | null>(null);
+
+    const { data: sessions = [], error, isLoading: loading, mutate } = useSWR(
+        "lecturer-sessions",
+        () => apiClient.lecturerSessions(),
+        { dedupingInterval: 30000 }
+    );
+
+    useEffect(() => { if (error) toast.error(error?.message || "Failed to load sessions"); }, [error]);
 
     // Filter active based on is_active AND time
     const active = useMemo(() => {
@@ -32,22 +39,6 @@ export function SessionList() {
             return false;
         });
     }, [sessions]);
-
-    const load = async () => {
-        try {
-            setLoading(true);
-            const list = await apiClient.lecturerSessions();
-            setSessions(list as any);
-        } catch (e: any) {
-            toast.error(e?.message || "Failed to load sessions");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        load();
-    }, []);
 
     const regen = async (id: number) => {
         try {
@@ -79,7 +70,7 @@ export function SessionList() {
             setBusyId(id);
             await apiClient.lecturerCloseSession(id);
             toast.success("Session closed");
-            await load();
+            await mutate();
         } catch (e: any) {
             toast.error(e?.message || "Failed to close session");
         } finally {
@@ -93,7 +84,7 @@ export function SessionList() {
         <div className="bg-white rounded-lg border border-gray-200 shadow-md p-6">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Sessions</h2>
-                <Button variant="outline" onClick={load} disabled={loading} className="border-gray-200">Refresh</Button>
+                <Button variant="outline" onClick={() => mutate()} disabled={loading} className="border-gray-200">Refresh</Button>
             </div>
             {loading ? (
                 <p className="text-gray-500 py-8">Loading sessions...</p>

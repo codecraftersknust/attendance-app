@@ -32,11 +32,24 @@ export function LandingPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Main content: Hero + Steps side by side - centered in viewport */}
-      <section className="flex-1 flex items-center justify-center min-h-0 overflow-y-auto bg-gradient-to-b from-emerald-50/80 via-white to-amber-50/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-6 sm:py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center w-full">
+      <section className="relative flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-emerald-100 via-teal-50/90 to-amber-100/80 pt-[env(safe-area-inset-top)] scroll-pt-16">
+        {/* Subtle grid pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(to right, #0f766e 1px, transparent 1px),
+              linear-gradient(to bottom, #0f766e 1px, transparent 1px)`,
+            backgroundSize: "32px 32px",
+          }}
+        />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full min-w-0 pt-5 pb-6 sm:pt-6 sm:pb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-12 lg:gap-16 items-center w-full min-w-0">
             {/* Left: Hero text + single CTA */}
             <div className="text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 text-xs font-medium mb-4">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Smart verification
+              </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900">
                 Smart attendance for students and lecturers
               </h1>
@@ -53,7 +66,7 @@ export function LandingPage() {
                     Get Started
                   </Button>
                 </Link>
-                <p className="mt-4 text-sm text-gray-500">
+                <p className="mt-4 text-sm text-gray-600">
                   Already have an account?{" "}
                   <Link href="/auth/login" className="text-amber-600 hover:text-amber-700 active:text-amber-800 font-medium transition-colors">
                     Sign in
@@ -62,8 +75,8 @@ export function LandingPage() {
               </div>
             </div>
 
-            {/* Right: Steps */}
-            <div>
+            {/* Right: Steps - card container */}
+            <div className="rounded-2xl bg-white/70 backdrop-blur-sm border border-white/80 shadow-xl p-4 sm:p-8 min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 text-center lg:text-left">
                 How it works
               </h2>
@@ -80,10 +93,10 @@ export function LandingPage() {
                       className="flex items-start gap-3 sm:gap-4"
                     >
                       <div
-                        className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${
+                        className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-sm ${
                           isAmber
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-emerald-100 text-emerald-700"
+                            ? "bg-amber-100 text-amber-700 ring-1 ring-amber-200/50"
+                            : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/50"
                         }`}
                       >
                         <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -110,20 +123,24 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Footer - responsive, full width */}
-      <footer className="shrink-0 border-t bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
-            <p className="order-2 sm:order-1 text-center sm:text-left">© {new Date().getFullYear()} Absense</p>
-            <div className="flex items-center justify-center sm:justify-end gap-4 sm:gap-6 order-1 sm:order-2">
-              <Link href="/privacy" className="hover:text-emerald-700 transition-colors min-h-[44px] sm:min-h-0 flex items-center">
-                Privacy
-              </Link>
-              <Link href="/terms" className="hover:text-emerald-700 transition-colors min-h-[44px] sm:min-h-0 flex items-center">
-                Terms
-              </Link>
-            </div>
-          </div>
+      {/* Footer - compact, single line, centered */}
+      <footer className="shrink-0 w-full border-t border-emerald-200/60 bg-gradient-to-r from-emerald-900 to-teal-900 text-white pb-[env(safe-area-inset-bottom)] text-center">
+        <div className="px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+          <span className="text-xs">
+            © {new Date().getFullYear()} Absense
+          </span>
+          <span className="mx-2 sm:mx-3 opacity-70">·</span>
+          <Link href="/privacy" className="text-xs hover:text-white/90 transition-colors inline">
+            Privacy
+          </Link>
+          <span className="mx-2 sm:mx-3 opacity-70">·</span>
+          <Link href="/terms" className="text-xs hover:text-white/90 transition-colors inline">
+            Terms
+          </Link>
+          <span className="mx-2 sm:mx-3 opacity-70">·</span>
+          <Link href="/delete-account" className="text-xs hover:text-white/90 transition-colors inline">
+            Delete Account
+          </Link>
         </div>
       </footer>
     </div>

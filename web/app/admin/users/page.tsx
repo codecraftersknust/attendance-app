@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -26,30 +27,18 @@ import { Users, RefreshCw } from 'lucide-react';
 const ROLE_FILTER_NONE = '__all__';
 
 export default function AdminUsersPage() {
-    const [users, setUsers] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_NONE);
 
-    const loadUsers = async (role?: 'student' | 'lecturer' | 'admin') => {
-        try {
-            setLoading(true);
-            const data = await apiClient.adminUsers({ role, limit: 100 });
-            setUsers(data);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load users');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const roleArg = roleFilter === ROLE_FILTER_NONE ? undefined : (roleFilter as 'student' | 'lecturer' | 'admin');
+    const { data: users = [], error, isLoading, mutate } = useSWR(
+        ['admin-users', roleFilter],
+        () => apiClient.adminUsers({ role: roleArg, limit: 100 }),
+        { dedupingInterval: 30000 }
+    );
 
-    useEffect(() => {
-        loadUsers();
-    }, []);
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load users'); }, [error]);
 
-    const handleRoleChange = (value: string) => {
-        setRoleFilter(value);
-        loadUsers(value === ROLE_FILTER_NONE ? undefined : value as any);
-    };
+    const handleRoleChange = (value: string) => setRoleFilter(value);
 
     return (
         <ProtectedRoute allowedRoles={['admin']}>
@@ -71,7 +60,7 @@ export default function AdminUsersPage() {
                                 <SelectItem value="admin">Admins</SelectItem>
                             </SelectContent>
                         </Select>
-                        <Button variant="outline" size="sm" onClick={() => loadUsers(roleFilter === ROLE_FILTER_NONE ? undefined : roleFilter as any)}>
+                        <Button variant="outline" size="sm" onClick={() => mutate()}>
                             <RefreshCw className="h-4 w-4 mr-1" />
                             Refresh
                         </Button>
@@ -85,11 +74,11 @@ export default function AdminUsersPage() {
                                 <Users className="h-4 w-4 text-emerald-600" />
                             </div>
                             Users
-                            {!loading && <span className="text-sm font-normal text-gray-400">({users.length})</span>}
+                            {!isLoading && <span className="text-sm font-normal text-gray-400">({users.length})</span>}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {loading && users.length === 0 ? (
+                        {isLoading && users.length === 0 ? (
                             <p className="text-gray-500 py-4">Loading...</p>
                         ) : users.length === 0 ? (
                             <p className="text-gray-500 py-4">No users found.</p>

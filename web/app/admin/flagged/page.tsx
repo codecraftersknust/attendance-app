@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -29,24 +30,13 @@ type Flagged = {
 };
 
 export default function AdminFlaggedPage() {
-    const [flagged, setFlagged] = useState<Flagged[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: flagged = [], error, isLoading, mutate } = useSWR(
+        'admin-flagged',
+        () => apiClient.adminListFlagged(),
+        { dedupingInterval: 30000 }
+    );
 
-    const loadFlagged = async () => {
-        try {
-            setLoading(true);
-            const data = await apiClient.adminListFlagged();
-            setFlagged(data);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load flagged records');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadFlagged();
-    }, []);
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load flagged records'); }, [error]);
 
     return (
         <ProtectedRoute allowedRoles={['admin']}>
@@ -56,7 +46,7 @@ export default function AdminFlaggedPage() {
                         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Flagged Attendance</h1>
                         <p className="text-sm text-gray-500 mt-0.5">Attendance records flagged for review</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={loadFlagged}>
+                    <Button variant="outline" size="sm" onClick={() => mutate()}>
                         <RefreshCw className="h-4 w-4 mr-1" />
                         Refresh
                     </Button>
@@ -69,11 +59,11 @@ export default function AdminFlaggedPage() {
                                 <Flag className="h-4 w-4 text-amber-600" />
                             </div>
                             Flagged Records
-                            {!loading && <span className="text-sm font-normal text-gray-400">({flagged.length})</span>}
+                            {!isLoading && <span className="text-sm font-normal text-gray-400">({flagged.length})</span>}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {loading ? (
+                        {isLoading ? (
                             <p className="text-gray-500 py-4">Loading...</p>
                         ) : flagged.length === 0 ? (
                             <p className="text-gray-500 py-4">No flagged records. Everything looks good.</p>

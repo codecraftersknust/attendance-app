@@ -13,6 +13,12 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users } from "lucide-react";
 
+const isSessionEffectivelyActive = (s: { is_active?: boolean; ends_at?: string | null }) => {
+    if (!s.is_active) return false;
+    if (!s.ends_at) return true;
+    return new Date(s.ends_at) > new Date();
+};
+
 type CourseDetails = {
     id: number;
     code: string;
@@ -196,11 +202,11 @@ export function CourseDetailsDialog({
                                                 <TableRow key={session.id}>
                                                     <TableCell className="font-medium">#{session.id} - {session.code}</TableCell>
                                                     <TableCell>
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${session.is_active
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isSessionEffectivelyActive(session)
                                                                 ? 'bg-emerald-100 text-emerald-800'
                                                                 : 'bg-gray-100 text-gray-800'
                                                             }`}>
-                                                            {session.is_active ? 'Active' : 'Closed'}
+                                                            {isSessionEffectivelyActive(session) ? 'Active' : 'Closed'}
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>

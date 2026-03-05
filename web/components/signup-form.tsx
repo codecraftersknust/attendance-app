@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
     Field,
@@ -14,6 +15,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { useTopLoader } from "nextjs-toploader";
 
 const PROGRAMMES = [
     "Computer Engineering",
@@ -37,6 +39,7 @@ export function SignupForm({
     const [isLoading, setIsLoading] = useState(false);
     const { register } = useAuth();
     const router = useRouter();
+    const { start } = useTopLoader();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -85,6 +88,7 @@ export function SignupForm({
             });
 
             toast.success("Account created successfully!");
+            start();
             router.push("/auth/setup-face");
         } catch {
             // Error handled in register
@@ -100,7 +104,8 @@ export function SignupForm({
             onSubmit={handleSubmit}
         >
             <FieldGroup>
-                <div className="flex flex-col items-center gap-2 text-center">
+                <div className="flex flex-col items-center gap-3 text-center">
+                    <Image src="/logo.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
                     <h1 className="text-2xl font-bold text-emerald-900">
                         Create your account
                     </h1>

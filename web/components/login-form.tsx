@@ -2,6 +2,7 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import Image from "next/image"
 import {
     Field,
     FieldDescription,
@@ -13,6 +14,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
+import { useTopLoader } from "nextjs-toploader"
 import toast from "react-hot-toast"
 
 export function LoginForm({
@@ -24,6 +26,7 @@ export function LoginForm({
     const [isLoading, setIsLoading] = useState(false)
     const { login } = useAuth()
     const router = useRouter()
+    const { start } = useTopLoader()
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -37,7 +40,8 @@ export function LoginForm({
             setIsLoading(true)
             await login(email, password)
 
-            // Redirect based on user role
+            // Redirect based on user role - trigger top loader for programmatic nav
+            start()
             router.push('/dashboard')
         } catch (error) {
             // Error is already handled in the login function
@@ -52,7 +56,8 @@ export function LoginForm({
                 <CardContent className="grid p-0 md:grid-cols-2">
                     <form className="p-6 md:p-8" onSubmit={handleSubmit}>
                         <FieldGroup>
-                            <div className="flex flex-col items-center gap-2 text-center">
+                            <div className="flex flex-col items-center gap-3 text-center">
+                                <Image src="/logo.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
                                 <h1 className="text-2xl font-bold text-emerald-900">Welcome back</h1>
                                 <p className="text-muted-foreground text-balance">
                                     Login to your Absense account

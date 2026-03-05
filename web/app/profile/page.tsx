@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { apiClient, UserProfile, UserUpdateRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ import {
     Loader2,
     GraduationCap,
     BookOpen,
+    Trash2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -46,8 +48,13 @@ export default function ProfilePage() {
     const { user, refreshAuth } = useAuth();
     const router = useRouter();
 
-    const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { data: profile, error, isLoading: loading, mutate } = useSWR(
+        'profile',
+        () => apiClient.getProfile(),
+        { dedupingInterval: 30000 }
+    );
+
+    useEffect(() => { if (error) toast.error(error?.message || 'Failed to load profile'); }, [error]);
 
     // Edit profile dialog
     const [editOpen, setEditOpen] = useState(false);
@@ -64,22 +71,6 @@ export default function ProfilePage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [changingPassword, setChangingPassword] = useState(false);
-
-    useEffect(() => {
-        loadProfile();
-    }, []);
-
-    async function loadProfile() {
-        try {
-            setLoading(true);
-            const data = await apiClient.getProfile();
-            setProfile(data);
-        } catch (err: any) {
-            toast.error(err.message || 'Failed to load profile');
-        } finally {
-            setLoading(false);
-        }
-    }
 
     function openEditDialog() {
         if (!profile) return;
@@ -112,7 +103,7 @@ export default function ProfilePage() {
             }
 
             const updated = await apiClient.updateProfile(updates);
-            setProfile(updated);
+            mutate(updated, false);
             await refreshAuth();
             toast.success('Profile updated');
             setEditOpen(false);
@@ -427,6 +418,27 @@ export default function ProfilePage() {
                                             Change Password
                                         </Button>
                                     </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Delete Account card */}
+                            <Card className="border-red-200">
+                                <CardHeader>
+                                    <CardTitle className="text-lg text-red-700">Delete Account</CardTitle>
+                                    <CardDescription>
+                                        Permanently delete your account and all associated data. This cannot be undone.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
+                                        onClick={() => router.push('/delete-account')}
+                                    >
+                                        <Trash2 className="size-4 mr-2" />
+                                        Delete Account
+                                    </Button>
                                 </CardContent>
                             </Card>
                         </>

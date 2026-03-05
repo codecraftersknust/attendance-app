@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
@@ -20,13 +21,10 @@ import {
 import { Users, GraduationCap, UserCog, CalendarClock, BookOpen, Flag, Activity, Calendar, Settings2, AlertOctagon } from 'lucide-react';
 import Link from 'next/link';
 
+type SchoolSettings = { current_semester: string; is_on_break: boolean; enrollment_open: boolean; academic_year: string; updated_at: string | null };
+
 export default function AdminDashboard() {
     const { user } = useAuth();
-    const [overview, setOverview] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-
-    type SchoolSettings = { current_semester: string; is_on_break: boolean; enrollment_open: boolean; academic_year: string; updated_at: string | null };
-    const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null);
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
     const [settingsForm, setSettingsForm] = useState({ current_semester: '1st Semester', is_on_break: false, enrollment_open: true, academic_year: '2024/2025' });
     const [savingSettings, setSavingSettings] = useState(false);
@@ -35,35 +33,22 @@ export default function AdminDashboard() {
 
     const SEMESTER_OPTIONS = ['1st Semester', '2nd Semester'] as const;
 
-    const loadSchoolSettings = async () => {
-        try {
-            const s = await apiClient.adminGetSchoolSettings();
-            setSchoolSettings(s);
-            setSettingsForm({ current_semester: s.current_semester, is_on_break: s.is_on_break, enrollment_open: s.enrollment_open, academic_year: s.academic_year });
-        } catch { /* non-fatal */ }
-    };
+    const { data: overview, error, isLoading } = useSWR('admin-dashboard', () => apiClient.adminDashboard(), { dedupingInterval: 30000 });
+    const { data: schoolSettings, mutate: mutateSettings } = useSWR('admin-school-settings', () => apiClient.adminGetSchoolSettings(), {
+        dedupingInterval: 30000,
+        onSuccess: (s) => {
+            if (s) setSettingsForm({ current_semester: s.current_semester, is_on_break: s.is_on_break, enrollment_open: s.enrollment_open, academic_year: s.academic_year });
+        },
+    });
 
-    useEffect(() => {
-        (async () => {
-            try {
-                setLoading(true);
-                const dash = await apiClient.adminDashboard();
-                setOverview(dash);
-            } catch (e: any) {
-                toast.error(e?.message || 'Failed to load dashboard');
-            } finally {
-                setLoading(false);
-            }
-        })();
-        loadSchoolSettings();
-    }, []);
+    if (error) toast.error(error?.message || 'Failed to load dashboard');
 
     const handleSaveSettings = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             setSavingSettings(true);
             const updated = await apiClient.adminUpdateSchoolSettings(settingsForm);
-            setSchoolSettings(updated);
+            await mutateSettings(updated, false);
             setShowSettingsDialog(false);
             toast.success('Academic settings updated');
         } catch (e: any) {
@@ -79,7 +64,7 @@ export default function AdminDashboard() {
             const result = await apiClient.adminCloseSemester();
             toast.success(`Semester closed — ${result.students_unenrolled} students unenrolled, ${result.levels_updated} levels advanced`);
             setShowCloseSemester(false);
-            await loadSchoolSettings();
+            await mutateSettings();
         } catch (e: any) {
             toast.error(e?.message || 'Failed to close semester');
         } finally {
@@ -151,7 +136,7 @@ export default function AdminDashboard() {
                     </CardContent>
                 </Card>
 
-                {loading ? (
+                {isLoading ? (
                     <p className="text-gray-500 py-8">Loading...</p>
                 ) : overview ? (
                     <>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import useSWR from "swr";
 import { apiClient } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
@@ -8,33 +9,20 @@ import { ActiveSession } from "./types";
 
 export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => void }) {
     const { onOpen } = props;
-    const [sessions, setSessions] = useState<ActiveSession[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
 
-    const load = async () => {
-        try {
-            setLoading(true);
-            const list = await apiClient.studentActiveSessions();
-            setSessions(list);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to load active sessions";
-            toast.error(message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data: sessions = [], error, isLoading: loading, mutate } = useSWR(
+        "student-active-sessions",
+        () => apiClient.studentActiveSessions(),
+        { dedupingInterval: 5000, refreshInterval: 30000 }
+    );
 
-    useEffect(() => {
-        load();
-        const t = setInterval(load, 30000);
-        return () => clearInterval(t);
-    }, []);
+    useEffect(() => { if (error) toast.error(error?.message || "Failed to load active sessions"); }, [error]);
 
     return (
         <div className="border-gray-200/80 bg-white rounded-lg shadow-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <h2 className="text-lg font-semibold text-gray-900">Active Sessions</h2>
-                <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+                <Button variant="outline" size="sm" onClick={() => mutate()} disabled={loading}>
                     Refresh
                 </Button>
             </div>

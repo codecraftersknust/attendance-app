@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
+import useSWR, { mutate as globalMutate } from 'swr';
 import { apiClient } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -42,62 +43,45 @@ type AttendanceRecord = {
 const FLAG_REASON_LABELS: Record<string, string> = {
     device_mismatch: 'Device not registered',
     outside_geofence: 'Outside class location',
+    location_not_verified: 'Location not set for session',
     face_not_verified: 'Face verification failed',
+};
+
+const reportFetcher = async (sessionId: number) => {
+    const [analyticsResponse, recordsData] = await Promise.all([
+        apiClient.lecturerSessionAnalytics(sessionId),
+        apiClient.lecturerSessionAttendance(sessionId)
+    ]);
+    const data = analyticsResponse as { analytics?: Analytics; session?: unknown; recent_attendance?: unknown };
+    return {
+        analytics: data.analytics ?? (data as unknown as Analytics),
+        records: recordsData
+    };
 };
 
 export default function ReportsPage() {
     const { user } = useAuth();
-    const [sessions, setSessions] = useState<Session[]>([]);
     const [selectedSessionId, setSelectedSessionId] = useState<string>('');
-    const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
-
-    const [analytics, setAnalytics] = useState<Analytics | null>(null);
-    const [records, setRecords] = useState<AttendanceRecord[]>([]);
-    const [loadingReport, setLoadingReport] = useState<boolean>(false);
     const [confirmingId, setConfirmingId] = useState<number | null>(null);
     const [rejectingId, setRejectingId] = useState<number | null>(null);
 
-    useEffect(() => {
-        loadSessions();
-    }, []);
+    const { data: sessions = [], error: sessionsError, isLoading: loadingSessions } = useSWR(
+        'lecturer-sessions',
+        () => apiClient.lecturerSessions(),
+        { dedupingInterval: 30000 }
+    );
 
-    useEffect(() => {
-        if (selectedSessionId) {
-            loadReport(Number(selectedSessionId));
-        } else {
-            setAnalytics(null);
-            setRecords([]);
-        }
-    }, [selectedSessionId]);
+    const { data: reportData, error: reportError, isLoading: loadingReport, mutate: mutateReport } = useSWR(
+        selectedSessionId ? ['lecturer-report', selectedSessionId] : null,
+        ([_, id]) => reportFetcher(Number(id)),
+        { dedupingInterval: 10000 }
+    );
 
-    const loadSessions = async () => {
-        try {
-            setLoadingSessions(true);
-            const data = await apiClient.lecturerSessions();
-            setSessions(data as any);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load sessions');
-        } finally {
-            setLoadingSessions(false);
-        }
-    };
+    const analytics = reportData?.analytics ?? null;
+    const records = reportData?.records ?? [];
 
-    const loadReport = async (sessionId: number) => {
-        try {
-            setLoadingReport(true);
-            const [analyticsResponse, recordsData] = await Promise.all([
-                apiClient.lecturerSessionAnalytics(sessionId),
-                apiClient.lecturerSessionAttendance(sessionId)
-            ]);
-            const data = analyticsResponse as { analytics?: Analytics; session?: unknown; recent_attendance?: unknown };
-            setAnalytics(data.analytics ?? (data as unknown as Analytics));
-            setRecords(recordsData);
-        } catch (e: any) {
-            toast.error(e?.message || 'Failed to load report data');
-        } finally {
-            setLoadingReport(false);
-        }
-    };
+    useEffect(() => { if (sessionsError) toast.error(sessionsError?.message || 'Failed to load sessions'); }, [sessionsError]);
+    useEffect(() => { if (reportError) toast.error(reportError?.message || 'Failed to load report data'); }, [reportError]);
 
     const formatTime = (isoString?: string) => {
         if (!isoString) return 'N/A';
@@ -109,7 +93,8 @@ export default function ReportsPage() {
             setConfirmingId(recordId);
             await apiClient.lecturerConfirmFlagged(recordId);
             toast.success('Attendance confirmed');
-            if (selectedSessionId) loadReport(Number(selectedSessionId));
+            await mutateReport();
+            if (selectedSessionId) await globalMutate(['lecturer-absent-students', selectedSessionId]);
         } catch (e: any) {
             toast.error(e?.message || 'Failed to confirm attendance');
         } finally {
@@ -122,7 +107,8 @@ export default function ReportsPage() {
             setRejectingId(recordId);
             await apiClient.lecturerRejectFlagged(recordId);
             toast.success('Attendance rejected (marked absent)');
-            if (selectedSessionId) loadReport(Number(selectedSessionId));
+            await mutateReport();
+            if (selectedSessionId) await globalMutate(['lecturer-absent-students', selectedSessionId]);
         } catch (e: any) {
             toast.error(e?.message || 'Failed to reject attendance');
         } finally {
@@ -194,7 +180,7 @@ export default function ReportsPage() {
                                     </CardHeader>
                                     <CardContent className="pl-5">
                                         <div className="text-2xl font-bold text-emerald-700">{analytics.present_count}</div>
-                                        <p className="text-xs text-gray-500 mt-0.5">{(analytics.attendance_rate * 100).toFixed(1)}% rate</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">{Number(analytics.attendance_rate).toFixed(1)}% rate</p>
                                     </CardContent>
                                 </Card>
                                 <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden relative">
@@ -258,8 +244,9 @@ export default function ReportsPage() {
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
                                                         ${record.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
                                                             record.status === 'flagged' ? 'bg-amber-100 text-amber-800' :
-                                                                'bg-gray-100 text-gray-800'}`}>
-                                                        {record.status}
+                                                                record.status === 'absent' ? 'bg-red-100 text-red-800' :
+                                                                    'bg-gray-100 text-gray-800'}`}>
+                                                        {record.status === 'absent' ? 'Absent' : record.status}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="text-sm text-gray-600">
@@ -269,6 +256,8 @@ export default function ReportsPage() {
                                                                 <li key={code}>{FLAG_REASON_LABELS[code] ?? code}</li>
                                                             ))}
                                                         </ul>
+                                                    ) : record.status === 'absent' ? (
+                                                        <span className="text-red-600">Rejected by lecturer</span>
                                                     ) : (
                                                         <span className="text-gray-400">—</span>
                                                     )}

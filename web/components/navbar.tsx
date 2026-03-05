@@ -2,107 +2,74 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useMemo } from "react";
+import { LayoutDashboard } from "lucide-react";
 import {
     Breadcrumb,
-    BreadcrumbEllipsis,
     BreadcrumbItem,
     BreadcrumbLink,
     BreadcrumbList,
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+const PAGE_LABELS: Record<string, string> = {
+    dashboard: "Dashboard",
+    "create-session": "Create Session",
+    reports: "Reports",
+    courses: "Courses",
+    sessions: "Sessions",
+    users: "Users",
+    flagged: "Flagged",
+    activity: "Activity",
+    imei: "Device Resets",
+    "manual-mark": "Manual Mark",
+    "mark-attendance": "Mark Attendance",
+};
 
 export function Navbar() {
     const pathname = usePathname();
 
-    const segments = pathname
-        .split("/")
-        .filter(Boolean);
+    const { dashboardHref, currentLabel } = useMemo(() => {
+        const segments = pathname.split("/").filter(Boolean);
+        if (segments.length === 0) return { dashboardHref: null, currentLabel: "Home" };
 
-    const buildHref = (index: number) => {
-        return "/" + segments.slice(0, index + 1).join("/");
-    };
+        const role = segments[0];
+        const dashboardHref = `/${role}/dashboard`;
+        const currentSlug = segments[segments.length - 1];
+        const currentLabel =
+            PAGE_LABELS[currentSlug] ??
+            currentSlug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-    const formatLabel = (slug: string) => {
-        return slug
-            .replace(/[-_]/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase());
-    };
+        return { dashboardHref, currentLabel };
+    }, [pathname]);
 
-    const hasSegments = segments.length > 0;
-    const hasDropdown = segments.length > 2;
-    const secondLastIndex = segments.length - 2;
-    const lastIndex = segments.length - 1;
+    const isOnDashboard = pathname.endsWith("/dashboard");
 
     return (
-        <header className="bg-emerald-900 shadow-sm border-b">
+        <header className="sticky top-0 z-50 bg-emerald-900 shadow-sm border-b shrink-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <Breadcrumb>
-                    <BreadcrumbList>
-                        {!hasSegments ? (
-                            <BreadcrumbItem>
-                                <BreadcrumbPage className="text-white">Home</BreadcrumbPage>
-                            </BreadcrumbItem>
-                        ) : (
+                    <BreadcrumbList className="text-white">
+                        {dashboardHref && !isOnDashboard && (
                             <>
                                 <BreadcrumbItem>
-                                    <BreadcrumbLink asChild className="text-white/90 hover:text-white">
-                                        <Link href="/">Home</Link>
+                                    <BreadcrumbLink asChild>
+                                        <Link
+                                            href={dashboardHref}
+                                            className="flex items-center gap-1.5 text-white/90 hover:text-white transition-colors"
+                                        >
+                                            <LayoutDashboard className="size-4" />
+                                            Dashboard
+                                        </Link>
                                     </BreadcrumbLink>
                                 </BreadcrumbItem>
-                                <BreadcrumbSeparator />
-
-                                {hasDropdown && (
-                                    <>
-                                        <BreadcrumbItem>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger className="flex items-center gap-1 text-white/90 hover:text-white">
-                                                    <BreadcrumbEllipsis className="size-4" />
-                                                    <span className="sr-only">Toggle menu</span>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="start">
-                                                    {segments.slice(0, secondLastIndex).map((segment, index) => {
-                                                        const href = buildHref(index);
-                                                        const label = formatLabel(segment);
-                                                        return (
-                                                            <DropdownMenuItem key={href}>
-                                                                <Link href={href}>{label}</Link>
-                                                            </DropdownMenuItem>
-                                                        );
-                                                    })}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </BreadcrumbItem>
-                                        <BreadcrumbSeparator />
-                                    </>
-                                )}
-
-                                {segments.length >= 2 && (
-                                    <>
-                                        <BreadcrumbItem>
-                                            <BreadcrumbLink asChild className="text-white/90 hover:text-white">
-                                                <Link href={buildHref(secondLastIndex)}>
-                                                    {formatLabel(segments[secondLastIndex])}
-                                                </Link>
-                                            </BreadcrumbLink>
-                                        </BreadcrumbItem>
-                                        <BreadcrumbSeparator />
-                                    </>
-                                )}
-
-                                <BreadcrumbItem>
-                                    <BreadcrumbPage className="text-white">
-                                        {formatLabel(segments[lastIndex])}
-                                    </BreadcrumbPage>
-                                </BreadcrumbItem>
+                                <BreadcrumbSeparator className="text-white/60" />
                             </>
                         )}
+                        <BreadcrumbItem>
+                            <BreadcrumbPage className="text-white">{currentLabel}</BreadcrumbPage>
+                        </BreadcrumbItem>
                     </BreadcrumbList>
                 </Breadcrumb>
             </div>

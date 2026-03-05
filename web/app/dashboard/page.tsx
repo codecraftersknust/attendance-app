@@ -2,19 +2,23 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useTopLoader } from 'nextjs-toploader';
 import { useEffect } from 'react';
 
 export default function DashboardPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const { start } = useTopLoader();
 
     useEffect(() => {
         if (loading) return;
         if (!user) {
+            start();
             router.replace('/auth/login');
             return;
         }
 
+        start();
         switch (user.role) {
             case 'student':
                 router.replace('/student/dashboard');
@@ -28,12 +32,7 @@ export default function DashboardPage() {
             default:
                 router.replace('/auth/login');
         }
-    }, [user, loading, router]);
+    }, [user, loading, router, start]);
 
-    // Always show a loading fallback while redirecting
-    return (
-        <div className="min-h-screen flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-900"></div>
-        </div>
-    );
+    return null;
 }

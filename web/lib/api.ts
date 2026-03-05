@@ -98,7 +98,13 @@ class ApiClient {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            const detail = errorData.detail;
+            const message = typeof detail === 'string'
+                ? detail
+                : Array.isArray(detail) && detail.length > 0
+                    ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join('; ') || `HTTP error! status: ${response.status}`
+                    : `HTTP error! status: ${response.status}`;
+            throw new Error(message);
         }
 
         return await response.json();
@@ -165,6 +171,12 @@ class ApiClient {
     async logout(): Promise<void> {
         await this.request('/auth/logout', {
             method: 'POST',
+        });
+    }
+
+    async deleteAccount(): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/auth/me', {
+            method: 'DELETE',
         });
     }
 
@@ -395,7 +407,7 @@ class ApiClient {
         return this.request('/lecturer/dashboard');
     }
 
-    async lecturerSessions(): Promise<Array<{ id: number; code: string; is_active: boolean }>> {
+    async lecturerSessions(): Promise<Array<{ id: number; code: string; is_active: boolean; ends_at?: string | null }>> {
         return this.request('/lecturer/sessions');
     }
 
@@ -444,11 +456,11 @@ class ApiClient {
     }
 
     async lecturerConfirmFlagged(recordId: number): Promise<{ record_id: number; status: string }> {
-        return this.request(`/lecturer/attendance/${recordId}/confirm`, { method: "POST" });
+        return this.request(`/lecturer/attendance/${recordId}/confirm`, { method: "POST", body: JSON.stringify({}) });
     }
 
     async lecturerRejectFlagged(recordId: number): Promise<{ record_id: number; status: string }> {
-        return this.request(`/lecturer/attendance/${recordId}/reject`, { method: "POST" });
+        return this.request(`/lecturer/attendance/${recordId}/reject`, { method: "POST", body: JSON.stringify({}) });
     }
 
     async lecturerSessionAnalytics(sessionId: number): Promise<{
