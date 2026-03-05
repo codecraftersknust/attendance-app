@@ -31,4 +31,4 @@ class User(Base):
     devices: Mapped[list["Device"]] = relationship(back_populates="user")
     lecturer_sessions: Mapped[list["AttendanceSession"]] = relationship(back_populates="lecturer")
     attendances: Mapped[list["AttendanceRecord"]] = relationship(back_populates="student")
-    courses: Mapped[list["Course"]] = relationship("Course", back_populates="lecturer")
+    courses: Mapped[list["Course"]] = relationship("Course", secondary="course_lecturers", back_populates="lecturers")

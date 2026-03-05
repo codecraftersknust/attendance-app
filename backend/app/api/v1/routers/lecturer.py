@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from ....db.deps import get_db
 from ....models.user import UserRole, User
-from ....models.course import Course
+from ....models.course import Course, CourseLecturer, CourseProgramme
 from ....models.device import Device
 from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
@@ -26,10 +26,16 @@ def get_current_lecturer(current: User = Depends(role_required(UserRole.lecturer
 @router.get("/courses", response_model=List[dict])
 def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     """Get all courses taught by the current lecturer"""
-    courses = db.query(Course).filter(
-        Course.lecturer_id == current.id,
-        Course.is_active == True
-    ).order_by(Course.code).all()
+    courses = (
+        db.query(Course)
+        .join(CourseLecturer, Course.id == CourseLecturer.course_id)
+        .filter(
+            CourseLecturer.lecturer_id == current.id,
+            Course.is_active == True,
+        )
+        .order_by(Course.code)
+        .all()
+    )
     
     write_audit(db, "lecturer.get_courses", current.id)
     return [
@@ -41,7 +47,9 @@ def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(
             "semester": course.semester,
             "is_active": course.is_active,
             "created_at": course.created_at.isoformat(),
-            "session_count": len(course.sessions)
+            "session_count": len(course.sessions),
+            "programmes": [p.programme for p in course.programmes],
+            "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
         }
         for course in courses
     ]
@@ -60,6 +68,7 @@ def browse_all_courses(
 
     Lecturers use this to find courses they can claim for a semester.
     Returns all courses with optional search (code or name) and semester filters.
+    Multiple lecturers can claim the same course.
     """
     query = db.query(Course).filter(Course.is_active == True)
 
@@ -81,11 +90,12 @@ def browse_all_courses(
             "name": c.name,
             "description": c.description,
             "semester": c.semester,
-            "lecturer_id": c.lecturer_id,
-            "lecturer_name": c.lecturer.full_name if c.lecturer else None,
+            "lecturer_ids": [l.id for l in c.lecturers],
+            "lecturer_names": [l.full_name for l in c.lecturers if l.full_name],
             "is_active": c.is_active,
-            "is_claimed": c.lecturer_id is not None,
-            "is_mine": c.lecturer_id == current.id,
+            "is_claimed": len(c.lecturers) > 0,
+            "is_mine": any(l.id == current.id for l in c.lecturers),
+            "programmes": [p.programme for p in c.programmes],
             "created_at": c.created_at.isoformat() if c.created_at else None,
         }
         for c in courses
@@ -98,10 +108,10 @@ def claim_course(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_lecturer),
 ):
-    """Claim an unassigned course.
+    """Claim a course.
 
-    Sets the current lecturer as the course's lecturer.
-    Fails if the course is already claimed by another lecturer.
+    Adds the current lecturer as one of the course's lecturers.
+    Multiple lecturers can claim the same course (e.g. for different programmes).
     """
     course = db.query(Course).filter(
         Course.id == course_id,
@@ -111,13 +121,16 @@ def claim_course(
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
 
-    if course.lecturer_id is not None and course.lecturer_id != current.id:
-        raise HTTPException(status_code=400, detail="Course is already claimed by another lecturer")
+    # Check if already claimed by this lecturer
+    already_claimed = db.query(CourseLecturer).filter(
+        CourseLecturer.course_id == course_id,
+        CourseLecturer.lecturer_id == current.id,
+    ).first()
 
-    if course.lecturer_id == current.id:
+    if already_claimed:
         raise HTTPException(status_code=400, detail="You have already claimed this course")
 
-    course.lecturer_id = current.id
+    db.add(CourseLecturer(course_id=course_id, lecturer_id=current.id))
     db.commit()
     db.refresh(course)
 
@@ -128,7 +141,8 @@ def claim_course(
         "name": course.name,
         "description": course.description,
         "semester": course.semester,
-        "lecturer_id": course.lecturer_id,
+        "lecturer_ids": [l.id for l in course.lecturers],
+        "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
         "is_active": course.is_active,
         "message": f"Successfully claimed course {course.code}",
     }
@@ -139,22 +153,22 @@ def unclaim_course(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_lecturer),
 ):
-    """Remove yourself as the lecturer of a course.
+    """Remove yourself as a lecturer of a course.
 
-    Only works if you are the current lecturer. The course remains in the
-    system but becomes unassigned so another lecturer can claim it.
+    Only works if you are one of the course's lecturers. The course remains
+    in the system; other lecturers (if any) keep their assignment.
     """
-    course = db.query(Course).filter(
-        Course.id == course_id,
-        Course.lecturer_id == current.id,
+    link = db.query(CourseLecturer).filter(
+        CourseLecturer.course_id == course_id,
+        CourseLecturer.lecturer_id == current.id,
     ).first()
 
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found or you are not the lecturer")
+    if not link:
+        raise HTTPException(status_code=404, detail="Course not found or you are not a lecturer")
 
-    course.lecturer_id = None
+    course = db.query(Course).filter(Course.id == course_id).first()
+    db.delete(link)
     db.commit()
-    db.refresh(course)
 
     write_audit(db, "lecturer.unclaim_course", current.id, f"course_id={course_id}")
     return {
@@ -171,10 +185,15 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
     """Get detailed information about a specific course including enrolled students"""
     from ....models.student_course_enrollment import StudentCourseEnrollment
     
-    course = db.query(Course).filter(
-        Course.id == course_id,
-        Course.lecturer_id == current.id
-    ).first()
+    course = (
+        db.query(Course)
+        .join(CourseLecturer, Course.id == CourseLecturer.course_id)
+        .filter(
+            Course.id == course_id,
+            CourseLecturer.lecturer_id == current.id,
+        )
+        .first()
+    )
     
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -197,9 +216,10 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
         "description": course.description,
         "semester": course.semester,
         "level": course.level,
-        "programme": course.programme,
+        "programmes": [p.programme for p in course.programmes],
         "is_active": course.is_active,
         "created_at": course.created_at.isoformat(),
+        "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
         "enrolled_students": [
             {
                 "id": enrollment.student.id,
@@ -237,10 +257,15 @@ def update_course(
     current: User = Depends(get_current_lecturer)
 ):
     """Update course information"""
-    course = db.query(Course).filter(
-        Course.id == course_id,
-        Course.lecturer_id == current.id
-    ).first()
+    course = (
+        db.query(Course)
+        .join(CourseLecturer, Course.id == CourseLecturer.course_id)
+        .filter(
+            Course.id == course_id,
+            CourseLecturer.lecturer_id == current.id,
+        )
+        .first()
+    )
     
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -300,12 +325,17 @@ def create_session(
         If latitude and longitude are provided, a default geofence radius of 100 meters is set unless geofence_radius_m is given.
         The radius can be adjusted later using the geofence endpoint.
     """
-    # Verify the course belongs to the lecturer
-    course = db.query(Course).filter(
-        Course.id == course_id,
-        Course.lecturer_id == current.id,
-        Course.is_active == True
-    ).first()
+    # Verify the lecturer is assigned to this course
+    course = (
+        db.query(Course)
+        .join(CourseLecturer, Course.id == CourseLecturer.course_id)
+        .filter(
+            Course.id == course_id,
+            CourseLecturer.lecturer_id == current.id,
+            Course.is_active == True,
+        )
+        .first()
+    )
     
     if not course:
         raise HTTPException(status_code=404, detail="Course not found or not accessible")
@@ -686,7 +716,12 @@ def reject_flagged_attendance(record_id: int, db: Session = Depends(get_db), cur
 def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     from datetime import datetime
     now = utcnow()
-    total_courses = db.query(Course).filter(Course.lecturer_id == current.id, Course.is_active == True).count()
+    total_courses = (
+        db.query(Course)
+        .join(CourseLecturer, Course.id == CourseLecturer.course_id)
+        .filter(CourseLecturer.lecturer_id == current.id, Course.is_active == True)
+        .count()
+    )
     total_sessions = db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == current.id).count()
     active_sessions = (
         db.query(AttendanceSession)

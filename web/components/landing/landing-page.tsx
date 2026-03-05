@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { QrCode, Camera, MapPin } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STEPS = [
   {
@@ -29,6 +30,12 @@ const STEPS = [
 ];
 
 export function LandingPage() {
+  const { user, loading } = useAuth();
+
+  const dashboardHref = user
+    ? `/${user.role}/dashboard`
+    : "/auth/register";
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Main content: Hero + Steps side by side - centered in viewport */}
@@ -57,21 +64,37 @@ export function LandingPage() {
                 QR, face, and geo verification in one streamlined workflow.
               </p>
               <div className="mt-6 sm:mt-8">
-                <Link href="/auth/register" className="block sm:inline-block">
-                  <Button
-                    variant="primary"
-                    className="w-full sm:w-auto px-6 sm:px-8 min-h-[44px] sm:min-h-0"
-                    size="lg"
-                  >
-                    Get Started
-                  </Button>
-                </Link>
-                <p className="mt-4 text-sm text-gray-600">
-                  Already have an account?{" "}
-                  <Link href="/auth/login" className="text-amber-600 hover:text-amber-700 active:text-amber-800 font-medium transition-colors">
-                    Sign in
+                {loading ? (
+                  <div className="h-11" />
+                ) : user ? (
+                  <Link href={dashboardHref} className="block sm:inline-block">
+                    <Button
+                      variant="primary"
+                      className="w-full sm:w-auto px-6 sm:px-8 min-h-[44px] sm:min-h-0"
+                      size="lg"
+                    >
+                      Go to Dashboard
+                    </Button>
                   </Link>
-                </p>
+                ) : (
+                  <>
+                    <Link href="/auth/register" className="block sm:inline-block">
+                      <Button
+                        variant="primary"
+                        className="w-full sm:w-auto px-6 sm:px-8 min-h-[44px] sm:min-h-0"
+                        size="lg"
+                      >
+                        Get Started
+                      </Button>
+                    </Link>
+                    <p className="mt-4 text-sm text-gray-600">
+                      Already have an account?{" "}
+                      <Link href="/auth/login" className="text-amber-600 hover:text-amber-700 active:text-amber-800 font-medium transition-colors">
+                        Sign in
+                      </Link>
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -93,19 +116,17 @@ export function LandingPage() {
                       className="flex items-start gap-3 sm:gap-4"
                     >
                       <div
-                        className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-sm ${
-                          isAmber
+                        className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-sm ${isAmber
                             ? "bg-amber-100 text-amber-700 ring-1 ring-amber-200/50"
                             : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/50"
-                        }`}
+                          }`}
                       >
                         <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
                       <div>
                         <span
-                          className={`text-xs font-bold uppercase tracking-wider ${
-                            isAmber ? "text-amber-600" : "text-emerald-600"
-                          }`}
+                          className={`text-xs font-bold uppercase tracking-wider ${isAmber ? "text-amber-600" : "text-emerald-600"
+                            }`}
                         >
                           Step {item.step}
                         </span>

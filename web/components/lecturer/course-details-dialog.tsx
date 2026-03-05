@@ -27,9 +27,10 @@ type CourseDetails = {
     description: string | null;
     semester: string;
     level: number;
-    programme: string;
+    programmes: string[];
     is_active: boolean;
     created_at: string;
+    lecturer_names: string[];
     enrolled_students: Array<{
         id: number;
         user_id: string | null;
@@ -115,8 +116,8 @@ export function CourseDetailsDialog({
                                     <span className="ml-2 font-medium">{levelToYearLabel(courseDetails.level)}</span>
                                 </div>
                                 <div>
-                                    <span className="text-gray-500">Programme:</span>
-                                    <span className="ml-2 font-medium">{courseDetails.programme || '-'}</span>
+                                    <span className="text-gray-500">Programmes:</span>
+                                    <span className="ml-2 font-medium">{courseDetails.programmes?.join(', ') || '-'}</span>
                                 </div>
                                 <div className="col-span-2">
                                     <span className="text-gray-500">Name:</span>
@@ -204,8 +205,8 @@ export function CourseDetailsDialog({
                                                     <TableCell className="font-medium">#{session.id} - {session.code}</TableCell>
                                                     <TableCell>
                                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isSessionEffectivelyActive(session)
-                                                                ? 'bg-emerald-100 text-emerald-800'
-                                                                : 'bg-gray-100 text-gray-800'
+                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                            : 'bg-gray-100 text-gray-800'
                                                             }`}>
                                                             {isSessionEffectivelyActive(session) ? 'Active' : 'Closed'}
                                                         </span>

@@ -32,7 +32,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Trash2, Eye, Pencil, BookOpen, Users } from 'lucide-react';
+import { Plus, Search, Trash2, Eye, Pencil, BookOpen, Users, Filter } from 'lucide-react';
 import { levelToYearLabel } from '@/lib/level-utils';
 import { PROGRAMMES } from '@/lib/programmes';
 
@@ -43,9 +43,9 @@ type Course = {
     description: string | null;
     semester: string;
     level: number;
-    programme: string;
+    programmes: string[];
     is_active: boolean;
-    lecturer_name: string | null;
+    lecturer_names: string[];
     enrolled_count: number;
     session_count: number;
     created_at: string;
@@ -58,10 +58,10 @@ type CourseDetails = {
     description: string | null;
     semester: string;
     level: number;
-    programme: string;
+    programmes: string[];
     is_active: boolean;
-    lecturer_id: number | null;
-    lecturer_name: string | null;
+    lecturer_ids: number[];
+    lecturer_names: string[];
     created_at: string;
     enrolled_students: Array<{
         id: number;
@@ -87,7 +87,7 @@ type CreateCoursePayload = {
     description?: string;
     semester?: string;
     level?: number;
-    programme?: string;
+    programmes: string[];
 };
 
 const SEMESTER_OPTIONS = ['1st Semester', '2nd Semester'] as const;
@@ -100,9 +100,17 @@ const isSessionEffectivelyActive = (s: { is_active?: boolean; ends_at?: string |
 const LEVEL_OPTIONS = [100, 200, 300, 400] as const;
 const NONE_VALUE = '__none__';
 
+const YEAR_COLORS: Record<number, { bg: string; text: string }> = {
+    100: { bg: 'bg-blue-50', text: 'text-blue-700' },
+    200: { bg: 'bg-purple-50', text: 'text-purple-700' },
+    300: { bg: 'bg-amber-50', text: 'text-amber-700' },
+    400: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+};
+
 export default function AdminCoursesPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [yearFilter, setYearFilter] = useState<string>('all');
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
@@ -117,8 +125,12 @@ export default function AdminCoursesPage() {
 
     useEffect(() => { if (error) toast.error(error?.message || 'Failed to load courses'); }, [error]);
 
+    const filteredCourses = yearFilter === 'all'
+        ? courses
+        : courses.filter((c) => c.level === Number(yearFilter));
+
     const [showCreate, setShowCreate] = useState(false);
-    const [createForm, setCreateForm] = useState<CreateCoursePayload>({ code: '', name: '', description: '', semester: '', level: 100, programme: '' });
+    const [createForm, setCreateForm] = useState<CreateCoursePayload>({ code: '', name: '', description: '', semester: '', level: 100, programmes: [] });
     const [creating, setCreating] = useState(false);
 
     const [showDetails, setShowDetails] = useState(false);
@@ -129,7 +141,7 @@ export default function AdminCoursesPage() {
     const [deleting, setDeleting] = useState(false);
 
     const [showEdit, setShowEdit] = useState(false);
-    const [editForm, setEditForm] = useState<{ code: string; name: string; description: string; semester: string; level: number; programme: string }>({ code: '', name: '', description: '', semester: '', level: 100, programme: '' });
+    const [editForm, setEditForm] = useState<{ code: string; name: string; description: string; semester: string; level: number; programmes: string[] }>({ code: '', name: '', description: '', semester: '', level: 100, programmes: [] });
     const [editCourseId, setEditCourseId] = useState<number | null>(null);
     const [updating, setUpdating] = useState(false);
 
@@ -148,11 +160,11 @@ export default function AdminCoursesPage() {
                 description: createForm.description?.trim() || undefined,
                 semester: createForm.semester?.trim() || undefined,
                 level: createForm.level,
-                programme: createForm.programme?.trim() || undefined,
+                programmes: createForm.programmes.length > 0 ? createForm.programmes.join(',') : undefined,
             });
             toast.success('Course created');
             setShowCreate(false);
-            setCreateForm({ code: '', name: '', description: '', semester: '', level: 100, programme: '' });
+            setCreateForm({ code: '', name: '', description: '', semester: '', level: 100, programmes: [] });
             await mutate();
         } catch (e: any) {
             toast.error(e?.message || 'Failed to create course');
@@ -198,7 +210,7 @@ export default function AdminCoursesPage() {
             description: course.description || '',
             semester: course.semester || '',
             level: course.level || 100,
-            programme: course.programme || '',
+            programmes: course.programmes || [],
         });
         setShowEdit(true);
     };
@@ -214,7 +226,7 @@ export default function AdminCoursesPage() {
                 description: editForm.description.trim() || undefined,
                 semester: editForm.semester.trim() || undefined,
                 level: editForm.level,
-                programme: editForm.programme.trim() || undefined,
+                programmes: editForm.programmes.length > 0 ? editForm.programmes.join(',') : undefined,
             });
             toast.success('Course updated');
             setShowEdit(false);
@@ -245,15 +257,31 @@ export default function AdminCoursesPage() {
                 </div>
 
 
-                <div className="relative max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                        type="text"
-                        placeholder="Search by code or name..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                    />
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="relative max-w-md flex-1 min-w-[200px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <Input
+                            type="text"
+                            placeholder="Search by code or name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4 text-gray-400" />
+                        <Select value={yearFilter} onValueChange={setYearFilter}>
+                            <SelectTrigger className="w-[150px]">
+                                <SelectValue placeholder="Filter by year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Years</SelectItem>
+                                {LEVEL_OPTIONS.map((lvl) => (
+                                    <SelectItem key={lvl} value={String(lvl)}>{levelToYearLabel(lvl)}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
@@ -263,17 +291,17 @@ export default function AdminCoursesPage() {
                                 <BookOpen className="h-4 w-4 text-emerald-600" />
                             </div>
                             All Courses
-                            {!isLoading && <span className="text-sm font-normal text-gray-400">({courses.length})</span>}
+                            {!isLoading && <span className="text-sm font-normal text-gray-400">({filteredCourses.length}{yearFilter !== 'all' ? ` of ${courses.length}` : ''})</span>}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
                             <p className="text-gray-500 py-4">Loading courses...</p>
-                        ) : courses.length === 0 ? (
-                            <p className="text-gray-500 py-4">No courses found. Create one to get started.</p>
+                        ) : filteredCourses.length === 0 ? (
+                            <p className="text-gray-500 py-4">{yearFilter !== 'all' ? `No courses found for ${levelToYearLabel(Number(yearFilter))}.` : 'No courses found. Create one to get started.'}</p>
                         ) : (
-                            <div className="border rounded-md overflow-hidden">
-                                <Table>
+                            <div className="border rounded-md overflow-x-auto">
+                                <Table className="min-w-[800px]">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Code</TableHead>
@@ -289,61 +317,70 @@ export default function AdminCoursesPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {courses.map((course) => (
-                                            <TableRow key={course.id}>
-                                                <TableCell className="font-medium">{course.code}</TableCell>
-                                                <TableCell>{course.name}</TableCell>
-                                                <TableCell className="text-gray-500">
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                                                        {levelToYearLabel(course.level)}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-gray-500">{course.programme || '-'}</TableCell>
-                                                <TableCell className="text-gray-500">{course.semester || '-'}</TableCell>
-                                                <TableCell className="text-gray-500">{course.lecturer_name || 'Unassigned'}</TableCell>
-                                                <TableCell className="text-center">{course.enrolled_count}</TableCell>
-                                                <TableCell className="text-center">{course.session_count}</TableCell>
-                                                <TableCell>
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${course.is_active
-                                                        ? 'bg-emerald-100 text-emerald-800'
-                                                        : 'bg-gray-100 text-gray-600'
-                                                        }`}>
-                                                        {course.is_active ? 'Active' : 'Inactive'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-gray-400 hover:text-emerald-700"
-                                                            onClick={() => handleViewDetails(course.id)}
-                                                            aria-label="View details"
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-gray-400 hover:text-blue-600"
-                                                            onClick={() => openEdit(course)}
-                                                            aria-label="Edit course"
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                                            onClick={() => setCourseToDelete(course)}
-                                                            aria-label="Delete course"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {filteredCourses.map((course) => {
+                                            const yearColor = YEAR_COLORS[course.level] || { bg: 'bg-gray-50', text: 'text-gray-700' };
+                                            return (
+                                                <TableRow key={course.id}>
+                                                    <TableCell className="font-medium">{course.code}</TableCell>
+                                                    <TableCell>{course.name}</TableCell>
+                                                    <TableCell className="text-gray-500">
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${yearColor.bg} ${yearColor.text}`}>
+                                                            {levelToYearLabel(course.level)}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-gray-500">
+                                                        {course.programmes?.length ? (
+                                                            <span title={course.programmes.join(', ')} className="cursor-default">
+                                                                {course.programmes.length} prog{course.programmes.length !== 1 ? 's' : ''}...
+                                                            </span>
+                                                        ) : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-gray-500">{course.semester || '-'}</TableCell>
+                                                    <TableCell className="text-gray-500">{course.lecturer_names?.length ? course.lecturer_names.join(', ') : 'Unassigned'}</TableCell>
+                                                    <TableCell className="text-center">{course.enrolled_count}</TableCell>
+                                                    <TableCell className="text-center">{course.session_count}</TableCell>
+                                                    <TableCell>
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${course.is_active
+                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                            : 'bg-gray-100 text-gray-600'
+                                                            }`}>
+                                                            {course.is_active ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-gray-400 hover:text-emerald-700"
+                                                                onClick={() => handleViewDetails(course.id)}
+                                                                aria-label="View details"
+                                                            >
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-gray-400 hover:text-blue-600"
+                                                                onClick={() => openEdit(course)}
+                                                                aria-label="Edit course"
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                                                onClick={() => setCourseToDelete(course)}
+                                                                aria-label="Delete course"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -398,21 +435,30 @@ export default function AdminCoursesPage() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="create-programme">Programme</Label>
-                                <Select
-                                    value={createForm.programme || NONE_VALUE}
-                                    onValueChange={(v) => setCreateForm((f) => ({ ...f, programme: v === NONE_VALUE ? '' : v }))}
-                                >
-                                    <SelectTrigger id="create-programme" className="w-full">
-                                        <SelectValue placeholder="Select programme" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={NONE_VALUE}>None</SelectItem>
-                                        {PROGRAMMES.map((p) => (
-                                            <SelectItem key={p} value={p}>{p}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="create-programme">Programmes</Label>
+                                <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
+                                    {PROGRAMMES.map((p) => (
+                                        <label key={p} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={createForm.programmes.includes(p)}
+                                                onChange={(e) => {
+                                                    setCreateForm((f) => ({
+                                                        ...f,
+                                                        programmes: e.target.checked
+                                                            ? [...f.programmes, p]
+                                                            : f.programmes.filter((x) => x !== p),
+                                                    }));
+                                                }}
+                                                className="rounded border-gray-300"
+                                            />
+                                            {p}
+                                        </label>
+                                    ))}
+                                </div>
+                                {createForm.programmes.length > 0 && (
+                                    <p className="text-xs text-gray-500">{createForm.programmes.length} selected</p>
+                                )}
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -496,21 +542,30 @@ export default function AdminCoursesPage() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="edit-programme">Programme</Label>
-                                <Select
-                                    value={editForm.programme || NONE_VALUE}
-                                    onValueChange={(v) => setEditForm((f) => ({ ...f, programme: v === NONE_VALUE ? '' : v }))}
-                                >
-                                    <SelectTrigger id="edit-programme" className="w-full">
-                                        <SelectValue placeholder="Select programme" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={NONE_VALUE}>None</SelectItem>
-                                        {PROGRAMMES.map((p) => (
-                                            <SelectItem key={p} value={p}>{p}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="edit-programme">Programmes</Label>
+                                <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
+                                    {PROGRAMMES.map((p) => (
+                                        <label key={p} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={editForm.programmes.includes(p)}
+                                                onChange={(e) => {
+                                                    setEditForm((f) => ({
+                                                        ...f,
+                                                        programmes: e.target.checked
+                                                            ? [...f.programmes, p]
+                                                            : f.programmes.filter((x) => x !== p),
+                                                    }));
+                                                }}
+                                                className="rounded border-gray-300"
+                                            />
+                                            {p}
+                                        </label>
+                                    ))}
+                                </div>
+                                {editForm.programmes.length > 0 && (
+                                    <p className="text-xs text-gray-500">{editForm.programmes.length} selected</p>
+                                )}
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -580,8 +635,8 @@ export default function AdminCoursesPage() {
                                         <span className="ml-2 font-medium">{levelToYearLabel(courseDetails.level)}</span>
                                     </div>
                                     <div>
-                                        <span className="text-gray-500">Programme:</span>
-                                        <span className="ml-2 font-medium">{courseDetails.programme || '-'}</span>
+                                        <span className="text-gray-500">Programmes:</span>
+                                        <span className="ml-2 font-medium">{courseDetails.programmes?.join(', ') || '-'}</span>
                                     </div>
                                     <div className="col-span-2">
                                         <span className="text-gray-500">Name:</span>
@@ -594,8 +649,8 @@ export default function AdminCoursesPage() {
                                         </div>
                                     )}
                                     <div>
-                                        <span className="text-gray-500">Lecturer:</span>
-                                        <span className="ml-2 font-medium">{courseDetails.lecturer_name || 'Unassigned'}</span>
+                                        <span className="text-gray-500">Lecturers:</span>
+                                        <span className="ml-2 font-medium">{courseDetails.lecturer_names?.length ? courseDetails.lecturer_names.join(', ') : 'Unassigned'}</span>
                                     </div>
                                     <div>
                                         <span className="text-gray-500">Status:</span>

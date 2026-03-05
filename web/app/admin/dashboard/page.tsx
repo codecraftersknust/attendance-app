@@ -91,14 +91,14 @@ export default function AdminDashboard() {
                 {/* Academic Calendar Card */}
                 <Card className="border-gray-200/80 bg-white shadow-md">
                     <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <CardTitle className="text-base font-medium text-gray-700 flex items-center gap-2">
                                 <Calendar className="h-4 w-4" />
                                 Academic Calendar
                             </CardTitle>
                             <div className="flex items-center gap-2">
                                 <Button size="sm" variant="outline-accent" onClick={() => setShowSettingsDialog(true)}>
-                                    <Settings2 className="h-3.5 w-3.5 mr-1" /> Update Settings
+                                    <Settings2 className="h-3.5 w-3.5 mr-1" /> <span className="hidden xs:inline">Update</span> Settings
                                 </Button>
                                 <Button size="sm" variant="destructive" onClick={() => setShowCloseSemester(true)}>
                                     <AlertOctagon className="h-3.5 w-3.5 mr-1" /> End Semester

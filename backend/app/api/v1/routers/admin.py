@@ -10,7 +10,7 @@ from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.attendance_session import AttendanceSession
 from ....models.verification_log import VerificationLog
 from ....models.audit_log import AuditLog
-from ....models.course import Course
+from ....models.course import Course, CourseLecturer, CourseProgramme
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.school_settings import SchoolSettings, get_or_create_settings
 from ....services.audit import write_audit
@@ -62,9 +62,9 @@ def get_all_courses(
             "description": c.description,
             "semester": c.semester,
             "level": c.level,
-            "programme": c.programme,
-            "lecturer_id": c.lecturer_id,
-            "lecturer_name": c.lecturer.full_name if c.lecturer else None,
+            "programmes": [p.programme for p in c.programmes],
+            "lecturer_ids": [l.id for l in c.lecturers],
+            "lecturer_names": [l.full_name for l in c.lecturers if l.full_name],
             "is_active": c.is_active,
             "enrolled_count": enrolled_count,
             "session_count": session_count,
@@ -128,10 +128,10 @@ def get_course_details(
         "description": course.description,
         "semester": course.semester,
         "level": course.level,
-        "programme": course.programme,
+        "programmes": [p.programme for p in course.programmes],
         "is_active": course.is_active,
-        "lecturer_id": course.lecturer_id,
-        "lecturer_name": course.lecturer.full_name if course.lecturer else None,
+        "lecturer_ids": [l.id for l in course.lecturers],
+        "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
         "created_at": course.created_at.isoformat() if course.created_at else None,
         "enrolled_students": enrolled_students,
         "enrolled_count": len(enrolled_students),
@@ -146,11 +146,15 @@ def create_course(
     semester: str,
     description: Optional[str] = None,
     level: int = 100,
-    programme: str = "General",
+    programmes: str = "General",
     db: Session = Depends(get_db),
     current: User = Depends(get_current_admin),
 ):
-    """Create a new course (no lecturer assigned)"""
+    """Create a new course (no lecturer assigned).
+    
+    programmes: Comma-separated list of programme names, e.g.
+    "Computer Engineering,Biomedical Engineering"
+    """
     existing = db.query(Course).filter(Course.code == code).first()
     if existing:
         raise HTTPException(status_code=400, detail="Course code already exists")
@@ -164,10 +168,15 @@ def create_course(
         description=description,
         semester=semester,
         level=level,
-        programme=programme,
-        lecturer_id=None,
     )
     db.add(course)
+    db.flush()  # get course.id
+
+    # Add programme entries
+    programme_list = [p.strip() for p in programmes.split(",") if p.strip()]
+    for prog in programme_list:
+        db.add(CourseProgramme(course_id=course.id, programme=prog))
+
     db.commit()
     db.refresh(course)
 
@@ -179,8 +188,9 @@ def create_course(
         "description": course.description,
         "semester": course.semester,
         "level": course.level,
-        "programme": course.programme,
-        "lecturer_id": None,
+        "programmes": [p.programme for p in course.programmes],
+        "lecturer_ids": [],
+        "lecturer_names": [],
         "is_active": course.is_active,
     }
 
@@ -193,12 +203,15 @@ def update_course(
     description: Optional[str] = None,
     semester: Optional[str] = None,
     level: Optional[int] = None,
-    programme: Optional[str] = None,
+    programmes: Optional[str] = None,
     is_active: Optional[bool] = None,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_admin),
 ):
-    """Update any course"""
+    """Update any course.
+    
+    programmes: Comma-separated list of programme names. Replaces existing programmes.
+    """
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -220,8 +233,12 @@ def update_course(
         course.semester = semester
     if level is not None:
         course.level = level
-    if programme is not None:
-        course.programme = programme
+    if programmes is not None:
+        # Replace existing programmes
+        db.query(CourseProgramme).filter(CourseProgramme.course_id == course_id).delete()
+        programme_list = [p.strip() for p in programmes.split(",") if p.strip()]
+        for prog in programme_list:
+            db.add(CourseProgramme(course_id=course_id, programme=prog))
     if is_active is not None:
         course.is_active = is_active
 
@@ -236,9 +253,9 @@ def update_course(
         "description": course.description,
         "semester": course.semester,
         "level": course.level,
-        "programme": course.programme,
-        "lecturer_id": course.lecturer_id,
-        "lecturer_name": course.lecturer.full_name if course.lecturer else None,
+        "programmes": [p.programme for p in course.programmes],
+        "lecturer_ids": [l.id for l in course.lecturers],
+        "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
         "is_active": course.is_active,
     }
 

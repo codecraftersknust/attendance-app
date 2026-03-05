@@ -104,7 +104,7 @@ export default function LoginScreen() {
             </Text>
             <TextInput
               style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="jdadoo@st.knust.edu.gh or 8-digit ID"
+              placeholder="username@st.knust.edu.gh or 8-digit ID"
               placeholderTextColor={muted}
               value={identifier}
               onChangeText={setIdentifier}

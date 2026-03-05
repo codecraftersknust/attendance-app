@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Emerald } from '@/constants/theme';
 
-const CORNER_RADIUS = 28;
 const HEADER_HEIGHT = 48;
 
 type ScreenHeaderProps = {
@@ -13,7 +12,7 @@ type ScreenHeaderProps = {
 
 export function ScreenHeader({ title, rightContent }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
-  const paddingTop = Math.max(insets.top, Platform.OS === 'ios' ? 8 : 12) + 16;
+  const paddingTop = Math.max(insets.top, Platform.OS === 'ios' ? 8 : 12) + 8;
 
   return (
     <View style={[styles.wrapper, { paddingTop }]}>
@@ -23,8 +22,6 @@ export function ScreenHeader({ title, rightContent }: ScreenHeaderProps) {
         </Text>
         {rightContent && <View style={styles.right}>{rightContent}</View>}
       </View>
-      {/* Rounded corner transition into content area */}
-      <View style={styles.cornerMask} />
     </View>
   );
 }
@@ -32,7 +29,15 @@ export function ScreenHeader({ title, rightContent }: ScreenHeaderProps) {
 const styles = StyleSheet.create({
   wrapper: {
     backgroundColor: Emerald[900],
-    paddingBottom: 0,
+    paddingBottom: 4,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    // Shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
@@ -53,11 +58,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  cornerMask: {
-    height: CORNER_RADIUS,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: CORNER_RADIUS,
-    borderTopRightRadius: CORNER_RADIUS,
   },
 });

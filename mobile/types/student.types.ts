@@ -36,8 +36,7 @@ export interface Course {
     name: string;
     description?: string;
     semester: string;
-    lecturer_id: number;
-    lecturer_name?: string;
+    lecturer_names: string[];
     is_active: boolean;
 }
 

@@ -27,12 +27,12 @@ type Course = {
     name: string;
     description: string | null;
     semester: string;
-    lecturer_name: string | null;
+    lecturer_names: string[];
     is_enrolled?: boolean;
     enrolled_at?: string;
 };
 
-type RecommendedCourse = { id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; lecturer_name: string | null; is_enrolled: boolean };
+type RecommendedCourse = { id: number; code: string; name: string; description: string | null; semester: string; level: number; programmes: string[]; lecturer_names: string[]; is_enrolled: boolean };
 
 const studentDashboardFetcher = async () => {
     const [courses, dashboardData, historyData] = await Promise.all([
@@ -339,7 +339,7 @@ export default function StudentDashboard() {
                                                     <div className="text-sm text-gray-600 mt-0.5 truncate">{course.description}</div>
                                                 )}
                                                 <div className="text-xs text-gray-500 mt-0.5">
-                                                    {course.semester} {course.lecturer_name && `• ${course.lecturer_name}`}
+                                                    {course.semester} {course.lecturer_names?.length > 0 && `• ${course.lecturer_names.join(', ')}`}
                                                 </div>
                                             </div>
                                             {course.is_enrolled ? (
@@ -396,7 +396,7 @@ export default function StudentDashboard() {
                                                 <div className="text-sm text-gray-600 mt-1 truncate">{course.description}</div>
                                             )}
                                             <div className="text-xs text-gray-500 mt-1">
-                                                {course.semester} {course.lecturer_name && `• ${course.lecturer_name}`}
+                                                {course.semester} {course.lecturer_names?.length > 0 && `• ${course.lecturer_names.join(', ')}`}
                                             </div>
                                         </div>
                                         <Button

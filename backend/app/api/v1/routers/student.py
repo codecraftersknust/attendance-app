@@ -11,7 +11,7 @@ from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.device import Device
 from ....models.verification_log import VerificationLog
-from ....models.course import Course
+from ....models.course import Course, CourseProgramme
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.school_settings import get_or_create_settings
 from ....services.audit import write_audit
@@ -317,10 +317,11 @@ def get_recommended_courses(
 
     courses = (
         db.query(Course)
+        .join(CourseProgramme, Course.id == CourseProgramme.course_id)
         .filter(
             Course.is_active == True,
             Course.level == current.level,
-            Course.programme == current.programme,
+            CourseProgramme.programme == current.programme,
             Course.semester == school.current_semester,
         )
         .order_by(Course.code)
@@ -344,8 +345,8 @@ def get_recommended_courses(
             "description": c.description,
             "semester": c.semester,
             "level": c.level,
-            "programme": c.programme,
-            "lecturer_name": c.lecturer.full_name if c.lecturer else None,
+            "programmes": [p.programme for p in c.programmes],
+            "lecturer_names": [l.full_name for l in c.lecturers if l.full_name],
             "is_enrolled": c.id in enrolled_ids,
         }
         for c in courses
@@ -368,9 +369,13 @@ def search_courses(
 
     # Restrict to the student's own programme+level if their profile is set
     if current.level and current.programme:
-        query = query.filter(
-            Course.level == current.level,
-            Course.programme == current.programme,
+        query = (
+            query
+            .join(CourseProgramme, Course.id == CourseProgramme.course_id)
+            .filter(
+                Course.level == current.level,
+                CourseProgramme.programme == current.programme,
+            )
         )
 
     if q:
@@ -396,7 +401,7 @@ def search_courses(
             "name": course.name,
             "description": course.description,
             "semester": course.semester,
-            "lecturer_name": course.lecturer.full_name if course.lecturer else None,
+            "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
             "is_enrolled": course.id in enrolled_ids,
         }
         for course in courses
@@ -501,7 +506,7 @@ def get_enrolled_courses(
             "name": e.course.name,
             "description": e.course.description,
             "semester": e.course.semester,
-            "lecturer_name": e.course.lecturer.full_name if e.course.lecturer else None,
+            "lecturer_names": [l.full_name for l in e.course.lecturers if l.full_name],
             "enrolled_at": e.enrolled_at.isoformat(),
         }
         for e in enrollments
@@ -533,7 +538,8 @@ def enroll_in_course(
 
     # Ensure student only enrols in their own programme/level
     if current.level and current.programme:
-        if course.level != current.level or course.programme != current.programme:
+        course_programmes = [p.programme for p in course.programmes]
+        if course.level != current.level or current.programme not in course_programmes:
             raise HTTPException(
                 status_code=403,
                 detail="This course is not in your programme or level.",

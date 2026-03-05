@@ -79,12 +79,12 @@ export function Navbar() {
                         ) : user ? (
                             <div className="flex flex-col gap-2">
                                 <Link href="/dashboard" onClick={() => setIsMenuOpen(false)}>
-                                    <Button variant="outline" className="w-full min-h-[44px] border-emerald-600 text-white hover:bg-white/10 hover:border-emerald-400">
+                                    <Button variant="outline" className="w-full min-h-[44px] bg-transparent border-emerald-600 text-white hover:bg-white/10 hover:border-emerald-400">
                                         Dashboard
                                     </Button>
                                 </Link>
                                 <Link href="/profile" onClick={() => setIsMenuOpen(false)}>
-                                    <Button variant="outline" className="w-full min-h-[44px] border-emerald-600 text-white hover:bg-white/10 hover:border-emerald-400">
+                                    <Button variant="outline" className="w-full min-h-[44px] bg-transparent border-emerald-600 text-white hover:bg-white/10 hover:border-emerald-400">
                                         My Profile
                                     </Button>
                                 </Link>
@@ -100,7 +100,7 @@ export function Navbar() {
                             <div className="flex flex-col gap-2">
                                 <Link
                                     href="/auth/login"
-                                    className="block text-sm font-medium text-white hover:text-white/90 py-3 min-h-[44px] flex items-center transition-colors"
+                                    className="flex items-center text-sm font-medium text-white hover:text-white/90 py-3 min-h-[44px] transition-colors"
                                     onClick={() => setIsMenuOpen(false)}
                                 >
                                     Sign in

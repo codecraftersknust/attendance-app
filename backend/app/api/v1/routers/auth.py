@@ -17,7 +17,7 @@ from ....api.deps.auth import get_current_user
 from ....models.user import User, UserRole
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.attendance_session import AttendanceSession
-from ....models.course import Course
+from ....models.course import Course, CourseLecturer
 from ....services.face_verification import FaceVerificationService
 from ....services.audit import write_audit
 from ....storage.base import get_storage
@@ -51,7 +51,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         if not re.match(STUDENT_EMAIL_PATTERN, user_in.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Students must use a KNUST student email (e.g. jdadoo@st.knust.edu.gh)",
+                detail="Students must use a KNUST student email (e.g. username@st.knust.edu.gh)",
             )
         if not user_in.user_id or not re.match(STUDENT_ID_PATTERN, user_in.user_id):
             raise HTTPException(
@@ -264,10 +264,10 @@ def delete_account(
         synchronize_session=False
     )
 
-    # 3. If lecturer: unclaim courses and delete their sessions
+    # 3. If lecturer: remove course-lecturer links and delete their sessions
     if role == UserRole.lecturer:
-        db.query(Course).filter(Course.lecturer_id == user_id).update(
-            {Course.lecturer_id: None}, synchronize_session=False
+        db.query(CourseLecturer).filter(CourseLecturer.lecturer_id == user_id).delete(
+            synchronize_session=False
         )
         db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == user_id).delete(
             synchronize_session=False

@@ -1,8 +1,7 @@
-# Import models here so Alembic can discover metadata
 from .session import Base
 from ..models.user import User, UserRole
 from ..models.device import Device
-from ..models.course import Course
+from ..models.course import Course, CourseLecturer, CourseProgramme
 from ..models.attendance_session import AttendanceSession
 from ..models.attendance_record import AttendanceRecord, AttendanceStatus
 from ..models.verification_log import VerificationLog
@@ -15,6 +14,8 @@ __all__ = [
     "UserRole",
     "Device",
     "Course",
+    "CourseLecturer",
+    "CourseProgramme",
     "AttendanceSession",
     "AttendanceRecord",
     "AttendanceStatus",

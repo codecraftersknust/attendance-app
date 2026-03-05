@@ -182,7 +182,7 @@ export function SignupForm({
                     <Input
                         id="email"
                         type="email"
-                        placeholder={role === "student" ? "jdadoo@st.knust.edu.gh" : "lecturer@knust.edu.gh"}
+                        placeholder={role === "student" ? "username@st.knust.edu.gh" : "lecturer@knust.edu.gh"}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required

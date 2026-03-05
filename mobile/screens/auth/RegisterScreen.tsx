@@ -167,7 +167,7 @@ export default function RegisterScreen() {
             </Text>
             <TextInput
               style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="jdadoo@st.knust.edu.gh"
+              placeholder="username@st.knust.edu.gh"
               placeholderTextColor={muted}
               value={email}
               onChangeText={setEmail}

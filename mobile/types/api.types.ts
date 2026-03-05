@@ -41,7 +41,7 @@ export interface Course {
     name: string;
     description: string | null;
     semester: string;
-    lecturer_name: string | null;
+    lecturer_names: string[];
     is_enrolled?: boolean;
     enrolled_at?: string;
 }
@@ -80,8 +80,8 @@ export interface RecommendedCourse {
     description: string | null;
     semester: string;
     level: number;
-    programme: string;
-    lecturer_name: string | null;
+    programmes: string[];
+    lecturer_names: string[];
     is_enrolled: boolean;
 }
 

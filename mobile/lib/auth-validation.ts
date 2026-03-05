@@ -9,7 +9,7 @@ export const STUDENT_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@st\.knust\.edu\.gh$/;
 export const LECTURER_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@knust\.edu\.gh$/;
 export const STUDENT_ID_REGEX = /^\d{8}$/;
 
-/** Valid KNUST student email (e.g. jdadoo@st.knust.edu.gh) */
+/** Valid KNUST student email (e.g. username@st.knust.edu.gh) */
 export function isValidStudentEmail(email: string): boolean {
   return STUDENT_EMAIL_REGEX.test(email.trim());
 }
@@ -35,7 +35,7 @@ export function isSecurePassword(password: string): boolean {
 export function getStudentEmailError(email: string): string | null {
   const t = email.trim();
   if (!t) return 'Email is required';
-  if (!isValidStudentEmail(email)) return 'Use your KNUST student email (e.g. jdadoo@st.knust.edu.gh)';
+  if (!isValidStudentEmail(email)) return 'Use your KNUST student email (e.g. username@st.knust.edu.gh)';
   return null;
 }
 
@@ -81,5 +81,5 @@ export function getLoginIdentifierError(value: string): string | null {
   if (isValidLecturerId(t)) return null;
   if (isValidStudentEmail(t)) return null;
   if (isValidLecturerEmail(t)) return null;
-  return 'Enter a valid KNUST email (e.g. jdadoo@st.knust.edu.gh) or 8-digit ID';
+  return 'Enter a valid KNUST email (e.g. username@st.knust.edu.gh) or 8-digit ID';
 }

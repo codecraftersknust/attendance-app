@@ -38,11 +38,12 @@ type BrowseCourse = {
 	name: string;
 	description: string | null;
 	semester: string;
-	lecturer_id: number | null;
-	lecturer_name: string | null;
+	lecturer_ids: number[];
+	lecturer_names: string[];
 	is_active: boolean;
 	is_claimed: boolean;
 	is_mine: boolean;
+	programmes: string[];
 };
 
 const fetcher = async () => {
@@ -282,7 +283,7 @@ export default function LecturerDashboard() {
 								{courses.map((c) => (
 									<li
 										key={c.id}
-										className="py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-lg px-3 -mx-1 group"
+										className="py-4 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded-lg px-3 -mx-1 group gap-2"
 										onClick={() => {
 											setSelectedCourseId(c.id);
 											setShowCourseDetails(true);
@@ -296,7 +297,7 @@ export default function LecturerDashboard() {
 												<div className="text-sm text-gray-600 truncate mt-0.5">{c.description}</div>
 											)}
 										</div>
-										<div className="flex items-center gap-3 shrink-0">
+										<div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
 											<span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md">{c.semester}</span>
 											<Button
 												variant="ghost"
@@ -359,8 +360,8 @@ export default function LecturerDashboard() {
 											)}
 											<div className="text-xs text-gray-400 mt-0.5">
 												{c.semester}
-												{c.is_claimed && !c.is_mine && (
-													<span className="ml-2 text-amber-600">Taught by {c.lecturer_name}</span>
+												{c.is_claimed && !c.is_mine && c.lecturer_names?.length > 0 && (
+													<span className="ml-2 text-amber-600">Taught by {c.lecturer_names.join(', ')}</span>
 												)}
 											</div>
 										</div>
@@ -368,10 +369,6 @@ export default function LecturerDashboard() {
 											{c.is_mine ? (
 												<span className="inline-flex items-center text-xs font-medium text-emerald-700 bg-emerald-50 rounded-full px-2.5 py-0.5">
 													Your course
-												</span>
-											) : c.is_claimed ? (
-												<span className="inline-flex items-center text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2.5 py-0.5">
-													Taken
 												</span>
 											) : (
 												<Button

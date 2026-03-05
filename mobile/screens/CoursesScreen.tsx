@@ -247,12 +247,12 @@ export default function CoursesScreen() {
                     <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
                       {course.semester}
                     </Text>
-                    {course.lecturer_name && (
+                    {course.lecturer_names?.length > 0 && (
                       <>
                         <Text style={[styles.metaDivider, { color: colors.tabIconDefault }]}> • </Text>
                         <IconSymbol name="person.fill" size={14} color={colors.tabIconDefault} />
                         <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
-                          {course.lecturer_name}
+                          {course.lecturer_names.join(', ')}
                         </Text>
                       </>
                     )}
@@ -336,12 +336,12 @@ export default function CoursesScreen() {
                     <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
                       {course.semester}
                     </Text>
-                    {course.lecturer_name && (
+                    {course.lecturer_names?.length > 0 && (
                       <>
                         <Text style={[styles.metaDivider, { color: colors.tabIconDefault }]}> • </Text>
                         <IconSymbol name="person.fill" size={14} color={colors.tabIconDefault} />
                         <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
-                          {course.lecturer_name}
+                          {course.lecturer_names.join(', ')}
                         </Text>
                       </>
                     )}
@@ -383,13 +383,13 @@ export default function CoursesScreen() {
                         backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
                         borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
                         borderLeftWidth: 3,
-                        borderLeftColor: Emerald[500],
+                        borderLeftColor: '#3b82f6',
                       },
                     ]}
                   >
                     <View style={styles.courseHeader}>
                       <View>
-                        <Text style={[styles.courseCode, { color: colors.tint }]}>{course.code}</Text>
+                        <Text style={[styles.courseCode, { color: '#2563eb' }]}>{course.code}</Text>
                         {course.enrolled_at && (
                           <Text style={[styles.enrollmentDate, { color: colors.tabIconDefault }]}>
                             {formatEnrollmentDate(course.enrolled_at)}
@@ -418,12 +418,12 @@ export default function CoursesScreen() {
                       <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
                         {course.semester}
                       </Text>
-                      {course.lecturer_name && (
+                      {course.lecturer_names?.length > 0 && (
                         <>
                           <Text style={[styles.metaDivider, { color: colors.tabIconDefault }]}> • </Text>
                           <IconSymbol name="person.fill" size={14} color={colors.tabIconDefault} />
                           <Text style={[styles.courseMeta, { color: colors.tabIconDefault }]}>
-                            {course.lecturer_name}
+                            {course.lecturer_names.join(', ')}
                           </Text>
                         </>
                       )}

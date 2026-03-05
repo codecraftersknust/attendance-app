@@ -288,12 +288,12 @@ export default function DashboardScreen() {
             {/* Stats row - below attendance card */}
             {stats && (
               <Animated.View entering={FadeInDown.duration(500).delay(100).springify()} style={[styles.statsRow, { width: screenWidth - 40 }]}>
-                <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: Emerald[500] }, styles.statCardShadow]}>
+                <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: '#3b82f6' }, styles.statCardShadow]}>
                   <View style={styles.statCardIconWrap}>
-                    <IconSymbol name="book" size={20} color={Emerald[600]} />
+                    <IconSymbol name="book" size={20} color="#3b82f6" />
                   </View>
                   <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.enrolled_courses}</Text>
-                  <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? Emerald[400] : Emerald[700] }]}>Enrolled</Text>
+                  <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? '#60a5fa' : '#2563eb' }]}>Enrolled</Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: Emerald[500] }, styles.statCardShadow]}>
                   <View style={styles.statCardIconWrap}>
@@ -302,12 +302,12 @@ export default function DashboardScreen() {
                   <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.attendance_marked_count}</Text>
                   <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? Emerald[400] : Emerald[700] }]}>Marked</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: Emerald[500] }, styles.statCardShadow]}>
+                <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: Amber[500] }, styles.statCardShadow]}>
                   <View style={styles.statCardIconWrap}>
-                    <IconSymbol name="checkmark.circle" size={20} color={Emerald[600]} />
+                    <IconSymbol name="checkmark.circle" size={20} color={Amber[600]} />
                   </View>
                   <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.confirmed_count}</Text>
-                  <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? Emerald[400] : Emerald[700] }]}>Confirmed</Text>
+                  <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? Amber[400] : Amber[700] }]}>Confirmed</Text>
                 </View>
               </Animated.View>
             )}
@@ -394,7 +394,7 @@ export default function DashboardScreen() {
                     key={course.id}
                     style={[
                       styles.enrolledCard,
-                      { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderLeftWidth: 3, borderLeftColor: Emerald[500] },
+                      { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderLeftWidth: 3, borderLeftColor: '#3b82f6' },
                     ]}
                   >
                     <View style={styles.enrolledInfo}>
@@ -406,7 +406,7 @@ export default function DashboardScreen() {
                       <View style={styles.enrolledMetaRow}>
                         <IconSymbol name="calendar" size={12} color={colors.tabIconDefault} />
                         <Text style={[styles.enrolledMeta, { color: colors.tabIconDefault }]}>
-                          {course.semester}{course.lecturer_name ? ` • ${course.lecturer_name}` : ''}
+                          {course.semester}{course.lecturer_names?.length > 0 ? ` • ${course.lecturer_names.join(', ')}` : ''}
                         </Text>
                       </View>
                     </View>

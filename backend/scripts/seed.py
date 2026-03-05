@@ -10,7 +10,7 @@ sys.path.insert(0, str(backend_dir))
 
 from app.db.session import SessionLocal
 from app.models.user import User, UserRole
-from app.models.course import Course
+from app.models.course import Course, CourseLecturer, CourseProgramme
 from app.services.security import get_password_hash
 
 def seed_data():
@@ -62,46 +62,45 @@ def seed_data():
         
         # Create sample courses for the lecturer
         if lecturer:
-            # Check if courses already exist
-            existing_courses = db.query(Course).filter(Course.lecturer_id == lecturer.id).count()
-            if existing_courses == 0:
-                courses = [
-                    Course(
-                        code="CS101",
-                        name="Introduction to Computer Science",
-                        description="Fundamental concepts of computer science and programming",
-                        semester="Fall 2024",
-                        lecturer_id=lecturer.id,
-                        is_active=True
-                    ),
-                    Course(
-                        code="MATH201",
-                        name="Calculus I",
-                        description="Differential and integral calculus",
-                        semester="Fall 2024",
-                        lecturer_id=lecturer.id,
-                        is_active=True
-                    ),
-                    Course(
-                        code="PHYS101",
-                        name="General Physics",
-                        description="Mechanics, thermodynamics, and waves",
-                        semester="Fall 2024",
-                        lecturer_id=lecturer.id,
-                        is_active=True
-                    ),
-                    Course(
-                        code="ENG101",
-                        name="English Composition",
-                        description="Academic writing and communication skills",
-                        semester="Fall 2024",
-                        lecturer_id=lecturer.id,
-                        is_active=True
-                    )
+            # Check if courses already exist for this lecturer
+            existing = db.query(CourseLecturer).filter(CourseLecturer.lecturer_id == lecturer.id).count()
+            if existing == 0:
+                course_data = [
+                    {"code": "CS101", "name": "Introduction to Computer Science",
+                     "description": "Fundamental concepts of computer science and programming",
+                     "semester": "Fall 2024", "programmes": ["Computer Engineering", "Biomedical Engineering"]},
+                    {"code": "MATH201", "name": "Calculus I",
+                     "description": "Differential and integral calculus",
+                     "semester": "Fall 2024", "programmes": ["Computer Engineering", "Electrical Engineering"]},
+                    {"code": "PHYS101", "name": "General Physics",
+                     "description": "Mechanics, thermodynamics, and waves",
+                     "semester": "Fall 2024", "programmes": ["Computer Engineering", "Biomedical Engineering", "Electrical Engineering"]},
+                    {"code": "ENG101", "name": "English Composition",
+                     "description": "Academic writing and communication skills",
+                     "semester": "Fall 2024", "programmes": ["General"]},
                 ]
-                
-                for course in courses:
-                    db.add(course)
+
+                for cd in course_data:
+                    # Check if the course already exists by code
+                    course = db.query(Course).filter(Course.code == cd["code"]).first()
+                    if not course:
+                        course = Course(
+                            code=cd["code"],
+                            name=cd["name"],
+                            description=cd["description"],
+                            semester=cd["semester"],
+                            is_active=True
+                        )
+                        db.add(course)
+                        db.flush()
+
+                        # Add programmes
+                        for prog in cd["programmes"]:
+                            db.add(CourseProgramme(course_id=course.id, programme=prog))
+
+                    # Link lecturer to course
+                    db.add(CourseLecturer(course_id=course.id, lecturer_id=lecturer.id))
+
                 print("Created sample courses")
         
         db.commit()

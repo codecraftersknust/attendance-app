@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useMemo } from "react";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Menu } from "lucide-react";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -12,6 +12,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { useSidebar } from "@/components/ui/sidebar";
 
 const PAGE_LABELS: Record<string, string> = {
     dashboard: "Dashboard",
@@ -29,6 +30,7 @@ const PAGE_LABELS: Record<string, string> = {
 
 export function Navbar() {
     const pathname = usePathname();
+    const { toggleSidebar, isMobile } = useSidebar();
 
     const { dashboardHref, currentLabel } = useMemo(() => {
         const segments = pathname.split("/").filter(Boolean);
@@ -48,7 +50,16 @@ export function Navbar() {
 
     return (
         <header className="sticky top-0 z-50 bg-emerald-900 shadow-sm border-b shrink-0">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
+                {isMobile && (
+                    <button
+                        onClick={toggleSidebar}
+                        className="p-1.5 -ml-1.5 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                        aria-label="Open navigation menu"
+                    >
+                        <Menu className="size-5" />
+                    </button>
+                )}
                 <Breadcrumb>
                     <BreadcrumbList className="text-white">
                         {dashboardHref && !isOnDashboard && (

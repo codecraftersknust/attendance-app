@@ -251,9 +251,9 @@ class ApiClient {
         description: string | null;
         semester: string;
         level: number;
-        programme: string;
+        programmes: string[];
         is_active: boolean;
-        lecturer_name: string | null;
+        lecturer_names: string[];
         enrolled_count: number;
         session_count: number;
         created_at: string;
@@ -274,10 +274,10 @@ class ApiClient {
         description: string | null;
         semester: string;
         level: number;
-        programme: string;
+        programmes: string[];
         is_active: boolean;
-        lecturer_id: number | null;
-        lecturer_name: string | null;
+        lecturer_ids: number[];
+        lecturer_names: string[];
         created_at: string;
         enrolled_students: Array<{
             id: number;
@@ -305,15 +305,15 @@ class ApiClient {
         description?: string;
         semester?: string;
         level?: number;
-        programme?: string;
-    }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; is_active: boolean }> {
+        programmes?: string;
+    }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programmes: string[]; is_active: boolean }> {
         const qs = new URLSearchParams();
         qs.set('code', payload.code);
         qs.set('name', payload.name);
         if (payload.semester) qs.set('semester', payload.semester);
         if (payload.description) qs.set('description', payload.description);
         if (payload.level != null) qs.set('level', String(payload.level));
-        if (payload.programme) qs.set('programme', payload.programme);
+        if (payload.programmes) qs.set('programmes', payload.programmes);
         return this.request(`/admin/courses?${qs.toString()}`, { method: 'POST' });
     }
 
@@ -323,16 +323,16 @@ class ApiClient {
         description?: string;
         semester?: string;
         level?: number;
-        programme?: string;
+        programmes?: string;
         is_active?: boolean;
-    }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programme: string; is_active: boolean }> {
+    }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programmes: string[]; is_active: boolean }> {
         const qs = new URLSearchParams();
         if (payload.code) qs.set('code', payload.code);
         if (payload.name) qs.set('name', payload.name);
         if (payload.description) qs.set('description', payload.description);
         if (payload.semester) qs.set('semester', payload.semester);
         if (payload.level != null) qs.set('level', String(payload.level));
-        if (payload.programme) qs.set('programme', payload.programme);
+        if (payload.programmes) qs.set('programmes', payload.programmes);
         if (payload.is_active != null) qs.set('is_active', String(payload.is_active));
         return this.request(`/admin/courses/${courseId}?${qs.toString()}`, { method: 'PUT' });
     }
@@ -342,7 +342,7 @@ class ApiClient {
     }
 
     // Lecturer endpoints
-    async lecturerCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean; created_at?: string; session_count?: number }>> {
+    async lecturerCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; is_active: boolean; created_at?: string; session_count?: number; programmes?: string[]; lecturer_names?: string[] }>> {
         return this.request('/lecturer/courses');
     }
 
@@ -353,9 +353,10 @@ class ApiClient {
         description: string | null;
         semester: string;
         level: number;
-        programme: string;
+        programmes: string[];
         is_active: boolean;
         created_at: string;
+        lecturer_names: string[];
         enrolled_students: Array<{
             id: number;
             user_id: string | null;
@@ -378,8 +379,9 @@ class ApiClient {
 
     async lecturerBrowseCourses(params?: { search?: string; semester?: string }): Promise<Array<{
         id: number; code: string; name: string; description: string | null; semester: string;
-        lecturer_id: number | null; lecturer_name: string | null;
-        is_active: boolean; is_claimed: boolean; is_mine: boolean; created_at: string | null;
+        lecturer_ids: number[]; lecturer_names: string[];
+        is_active: boolean; is_claimed: boolean; is_mine: boolean;
+        programmes: string[]; created_at: string | null;
     }>> {
         const qs = new URLSearchParams();
         if (params?.search) qs.set('search', params.search);
@@ -491,13 +493,13 @@ class ApiClient {
 
 
     // Student course endpoints
-    async studentSearchCourses(query?: string): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_name: string | null; is_enrolled: boolean }>> {
+    async studentSearchCourses(query?: string): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_names: string[]; is_enrolled: boolean }>> {
         const qs = new URLSearchParams();
         if (query) qs.set('q', query);
         return this.request(`/student/courses/search${qs.toString() ? `?${qs.toString()}` : ''}`);
     }
 
-    async studentGetCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_name: string | null; enrolled_at: string }>> {
+    async studentGetCourses(): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_names: string[]; enrolled_at: string }>> {
         return this.request('/student/courses');
     }
 
@@ -525,8 +527,8 @@ class ApiClient {
 
     async studentGetRecommendedCourses(): Promise<Array<{
         id: number; code: string; name: string; description: string | null;
-        semester: string; level: number; programme: string;
-        lecturer_name: string | null; is_enrolled: boolean;
+        semester: string; level: number; programmes: string[];
+        lecturer_names: string[]; is_enrolled: boolean;
     }>> {
         return this.request('/student/courses/recommended');
     }
