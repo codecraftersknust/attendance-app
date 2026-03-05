@@ -45,7 +45,7 @@ export function SessionList() {
             setBusyId(id);
             const res = await apiClient.lecturerRegenerateSessionCode(id);
             toast.success(`New code: ${res.code}`);
-            await load();
+            await mutate();
         } catch (e: any) {
             toast.error(e?.message || "Failed to regenerate");
         } finally {
