@@ -73,13 +73,15 @@ export function getPasswordError(password: string): string | null {
   return null;
 }
 
-/** For login: accept student email, lecturer email, student ID, or lecturer ID (8 digits) */
+/** For login: accept any valid email or an 8-digit ID */
 export function getLoginIdentifierError(value: string): string | null {
   const t = value.trim();
   if (!t) return "Email or ID is required";
   if (isValidStudentId(t)) return null;
-  if (isValidLecturerId(t)) return null;
-  if (isValidStudentEmail(t)) return null;
-  if (isValidLecturerEmail(t)) return null;
-  return "Enter a valid KNUST email (e.g. jdadoo@st.knust.edu.gh) or 8-digit ID";
+
+  // Basic email regex for login - more permissive than registration
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (emailRegex.test(t)) return null;
+
+  return "Enter a valid email or 8-digit ID";
 }

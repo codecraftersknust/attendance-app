@@ -71,12 +71,12 @@ export function LoginForm({
                                 </p>
                             </div>
                             <Field>
-                                <FieldLabel htmlFor="email">Email or Student ID <span className="text-red-500">*</span></FieldLabel>
+                                <FieldLabel htmlFor="email">Email or KNUST ID <span className="text-red-500">*</span></FieldLabel>
                                 <Input
                                     id="email"
                                     type="text"
                                     autoComplete="username"
-                                    placeholder="jdadoo@st.knust.edu.gh or 8-digit ID"
+                                    placeholder="Email or 8-digit ID"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
