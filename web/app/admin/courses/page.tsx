@@ -33,6 +33,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Plus, Search, Trash2, Eye, Pencil, BookOpen, Users } from 'lucide-react';
+import { levelToYearLabel } from '@/lib/level-utils';
+import { PROGRAMMES } from '@/lib/programmes';
 
 type Course = {
     id: number;
@@ -96,12 +98,6 @@ const isSessionEffectivelyActive = (s: { is_active?: boolean; ends_at?: string |
     return new Date(s.ends_at) > new Date();
 };
 const LEVEL_OPTIONS = [100, 200, 300, 400] as const;
-const PROGRAMME_OPTIONS = [
-    'Computer Engineering',
-    'Telecommunication Engineering',
-    'Electrical Engineering',
-    'Biomedical Engineering',
-] as const;
 const NONE_VALUE = '__none__';
 
 export default function AdminCoursesPage() {
@@ -282,7 +278,7 @@ export default function AdminCoursesPage() {
                                         <TableRow>
                                             <TableHead>Code</TableHead>
                                             <TableHead>Name</TableHead>
-                                            <TableHead>Level</TableHead>
+                                            <TableHead>Year</TableHead>
                                             <TableHead>Programme</TableHead>
                                             <TableHead>Semester</TableHead>
                                             <TableHead>Lecturer</TableHead>
@@ -299,7 +295,7 @@ export default function AdminCoursesPage() {
                                                 <TableCell>{course.name}</TableCell>
                                                 <TableCell className="text-gray-500">
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                                                        Yr {course.level / 100}
+                                                        {levelToYearLabel(course.level)}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="text-gray-500">{course.programme || '-'}</TableCell>
@@ -386,17 +382,17 @@ export default function AdminCoursesPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="create-level">Level</Label>
+                                <Label htmlFor="create-level">Year</Label>
                                 <Select
                                     value={String(createForm.level ?? 100)}
                                     onValueChange={(v) => setCreateForm((f) => ({ ...f, level: Number(v) }))}
                                 >
                                     <SelectTrigger id="create-level" className="w-full">
-                                        <SelectValue placeholder="Select level" />
+                                        <SelectValue placeholder="Select year" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {LEVEL_OPTIONS.map((lvl) => (
-                                            <SelectItem key={lvl} value={String(lvl)}>Level {lvl}</SelectItem>
+                                            <SelectItem key={lvl} value={String(lvl)}>{levelToYearLabel(lvl)}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -412,7 +408,7 @@ export default function AdminCoursesPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value={NONE_VALUE}>None</SelectItem>
-                                        {PROGRAMME_OPTIONS.map((p) => (
+                                        {PROGRAMMES.map((p) => (
                                             <SelectItem key={p} value={p}>{p}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -484,17 +480,17 @@ export default function AdminCoursesPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="edit-level">Level</Label>
+                                <Label htmlFor="edit-level">Year</Label>
                                 <Select
                                     value={String(editForm.level ?? 100)}
                                     onValueChange={(v) => setEditForm((f) => ({ ...f, level: Number(v) }))}
                                 >
                                     <SelectTrigger id="edit-level" className="w-full">
-                                        <SelectValue placeholder="Select level" />
+                                        <SelectValue placeholder="Select year" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {LEVEL_OPTIONS.map((lvl) => (
-                                            <SelectItem key={lvl} value={String(lvl)}>Level {lvl}</SelectItem>
+                                            <SelectItem key={lvl} value={String(lvl)}>{levelToYearLabel(lvl)}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -510,7 +506,7 @@ export default function AdminCoursesPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value={NONE_VALUE}>None</SelectItem>
-                                        {PROGRAMME_OPTIONS.map((p) => (
+                                        {PROGRAMMES.map((p) => (
                                             <SelectItem key={p} value={p}>{p}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -580,8 +576,8 @@ export default function AdminCoursesPage() {
                                         <span className="ml-2 font-medium">{courseDetails.semester}</span>
                                     </div>
                                     <div>
-                                        <span className="text-gray-500">Level:</span>
-                                        <span className="ml-2 font-medium">Level {courseDetails.level}</span>
+                                        <span className="text-gray-500">Year:</span>
+                                        <span className="ml-2 font-medium">{levelToYearLabel(courseDetails.level)}</span>
                                     </div>
                                     <div>
                                         <span className="text-gray-500">Programme:</span>

@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -26,23 +28,77 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 face_service = FaceVerificationService()
 
 
+# KNUST validation patterns
+STUDENT_EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@st\.knust\.edu\.gh$"
+LECTURER_EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@knust\.edu\.gh$"
+STUDENT_ID_PATTERN = r"^\d{8}$"
+
+
 @router.post("/register", response_model=UserRead)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     # Check if email already exists
     existing_email = db.query(User).filter(User.email == user_in.email).first()
     if existing_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    
+
+    try:
+        role = UserRole(user_in.role)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    # KNUST email validation by role
+    if role == UserRole.student:
+        if not re.match(STUDENT_EMAIL_PATTERN, user_in.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Students must use a KNUST student email (e.g. jdadoo@st.knust.edu.gh)",
+            )
+        if not user_in.user_id or not re.match(STUDENT_ID_PATTERN, user_in.user_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Student ID is required and must be exactly 8 digits",
+            )
+        if not user_in.full_name or not user_in.full_name.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Full name is required")
+        if not user_in.level:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Level is required")
+        if not user_in.programme or not user_in.programme.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Programme is required")
+    elif role == UserRole.lecturer:
+        if not re.match(LECTURER_EMAIL_PATTERN, user_in.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Lecturers must use a KNUST lecturer email (e.g. lecturer@knust.edu.gh)",
+            )
+        if not user_in.full_name or not user_in.full_name.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Full name is required")
+        if not user_in.user_id or not re.match(STUDENT_ID_PATTERN, user_in.user_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Lecturer ID is required and must be exactly 8 digits",
+            )
+    elif role == UserRole.admin:
+        if not re.match(LECTURER_EMAIL_PATTERN, user_in.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Admins must use a KNUST institutional email (e.g. admin@knust.edu.gh)",
+            )
+        if not user_in.full_name or not user_in.full_name.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Full name is required")
+
+    # Password strength: min 8 chars, at least one letter and one number
+    if len(user_in.password) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters")
+    if not re.search(r"[a-zA-Z]", user_in.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must contain at least one letter")
+    if not re.search(r"\d", user_in.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must contain at least one number")
+
     # Check if user_id already exists (if provided)
     if user_in.user_id:
         existing_user_id = db.query(User).filter(User.user_id == user_in.user_id).first()
         if existing_user_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID already registered")
-    
-    try:
-        role = UserRole(user_in.role)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid role")
     
     user = User(
         email=user_in.email,
@@ -154,8 +210,12 @@ def change_password(
     if not verify_password(payload.current_password, current.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-    if len(payload.new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    if not re.search(r"[a-zA-Z]", payload.new_password):
+        raise HTTPException(status_code=400, detail="New password must contain at least one letter")
+    if not re.search(r"\d", payload.new_password):
+        raise HTTPException(status_code=400, detail="New password must contain at least one number")
 
     current.hashed_password = get_password_hash(payload.new_password)
     db.commit()

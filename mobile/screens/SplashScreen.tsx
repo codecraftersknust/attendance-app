@@ -17,10 +17,10 @@ export default function SplashScreen() {
     const colors = Colors[colorScheme ?? 'light'];
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            {/* Animated Logo with Emerald Green */}
+        <View style={[styles.container, { backgroundColor: '#ffffff' }]}>
+            {/* Animated Logo with Spinning Effect */}
             <View style={styles.logoContainer}>
-                <AnimatedLogo color="#10b981" />
+                <AnimatedLogo />
             </View>
 
             {/* Loading Indicator */}

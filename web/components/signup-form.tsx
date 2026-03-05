@@ -10,28 +10,40 @@ import {
     FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import Link from "next/link";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useTopLoader } from "nextjs-toploader";
+import {
+    getStudentEmailError,
+    getLecturerEmailError,
+    getStudentIdError,
+    getLecturerIdError,
+    getPasswordError,
+} from "@/lib/auth-validation";
+import { LEVELS, levelToYearLabel } from "@/lib/level-utils";
+import { PROGRAMMES } from "@/lib/programmes";
 
-const PROGRAMMES = [
-    "Computer Engineering",
-    "Telecommunication Engineering",
-    "Electrical Engineering",
-    "Biomedical Engineering",
-];
-const LEVELS = [100, 200, 300, 400];
+type Role = "student" | "lecturer";
 
 export function SignupForm({
     className,
     ...props
 }: React.ComponentProps<"form">) {
+    const [role, setRole] = useState<Role>("student");
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [studentId, setStudentId] = useState("");
+    const [lecturerId, setLecturerId] = useState("");
     const [level, setLevel] = useState<number>(100);
     const [programme, setProgramme] = useState("");
     const [password, setPassword] = useState("");
@@ -45,33 +57,42 @@ export function SignupForm({
         e.preventDefault();
 
         if (!fullName.trim()) {
-            toast.error("Fill in your full name");
+            toast.error("Full name is required");
             return;
         }
 
-        if (!email.trim()) {
-            toast.error("Fill in your email");
+        const emailErr = role === "student" ? getStudentEmailError(email) : getLecturerEmailError(email);
+        if (emailErr) {
+            toast.error(emailErr);
             return;
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            toast.error("Check your email address");
-            return;
+        if (role === "student") {
+            const idErr = getStudentIdError(studentId);
+            if (idErr) {
+                toast.error(idErr);
+                return;
+            }
+            if (!programme.trim()) {
+                toast.error("Please select your programme");
+                return;
+            }
+        } else {
+            const idErr = getLecturerIdError(lecturerId);
+            if (idErr) {
+                toast.error(idErr);
+                return;
+            }
         }
 
-        if (!programme.trim()) {
-            toast.error("Please select your programme");
+        const pwdErr = getPasswordError(password);
+        if (pwdErr) {
+            toast.error(pwdErr);
             return;
         }
 
         if (password !== confirmPassword) {
             toast.error("Passwords don't match");
-            return;
-        }
-
-        if (password.length < 6) {
-            toast.error("Use at least 6 characters for password");
             return;
         }
 
@@ -81,15 +102,15 @@ export function SignupForm({
                 email: email.trim(),
                 password,
                 full_name: fullName.trim(),
-                user_id: studentId.trim() || undefined,
-                role: "student",
-                level,
-                programme: programme.trim(),
+                role,
+                user_id: role === "student" ? studentId.trim() : lecturerId.trim(),
+                level: role === "student" ? level : undefined,
+                programme: role === "student" ? programme.trim() : undefined,
             });
 
             toast.success("Account created successfully!");
             start();
-            router.push("/auth/setup-face");
+            router.push(role === "student" ? "/auth/setup-face" : "/dashboard");
         } catch {
             // Error handled in register
         } finally {
@@ -114,92 +135,142 @@ export function SignupForm({
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field>
-                        <FieldLabel htmlFor="fullName">
-                            Full Name <span className="text-red-500">*</span>
-                        </FieldLabel>
-                        <Input
-                            id="fullName"
-                            type="text"
-                            placeholder="Enter your full name"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            required
-                        />
-                    </Field>
-                    <Field>
-                        <FieldLabel htmlFor="email">
-                            Email <span className="text-red-500">*</span>
-                        </FieldLabel>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="your.email@example.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </Field>
-                </div>
+                <Field>
+                    <FieldLabel>Role <span className="text-red-500">*</span></FieldLabel>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setRole("student")}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${role === "student"
+                                ? "bg-emerald-100 border-emerald-600 text-emerald-800"
+                                : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                                }`}
+                        >
+                            Student
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setRole("lecturer")}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${role === "lecturer"
+                                ? "bg-emerald-100 border-emerald-600 text-emerald-800"
+                                : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                                }`}
+                        >
+                            Lecturer
+                        </button>
+                    </div>
+                </Field>
 
                 <Field>
-                    <FieldLabel htmlFor="student_id">
-                        Student ID <span className="text-gray-500">(Optional)</span>
+                    <FieldLabel htmlFor="fullName">
+                        Full Name <span className="text-red-500">*</span>
                     </FieldLabel>
                     <Input
-                        id="student_id"
+                        id="fullName"
                         type="text"
-                        placeholder="e.g., STU12345"
-                        value={studentId}
-                        onChange={(e) => setStudentId(e.target.value)}
+                        placeholder="Enter your full name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
                     />
                 </Field>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field>
+                    <FieldLabel htmlFor="email">
+                        Email <span className="text-red-500">*</span>
+                    </FieldLabel>
+                    <Input
+                        id="email"
+                        type="email"
+                        placeholder={role === "student" ? "jdadoo@st.knust.edu.gh" : "lecturer@knust.edu.gh"}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                </Field>
+
+                {role === "student" && (
                     <Field>
-                        <FieldLabel>
-                            Level <span className="text-red-500">*</span>
+                        <FieldLabel htmlFor="student_id">
+                            Student ID <span className="text-red-500">*</span>
                         </FieldLabel>
-                        <div className="flex flex-wrap gap-2">
-                            {LEVELS.map((lvl) => (
-                                <button
-                                    key={lvl}
-                                    type="button"
-                                    onClick={() => setLevel(lvl)}
-                                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                                        level === lvl
-                                            ? "bg-emerald-100 border-emerald-600 text-emerald-800"
-                                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                                    }`}
-                                >
-                                    {lvl}
-                                </button>
-                            ))}
-                        </div>
+                        <Input
+                            id="student_id"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\d{8}"
+                            placeholder="8 digits (e.g. 12345678)"
+                            value={studentId}
+                            onChange={(e) => setStudentId(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                            required
+                        />
                     </Field>
+                )}
+
+                {role === "lecturer" && (
                     <Field>
-                        <FieldLabel>
-                            Programme <span className="text-red-500">*</span>
+                        <FieldLabel htmlFor="lecturer_id">
+                            Lecturer ID <span className="text-red-500">*</span>
                         </FieldLabel>
-                        <div className="flex flex-wrap gap-2">
-                            {PROGRAMMES.map((prog) => (
-                                <button
-                                    key={prog}
-                                    type="button"
-                                    onClick={() => setProgramme(prog)}
-                                    className={`px-2 py-1.5 rounded-lg border text-xs font-medium transition-colors truncate max-w-full ${
-                                        programme === prog
-                                            ? "bg-emerald-100 border-emerald-600 text-emerald-800"
-                                            : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                                    }`}
-                                >
-                                    {prog}
-                                </button>
-                            ))}
-                        </div>
+                        <Input
+                            id="lecturer_id"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\d{8}"
+                            placeholder="8 digits (e.g. 12345678)"
+                            value={lecturerId}
+                            onChange={(e) => setLecturerId(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                            required
+                        />
                     </Field>
-                </div>
+                )}
+
+                {role === "student" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-4">
+                        <Field>
+                            <FieldLabel>
+                                Year <span className="text-red-500">*</span>
+                            </FieldLabel>
+                            <Select
+                                value={level ? level.toString() : ""}
+                                onValueChange={(v) => setLevel(parseInt(v))}
+                                required
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select your year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {LEVELS.map((lvl) => (
+                                        <SelectItem key={lvl} value={lvl.toString()}>
+                                            {levelToYearLabel(lvl)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Field>
+                            <FieldLabel>
+                                Programme <span className="text-red-500">*</span>
+                            </FieldLabel>
+                            <Select
+                                value={programme || ""}
+                                onValueChange={(v) => setProgramme(v)}
+                                required
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select your programme" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {PROGRAMMES.map((prog) => (
+                                        <SelectItem key={prog} value={prog}>
+                                            {prog}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field>
@@ -210,11 +281,11 @@ export function SignupForm({
                             id="password"
                             name="password"
                             type="password"
-                            placeholder="At least 6 characters"
+                            placeholder="Min 8 chars, letter + number"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            minLength={6}
+                            minLength={8}
                         />
                     </Field>
                     <Field>
@@ -228,7 +299,7 @@ export function SignupForm({
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
-                            minLength={6}
+                            minLength={8}
                         />
                     </Field>
                 </div>

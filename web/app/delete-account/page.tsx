@@ -105,7 +105,7 @@ export default function DeleteAccountPage() {
                     </p>
                     <ul className="mt-4 space-y-2 list-disc list-inside text-gray-700">
                         <li>Account information (email, name, user ID, password)</li>
-                        <li>Profile data (level, programme, role)</li>
+                        <li>Profile data (year, programme, role)</li>
                         <li>Face reference image (used for verification)</li>
                         <li>Device bindings</li>
                         <li>Course enrollments</li>

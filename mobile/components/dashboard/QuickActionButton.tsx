@@ -26,7 +26,7 @@ export default function QuickActionButton({
                 <ActivityIndicator color="#ffffff" />
             ) : (
                 <>
-                    {icon && <IconSymbol name={icon} size={20} color="#ffffff" />}
+                    {icon && <IconSymbol name={icon as any} size={20} color="#ffffff" />}
                     <Text style={styles.label}>{label}</Text>
                 </>
             )}

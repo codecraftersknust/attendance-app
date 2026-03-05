@@ -283,7 +283,7 @@ export default function CoursesScreen() {
             ) : filteredRecommended.length === 0 ? (
               <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
                 {recommendedCourses.length === 0
-                  ? 'No courses found for your programme and level this semester.'
+                  ? 'No courses found for your programme and year this semester.'
                   : 'No courses match your search.'}
               </Text>
             ) : (

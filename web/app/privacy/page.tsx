@@ -29,7 +29,7 @@ export default function PrivacyPage() {
                         <li>User or student ID (as assigned by your institution)</li>
                         <li>Password (stored in encrypted form)</li>
                         <li>Role (student, lecturer, or administrator)</li>
-                        <li>For students: level, programme, and course enrollments</li>
+                        <li>For students: year, programme, and course enrollments</li>
                     </ul>
                     <h3 className="mt-4 text-base font-medium text-gray-900">Verification and Attendance Data</h3>
                     <ul className="mt-2 list-disc pl-6 text-gray-700 space-y-1">

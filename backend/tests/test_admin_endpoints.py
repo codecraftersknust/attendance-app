@@ -1,25 +1,26 @@
 def test_admin_flagged_list_set_status_and_analytics(client):
     # Create admin
     r = client.post("/api/v1/auth/register", json={
-        "email": "admin1@example.com",
+        "email": "admin1@knust.edu.gh",
         "password": "pw123456",
         "full_name": "Admin One",
         "role": "admin",
     })
     assert r.status_code == 200
-    r = client.post("/api/v1/auth/login", data={"username": "admin1@example.com", "password": "pw123456"})
+    r = client.post("/api/v1/auth/login", data={"username": "admin1@knust.edu.gh", "password": "pw123456"})
     admin_token = r.json()["access_token"]
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
     # Create lecturer and session
     r = client.post("/api/v1/auth/register", json={
-        "email": "lect2@example.com",
+        "email": "lect2@knust.edu.gh",
         "password": "pw123456",
         "full_name": "Lect Two",
         "role": "lecturer",
+        "user_id": "87654321",
     })
     assert r.status_code == 200
-    r = client.post("/api/v1/auth/login", data={"username": "lect2@example.com", "password": "pw123456"})
+    r = client.post("/api/v1/auth/login", data={"username": "lect2@knust.edu.gh", "password": "pw123456"})
     lect_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
     r = client.post("/api/v1/lecturer/sessions", headers=lect_headers, json={"duration_minutes": 5})
     sid = r.json()["id"]
@@ -34,12 +35,16 @@ def test_admin_flagged_list_set_status_and_analytics(client):
 
     # Create student and submit attendance without binding device => flagged
     r = client.post("/api/v1/auth/register", json={
-        "email": "stu2@example.com",
+        "email": "stu2@st.knust.edu.gh",
         "password": "pw123456",
         "full_name": "Stu Two",
         "role": "student",
+        "user_id": "87654321",
+        "level": 100,
+        "programme": "Computer Engineering",
     })
-    r = client.post("/api/v1/auth/login", data={"username": "stu2@example.com", "password": "pw123456"})
+    assert r.status_code == 200
+    r = client.post("/api/v1/auth/login", data={"username": "stu2@st.knust.edu.gh", "password": "pw123456"})
     stu_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
     r = client.post(
         "/api/v1/student/attendance",

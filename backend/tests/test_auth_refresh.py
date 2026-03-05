@@ -1,15 +1,18 @@
 def test_refresh_flow(client):
     # register
     r = client.post("/api/v1/auth/register", json={
-        "email": "r1@example.com",
+        "email": "r1@st.knust.edu.gh",
         "password": "pw123456",
         "full_name": "R One",
         "role": "student",
+        "user_id": "22222222",
+        "level": 100,
+        "programme": "Computer Engineering",
     })
     assert r.status_code == 200
 
     # login
-    r = client.post("/api/v1/auth/login", data={"username": "r1@example.com", "password": "pw123456"})
+    r = client.post("/api/v1/auth/login", data={"username": "r1@st.knust.edu.gh", "password": "pw123456"})
     assert r.status_code == 200
     data = r.json()
     assert "refresh_token" in data

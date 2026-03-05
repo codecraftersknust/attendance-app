@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Platform,
   ImageBackground,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,9 +34,11 @@ export default function OnboardingScreen() {
       <View style={[styles.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}>
         {/* Hero */}
         <View style={styles.hero}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoText}>A</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/absense-logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.brandName}>Absense</Text>
           <Text style={styles.tagline}>Smart attendance for KNUST</Text>
         </View>
@@ -45,23 +48,23 @@ export default function OnboardingScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => router.push('/(auth)/login')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.primaryButtonText}>Sign In</Text>
-          <IconSymbol name="chevron.right" size={20} color="#ffffff" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push('/(auth)/login')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.primaryButtonText}>Sign In</Text>
+            <IconSymbol name="chevron.right" size={20} color="#ffffff" />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.secondaryButton, { borderColor: Amber[400] }]}
-          onPress={() => router.push('/(auth)/register')}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.secondaryButtonText, { color: Amber[400] }]}>Create Account</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor: Amber[400] }]}
+            onPress={() => router.push('/(auth)/register')}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.secondaryButtonText, { color: Amber[400] }]}>Create Account</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ImageBackground>
   );
@@ -83,30 +86,11 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
   },
-  logoCircle: {
+  logoImage: {
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: Emerald[900],
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  logoText: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#ffffff',
   },
   brandName: {
     fontSize: 28,

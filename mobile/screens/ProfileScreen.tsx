@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
+    FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Emerald, Amber } from '@/constants/theme';
@@ -21,6 +22,8 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { useToast } from '@/contexts/ToastContext';
 import { getErrorMessage } from '@/utils/error';
 import apiClientService, { UserProfile } from '@/services/apiClient.service';
+import { LEVELS, levelToYearLabel } from '@/lib/level-utils';
+import { PROGRAMMES } from '@/lib/programmes';
 
 export default function ProfileScreen() {
     const colorScheme = useColorScheme();
@@ -41,8 +44,7 @@ export default function ProfileScreen() {
     const [editProgramme, setEditProgramme] = useState('');
     const [saving, setSaving] = useState(false);
 
-    const PROGRAMMES = ['Computer Engineering', 'Telecommunication Engineering', 'Electrical Engineering', 'Biomedical Engineering'];
-    const LEVELS = [100, 200, 300, 400];
+    const [programmeModalOpen, setProgrammeModalOpen] = useState(false);
 
     // Change password modal
     const [passwordVisible, setPasswordVisible] = useState(false);
@@ -271,9 +273,9 @@ export default function ProfileScreen() {
                                     <IconSymbol name="graduationcap.fill" size={16} color={colors.tint} />
                                 </View>
                                 <View style={styles.detailContent}>
-                                    <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Level</Text>
+                                    <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Year</Text>
                                     <Text style={[styles.detailValue, profile?.level ? { color: colors.text } : { color: Amber[600] }]}>
-                                        {profile?.level ? `Level ${profile.level}` : 'Not set'}
+                                        {profile?.level ? levelToYearLabel(profile.level) : 'Not set'}
                                     </Text>
                                 </View>
                             </View>
@@ -377,7 +379,7 @@ export default function ProfileScreen() {
 
                             {profile?.role === 'student' && (
                                 <>
-                                    <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Level</Text>
+                                    <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Year</Text>
                                     <View style={styles.levelRow}>
                                         {LEVELS.map((lvl) => (
                                             <TouchableOpacity
@@ -390,29 +392,47 @@ export default function ProfileScreen() {
                                                 onPress={() => setEditLevel(lvl)}
                                             >
                                                 <Text style={[styles.levelChipText, { color: editLevel === lvl ? colors.tint : colors.text }]}>
-                                                    {lvl}
+                                                    {levelToYearLabel(lvl)}
                                                 </Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
                                     <Text style={[styles.inputLabel, { color: colors.tabIconDefault }]}>Programme</Text>
-                                    <View style={styles.programmeRow}>
-                                        {PROGRAMMES.map((prog) => (
-                                            <TouchableOpacity
-                                                key={prog}
-                                                style={[
-                                                    styles.programmeChip,
-                                                    { borderColor: cardBorder, backgroundColor: inputBg },
-                                                    editProgramme === prog && { backgroundColor: colors.tint + '25', borderColor: colors.tint },
-                                                ]}
-                                                onPress={() => setEditProgramme(prog)}
-                                            >
-                                                <Text style={[styles.programmeChipText, { color: editProgramme === prog ? colors.tint : colors.text }]} numberOfLines={1}>
-                                                    {prog}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.input, styles.dropdownTouch, { backgroundColor: inputBg, borderColor: cardBorder }]}
+                                        onPress={() => setProgrammeModalOpen(true)}
+                                    >
+                                        <Text style={[styles.dropdownText, { color: editProgramme ? colors.text : colors.tabIconDefault }]} numberOfLines={1}>
+                                            {editProgramme || 'Select programme'}
+                                        </Text>
+                                        <IconSymbol name="chevron.down" size={18} color={colors.tabIconDefault} />
+                                    </TouchableOpacity>
+                                    <Modal visible={programmeModalOpen} transparent animationType="slide">
+                                        <TouchableOpacity
+                                            style={styles.modalOverlay}
+                                            activeOpacity={1}
+                                            onPress={() => setProgrammeModalOpen(false)}
+                                        >
+                                            <View style={[styles.modalContent, { backgroundColor: cardBg, maxHeight: '70%' }]} onStartShouldSetResponder={() => true}>
+                                                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Programme</Text>
+                                                <FlatList
+                                                    data={PROGRAMMES}
+                                                    keyExtractor={(item) => item}
+                                                    renderItem={({ item }) => (
+                                                        <TouchableOpacity
+                                                            style={[styles.modalOption, editProgramme === item && { backgroundColor: colors.tint + '25' }]}
+                                                            onPress={() => {
+                                                                setEditProgramme(item);
+                                                                setProgrammeModalOpen(false);
+                                                            }}
+                                                        >
+                                                            <Text style={[styles.modalOptionText, { color: editProgramme === item ? colors.tint : colors.text }]}>{item}</Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                />
+                                            </View>
+                                        </TouchableOpacity>
+                                    </Modal>
                                 </>
                             )}
 
@@ -725,6 +745,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 12,
         fontSize: 15,
+    },
+    dropdownTouch: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    dropdownText: {
+        fontSize: 15,
+        flex: 1,
+    },
+    modalOption: {
+        paddingVertical: 14,
+        paddingHorizontal: 4,
+    },
+    modalOptionText: {
+        fontSize: 16,
     },
     modalButtons: {
         flexDirection: 'row',

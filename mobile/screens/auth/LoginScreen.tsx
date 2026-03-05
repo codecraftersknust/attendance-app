@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,9 +19,10 @@ import { getErrorMessage } from '@/utils/error';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Emerald, Amber } from '@/constants/theme';
+import { getLoginIdentifierError } from '@/lib/auth-validation';
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,15 +33,21 @@ export default function LoginScreen() {
   const isDark = colorScheme === 'dark';
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      showToast('Enter your email and password', 'error');
+    const identifierErr = getLoginIdentifierError(identifier);
+    if (identifierErr) {
+      showToast(identifierErr, 'error');
+      return;
+    }
+
+    if (!password.trim()) {
+      showToast('Password is required', 'error');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      await login({ username: username.trim(), password });
+      await login({ username: identifier.trim(), password });
       showToast('Welcome back!', 'success');
       router.replace('/(tabs)');
     } catch (error) {
@@ -77,9 +85,11 @@ export default function LoginScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <View style={[styles.logoCircle, { backgroundColor: Emerald[900] }]}>
-            <Text style={styles.logoText}>A</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/absense-logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={[styles.title, { color: text }]}>Welcome Back</Text>
           <Text style={[styles.subtitle, { color: muted }]}>
             Sign in to continue to Absense
@@ -89,13 +99,15 @@ export default function LoginScreen() {
         {/* Form */}
         <View style={[styles.formCard, { backgroundColor: cardBg }]}>
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>Email or Student ID</Text>
+            <Text style={[styles.label, { color: muted }]}>
+              Email or Student ID <Text style={styles.required}>*</Text>
+            </Text>
             <TextInput
               style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="Enter your email or student ID"
+              placeholder="jdadoo@st.knust.edu.gh or 8-digit ID"
               placeholderTextColor={muted}
-              value={username}
-              onChangeText={setUsername}
+              value={identifier}
+              onChangeText={setIdentifier}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
@@ -104,7 +116,9 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>Password</Text>
+            <Text style={[styles.label, { color: muted }]}>
+              Password <Text style={styles.required}>*</Text>
+            </Text>
             <TextInput
               style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
               placeholder="Enter your password"
@@ -158,18 +172,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 36,
   },
-  logoCircle: {
+  logoImage: {
     width: 72,
     height: 72,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 20,
-  },
-  logoText: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#ffffff',
   },
   title: {
     fontSize: 26,
@@ -195,6 +202,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 10,
   },
+  required: { color: '#ef4444' },
   input: {
     height: 52,
     borderWidth: 1,

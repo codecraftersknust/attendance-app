@@ -1,15 +1,16 @@
 def test_regenerate_and_expire(client):
     # Create lecturer
     r = client.post("/api/v1/auth/register", json={
-        "email": "lect1@example.com",
+        "email": "lect1@knust.edu.gh",
         "password": "pw123456",
         "full_name": "Lect One",
         "role": "lecturer",
+        "user_id": "12345678",
     })
     assert r.status_code == 200
 
     # Login
-    r = client.post("/api/v1/auth/login", data={"username": "lect1@example.com", "password": "pw123456"})
+    r = client.post("/api/v1/auth/login", data={"username": "lect1@knust.edu.gh", "password": "pw123456"})
     assert r.status_code == 200
     token = r.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

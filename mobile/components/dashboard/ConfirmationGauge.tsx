@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import type { ColorSchemeName } from '@/hooks/use-color-scheme';
 
 interface ConfirmationGaugeProps {
     confirmedCount: number;
     totalCount: number;
-    colorScheme: ColorSchemeName;
+    colorScheme: 'light' | 'dark' | null | undefined;
 }
 
 export default function ConfirmationGauge({
@@ -29,7 +28,7 @@ export default function ConfirmationGauge({
         ]}>
             <View style={styles.header}>
                 <View style={styles.titleRow}>
-                    <IconSymbol name="gauge" size={16} color={isDark ? '#ffffff' : '#374151'} />
+                    <IconSymbol name={"gauge" as any} size={16} color={isDark ? '#ffffff' : '#374151'} />
                     <Text style={[
                         styles.title,
                         { color: isDark ? '#ffffff' : '#374151' }

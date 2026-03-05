@@ -43,6 +43,8 @@ import {
     Trash2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { levelToYearLabel, LEVELS } from '@/lib/level-utils';
+import { PROGRAMMES } from '@/lib/programmes';
 
 export default function ProfilePage() {
     const { user, refreshAuth } = useAuth();
@@ -328,11 +330,11 @@ export default function ProfilePage() {
                                                     <GraduationCap className="size-5 text-gray-400 mt-0.5 shrink-0" />
                                                     <div className="min-w-0">
                                                         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Level
+                                                            Year
                                                         </p>
                                                         <p className="text-sm mt-0.5">
                                                             {profile.level ? (
-                                                                <span className="text-gray-900">{`Level ${profile.level}`}</span>
+                                                                <span className="text-gray-900">{levelToYearLabel(profile.level)}</span>
                                                             ) : (
                                                                 <span className="text-amber-600 font-medium">Not set</span>
                                                             )}
@@ -498,17 +500,17 @@ export default function ProfilePage() {
                             {profile?.role === 'student' && (
                                 <>
                                     <div className="space-y-2">
-                                        <Label htmlFor="edit-level">Level</Label>
+                                        <Label htmlFor="edit-level">Year</Label>
                                         <Select
                                             value={String(editLevel)}
                                             onValueChange={(v) => setEditLevel(Number(v))}
                                         >
                                             <SelectTrigger id="edit-level" className="w-full">
-                                                <SelectValue placeholder="Select level" />
+                                                <SelectValue placeholder="Select year" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {[100, 200, 300, 400].map((lvl) => (
-                                                    <SelectItem key={lvl} value={String(lvl)}>Level {lvl}</SelectItem>
+                                                {LEVELS.map((lvl) => (
+                                                    <SelectItem key={lvl} value={String(lvl)}>{levelToYearLabel(lvl)}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
@@ -524,10 +526,9 @@ export default function ProfilePage() {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="__none__">None</SelectItem>
-                                                <SelectItem value="Computer Engineering">Computer Engineering</SelectItem>
-                                                <SelectItem value="Telecommunication Engineering">Telecommunication Engineering</SelectItem>
-                                                <SelectItem value="Electrical Engineering">Electrical Engineering</SelectItem>
-                                                <SelectItem value="Biomedical Engineering">Biomedical Engineering</SelectItem>
+                                                {PROGRAMMES.map((p) => (
+                                                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>

@@ -286,7 +286,7 @@ export default function AdminDashboard() {
                                     <li>Close all active attendance sessions</li>
                                     <li>Unenrol all students from this semester's courses</li>
                                     {schoolSettings?.current_semester === '2nd Semester' && (
-                                        <li>Advance every student's level (100→200, 200→300, 300→400)</li>
+                                        <li>Advance every student's year (Year 1→2, Year 2→3, Year 3→4)</li>
                                     )}
                                     <li>Mark enrolment as <strong>closed</strong> and school as <strong>on break</strong></li>
                                     <li>Advance to <strong>{schoolSettings?.current_semester === '1st Semester' ? '2nd Semester' : '1st Semester (next year)'}</strong></li>

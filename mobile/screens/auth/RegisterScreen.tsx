@@ -9,6 +9,9 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  FlatList,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +21,13 @@ import { getErrorMessage } from '@/utils/error';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Emerald, Amber } from '@/constants/theme';
+import {
+  getStudentEmailError,
+  getStudentIdError,
+  getPasswordError,
+} from '@/lib/auth-validation';
+import { LEVELS, levelToYearLabel } from '@/lib/level-utils';
+import { PROGRAMMES } from '@/lib/programmes';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -25,12 +35,11 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [studentId, setStudentId] = useState('');
-  const [level, setLevel] = useState<number>(100);
+  const [level, setLevel] = useState<number>(0);
+  const [yearModalOpen, setYearModalOpen] = useState(false);
   const [programme, setProgramme] = useState('');
+  const [programmeModalOpen, setProgrammeModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  const PROGRAMMES = ['Computer Engineering', 'Telecommunication Engineering', 'Electrical Engineering', 'Biomedical Engineering'];
-  const LEVELS = [100, 200, 300, 400];
 
   const { register } = useAuth();
   const { showToast } = useToast();
@@ -39,29 +48,39 @@ export default function RegisterScreen() {
   const isDark = colorScheme === 'dark';
 
   const handleRegister = async () => {
-    if (!email.trim() || !password.trim() || !fullName.trim()) {
-      showToast('Fill in all required fields', 'error');
+    if (!fullName.trim()) {
+      showToast('Full name is required', 'error');
       return;
     }
 
+    const emailErr = getStudentEmailError(email);
+    if (emailErr) {
+      showToast(emailErr, 'error');
+      return;
+    }
+
+    const idErr = getStudentIdError(studentId);
+    if (idErr) {
+      showToast(idErr, 'error');
+      return;
+    }
+    if (!level) {
+      showToast('Please select your year', 'error');
+      return;
+    }
     if (!programme.trim()) {
       showToast('Please select your programme', 'error');
       return;
     }
 
+    const pwdErr = getPasswordError(password);
+    if (pwdErr) {
+      showToast(pwdErr, 'error');
+      return;
+    }
+
     if (password !== confirmPassword) {
       showToast("Passwords don't match", 'error');
-      return;
-    }
-
-    if (password.length < 6) {
-      showToast('Use at least 6 characters for password', 'error');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      showToast('Check your email address', 'error');
       return;
     }
 
@@ -72,8 +91,8 @@ export default function RegisterScreen() {
         email: email.trim(),
         password,
         full_name: fullName.trim(),
-        user_id: studentId.trim() || undefined,
         role: 'student',
+        user_id: studentId.trim(),
         level,
         programme: programme.trim(),
       });
@@ -114,9 +133,11 @@ export default function RegisterScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <View style={[styles.logoCircle, { backgroundColor: Emerald[900] }]}>
-            <Text style={styles.logoText}>A</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/absense-logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={[styles.title, { color: text }]}>Create Account</Text>
           <Text style={[styles.subtitle, { color: muted }]}>
             Join Absense for smart attendance
@@ -146,7 +167,7 @@ export default function RegisterScreen() {
             </Text>
             <TextInput
               style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="your.email@example.com"
+              placeholder="jdadoo@st.knust.edu.gh"
               placeholderTextColor={muted}
               value={email}
               onChangeText={setEmail}
@@ -158,63 +179,101 @@ export default function RegisterScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: muted }]}>
-              Student ID <Text style={styles.optional}>(Optional)</Text>
+              Student ID <Text style={styles.required}>*</Text>
             </Text>
             <TextInput
               style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="e.g., STU12345"
+              placeholder="8 digits (e.g. 12345678)"
               placeholderTextColor={muted}
               value={studentId}
-              onChangeText={setStudentId}
-              autoCapitalize="characters"
+              onChangeText={(v) => setStudentId(v.replace(/\D/g, '').slice(0, 8))}
+              keyboardType="number-pad"
               editable={!isLoading}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: muted }]}>
-              Level <Text style={styles.required}>*</Text>
+              Year <Text style={styles.required}>*</Text>
             </Text>
-            <View style={styles.chipRow}>
-              {LEVELS.map((lvl) => (
-                <TouchableOpacity
-                  key={lvl}
-                  style={[
-                    styles.chip,
-                    { backgroundColor: inputBg, borderColor: border },
-                    level === lvl && { backgroundColor: Emerald[100], borderColor: Emerald[600] },
-                  ]}
-                  onPress={() => setLevel(lvl)}
-                  disabled={isLoading}
-                >
-                  <Text style={[styles.chipText, { color: level === lvl ? Emerald[800] : text }]}>{lvl}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <TouchableOpacity
+              style={[styles.input, styles.dropdownTouch, { backgroundColor: inputBg, borderColor: border }]}
+              onPress={() => setYearModalOpen(true)}
+              disabled={isLoading}
+            >
+              <Text style={[styles.dropdownText, { color: level ? text : muted }]} numberOfLines={1}>
+                {level ? levelToYearLabel(level) : 'Select year'}
+              </Text>
+              <IconSymbol name="chevron.down" size={18} color={muted} />
+            </TouchableOpacity>
+            <Modal visible={yearModalOpen} transparent animationType="slide">
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={() => setYearModalOpen(false)}
+              >
+                <View style={[styles.modalContent, { backgroundColor: cardBg }]} onStartShouldSetResponder={() => true}>
+                  <Text style={[styles.modalTitle, { color: text }]}>Select Year</Text>
+                  <FlatList
+                    data={LEVELS}
+                    keyExtractor={(item) => item.toString()}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[styles.modalOption, level === item && { backgroundColor: Emerald[100] }]}
+                        onPress={() => {
+                          setLevel(item);
+                          setYearModalOpen(false);
+                        }}
+                      >
+                        <Text style={[styles.modalOptionText, { color: level === item ? Emerald[800] : text }]}>{levelToYearLabel(item)}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              </TouchableOpacity>
+            </Modal>
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: muted }]}>
               Programme <Text style={styles.required}>*</Text>
             </Text>
-            <View style={styles.chipRow}>
-              {PROGRAMMES.map((prog) => (
-                <TouchableOpacity
-                  key={prog}
-                  style={[
-                    styles.programmeChip,
-                    { backgroundColor: inputBg, borderColor: border },
-                    programme === prog && { backgroundColor: Emerald[100], borderColor: Emerald[600] },
-                  ]}
-                  onPress={() => setProgramme(prog)}
-                  disabled={isLoading}
-                >
-                  <Text style={[styles.chipText, { color: programme === prog ? Emerald[800] : text }]} numberOfLines={1}>
-                    {prog}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <TouchableOpacity
+              style={[styles.input, styles.dropdownTouch, { backgroundColor: inputBg, borderColor: border }]}
+              onPress={() => setProgrammeModalOpen(true)}
+              disabled={isLoading}
+            >
+              <Text style={[styles.dropdownText, { color: programme ? text : muted }]} numberOfLines={1}>
+                {programme || 'Select your programme'}
+              </Text>
+              <IconSymbol name="chevron.down" size={18} color={muted} />
+            </TouchableOpacity>
+            <Modal visible={programmeModalOpen} transparent animationType="slide">
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={() => setProgrammeModalOpen(false)}
+              >
+                <View style={[styles.modalContent, { backgroundColor: cardBg }]} onStartShouldSetResponder={() => true}>
+                  <Text style={[styles.modalTitle, { color: text }]}>Select Programme</Text>
+                  <FlatList
+                    data={PROGRAMMES}
+                    keyExtractor={(item) => item}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[styles.modalOption, programme === item && { backgroundColor: Emerald[100] }]}
+                        onPress={() => {
+                          setProgramme(item);
+                          setProgrammeModalOpen(false);
+                        }}
+                      >
+                        <Text style={[styles.modalOptionText, { color: programme === item ? Emerald[800] : text }]}>{item}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              </TouchableOpacity>
+            </Modal>
           </View>
 
           <View style={styles.inputGroup}>
@@ -223,7 +282,7 @@ export default function RegisterScreen() {
             </Text>
             <TextInput
               style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="At least 6 characters"
+              placeholder="Min 8 chars, letter + number"
               placeholderTextColor={muted}
               value={password}
               onChangeText={setPassword}
@@ -290,18 +349,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
-  logoCircle: {
+  logoImage: {
     width: 72,
     height: 72,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 18,
-  },
-  logoText: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#ffffff',
   },
   title: {
     fontSize: 26,
@@ -350,12 +402,43 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   required: { color: '#ef4444' },
-  optional: { color: '#94a3b8', fontWeight: 'normal' },
   input: {
     height: 52,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 18,
+    fontSize: 16,
+  },
+  dropdownTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: '70%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  modalOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  modalOptionText: {
     fontSize: 16,
   },
   button: {

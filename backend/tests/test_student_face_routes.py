@@ -7,15 +7,18 @@ def test_enroll_and_verify_face_disabled(client, monkeypatch):
 
     # Register and login as student
     r = client.post("/api/v1/auth/register", json={
-        "email": "s1@example.com",
+        "email": "s1@st.knust.edu.gh",
         "password": "pw123456",
         "full_name": "S One",
-        "role": "student"
+        "role": "student",
+        "user_id": "11111111",
+        "level": 100,
+        "programme": "Computer Engineering",
     })
     assert r.status_code == 200
 
     r = client.post("/api/v1/auth/login", data={
-        "username": "s1@example.com",
+        "username": "s1@st.knust.edu.gh",
         "password": "pw123456"
     })
     assert r.status_code == 200

@@ -12,6 +12,7 @@ import {
     ActivityIndicator,
     ScrollView,
     Platform,
+    Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -153,9 +154,11 @@ export default function SetupFaceScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.header}>
-                    <View style={[styles.logoCircle, { backgroundColor: Emerald[900] }]}>
-                        <Text style={styles.logoText}>A</Text>
-                    </View>
+                    <Image
+                        source={require('@/assets/images/absense-logo.png')}
+                        style={styles.logoImage}
+                        resizeMode="contain"
+                    />
                     <Text style={[styles.title, { color: text }]}>Enroll Your Face</Text>
                     <Text style={[styles.subtitle, { color: muted }]}>
                         Take a clear photo of your face. This will be used to verify your attendance.
@@ -228,18 +231,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 32,
     },
-    logoCircle: {
+    logoImage: {
         width: 72,
         height: 72,
         borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
         marginBottom: 20,
-    },
-    logoText: {
-        fontSize: 34,
-        fontWeight: '800',
-        color: '#ffffff',
     },
     title: {
         fontSize: 24,

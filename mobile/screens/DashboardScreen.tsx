@@ -19,7 +19,7 @@ export default function DashboardScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -60,6 +60,11 @@ export default function DashboardScreen() {
 
   // Load dashboard data
   const loadDashboardData = async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
     try {
       let dashboardStats: DashboardStats | null = null;
       try {
@@ -120,12 +125,12 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [isAuthenticated]);
 
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
-    }, [])
+    }, [isAuthenticated])
   );
 
   const onRefresh = () => {
@@ -274,7 +279,7 @@ export default function DashboardScreen() {
                 <View style={styles.incompleteProfileContent}>
                   <Text style={[styles.incompleteProfileTitle, { color: Amber[800] }]}>Incomplete profile</Text>
                   <Text style={[styles.incompleteProfileText, { color: Amber[700] }]}>
-                    Your level and programme are not set. Tap to complete your setup.
+                    Your year and programme are not set. Tap to complete your setup.
                   </Text>
                 </View>
               </TouchableOpacity>

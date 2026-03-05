@@ -36,7 +36,7 @@ export default function Index() {
     }
 
     if (!isAuthenticated || !user) {
-        return <Redirect href="/(auth)" replace />;
+        return <Redirect href="/(auth)" />;
     }
 
     if (user.role === 'student' && needsFaceSetup === null) {
@@ -44,8 +44,8 @@ export default function Index() {
     }
 
     if (needsFaceSetup === true) {
-        return <Redirect href="/(auth)/setup-face" replace />;
+        return <Redirect href="/(auth)/setup-face" />;
     }
 
-    return <Redirect href="/(tabs)" replace />;
+    return <Redirect href="/(tabs)" />;
 }

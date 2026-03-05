@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users } from "lucide-react";
+import { levelToYearLabel } from "@/lib/level-utils";
 
 const isSessionEffectivelyActive = (s: { is_active?: boolean; ends_at?: string | null }) => {
     if (!s.is_active) return false;
@@ -111,7 +112,7 @@ export function CourseDetailsDialog({
                                 </div>
                                 <div>
                                     <span className="text-gray-500">Level:</span>
-                                    <span className="ml-2 font-medium">Level {courseDetails.level}</span>
+                                    <span className="ml-2 font-medium">{levelToYearLabel(courseDetails.level)}</span>
                                 </div>
                                 <div>
                                     <span className="text-gray-500">Programme:</span>

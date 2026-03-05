@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { useTopLoader } from "nextjs-toploader"
 import toast from "react-hot-toast"
+import { getLoginIdentifierError } from "@/lib/auth-validation"
 
 export function LoginForm({
     className,
@@ -31,14 +32,20 @@ export function LoginForm({
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
 
-        if (!email || !password) {
-            toast.error("Please fill in all fields")
+        const identifierErr = getLoginIdentifierError(email)
+        if (identifierErr) {
+            toast.error(identifierErr)
+            return
+        }
+
+        if (!password.trim()) {
+            toast.error("Password is required")
             return
         }
 
         try {
             setIsLoading(true)
-            await login(email, password)
+            await login(email.trim(), password)
 
             // Redirect based on user role - trigger top loader for programmatic nav
             start()
@@ -64,11 +71,12 @@ export function LoginForm({
                                 </p>
                             </div>
                             <Field>
-                                <FieldLabel htmlFor="email">Email</FieldLabel>
+                                <FieldLabel htmlFor="email">Email or Student ID <span className="text-red-500">*</span></FieldLabel>
                                 <Input
                                     id="email"
-                                    type="email"
-                                    placeholder="jdadoo@st.knust.edu.gh"
+                                    type="text"
+                                    autoComplete="username"
+                                    placeholder="jdadoo@st.knust.edu.gh or 8-digit ID"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -76,7 +84,7 @@ export function LoginForm({
                             </Field>
                             <Field>
                                 <div className="flex items-center">
-                                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                                    <FieldLabel htmlFor="password">Password <span className="text-red-500">*</span></FieldLabel>
                                     <a
                                         href="#"
                                         className="ml-auto text-sm underline-offset-2 hover:underline"
@@ -84,13 +92,13 @@ export function LoginForm({
                                         Forgot your password?
                                     </a>
                                 </div>
-                                <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                                <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
                             </Field>
                             <Field>
                                 <Button
                                     variant="primary"
                                     type="submit"
-                                    disabled={!email || !password || isLoading}
+                                    disabled={!email.trim() || !password.trim() || isLoading}
                                 >
                                     {isLoading ? "Logging in..." : "Login"}
                                 </Button>

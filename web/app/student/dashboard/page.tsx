@@ -138,7 +138,7 @@ export default function StudentDashboard() {
                         <div className="flex-1 text-sm">
                             <p className="font-semibold">Incomplete profile</p>
                             <p className="mt-0.5">
-                                Your level and programme are not set. Please{' '}
+                                Your year and programme are not set. Please{' '}
                                 <Link href="/profile" className="underline underline-offset-2 font-medium hover:text-amber-900">
                                     visit your profile
                                 </Link>{' '}
@@ -328,7 +328,7 @@ export default function StudentDashboard() {
                                     ))}
                                 </div>
                             ) : recommendedCourses.length === 0 ? (
-                                <p className="text-gray-500 text-sm py-4">No courses found for your programme and level this semester.</p>
+                                <p className="text-gray-500 text-sm py-4">No courses found for your programme and year this semester.</p>
                             ) : (
                                 <ul className="divide-y divide-gray-100">
                                     {recommendedCourses.map((course) => (
