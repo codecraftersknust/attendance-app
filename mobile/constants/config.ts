@@ -8,7 +8,7 @@ export const USE_MOCK_BACKEND = false; // Set to false to use real backend
 export const API_CONFIG = {
     BASE_URL: isDev
         ? 'http://172.20.10.2:8000/api/v1'
-        : 'https://api.absense.com/api/v1',
+        : 'https://absense.knust.edu.gh/api/v1',
 
     TIMEOUT: 20000,
     QR_EXPIRY_WARNING_SECONDS: 5,
