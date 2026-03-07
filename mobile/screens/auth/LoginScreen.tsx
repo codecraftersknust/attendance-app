@@ -77,7 +77,7 @@ export default function LoginScreen() {
         {/* Back */}
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => router.back()}
+          onPress={() => router.replace('/(auth)')}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <IconSymbol name="chevron.left" size={24} color={Amber[600]} />
@@ -86,7 +86,7 @@ export default function LoginScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Image
-            source={require('@/assets/images/absense-logo.png')}
+            source={require('@/assets/images/icon.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />

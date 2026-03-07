@@ -35,7 +35,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <ShadSidebar collapsible="offcanvas">
                 <SidebarHeader className="border-b border-gray-200 bg-white px-4 py-4">
                     <div className="flex items-center gap-3">
-                        <Image src="/logo.png" alt="Absense" className="h-10 w-10 rounded-xl object-cover" width={40} height={40} />
+                        <Image src="/icon.png" alt="Absense" className="h-10 w-10 rounded-xl object-cover" width={40} height={40} />
                         <div>
                             <p className="font-semibold text-emerald-900">Student</p>
                             <p className="text-xs text-emerald-700">Attendance Portal</p>

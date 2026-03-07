@@ -28,7 +28,7 @@ export function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 sm:py-4">
                 <div className="flex items-center justify-between gap-4 min-w-0">
                     <Link className="flex items-center gap-2 font-semibold text-lg text-white hover:text-white/90 transition-colors" href="/">
-                        <Image src="/logo.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
+                        <Image src="/icon.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
                         Absense
                     </Link>
 

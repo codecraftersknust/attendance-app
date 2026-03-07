@@ -64,7 +64,7 @@ export function LoginForm({
                     <form className="p-6 md:p-8" onSubmit={handleSubmit}>
                         <FieldGroup>
                             <div className="flex flex-col items-center gap-3 text-center">
-                                <Image src="/logo.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
+                                <Image src="/icon.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
                                 <h1 className="text-2xl font-bold text-emerald-900">Welcome back</h1>
                                 <p className="text-muted-foreground text-balance">
                                     Login to your Absense account

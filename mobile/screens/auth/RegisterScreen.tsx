@@ -134,7 +134,7 @@ export default function RegisterScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Image
-            source={require('@/assets/images/absense-logo.png')}
+            source={require('@/assets/images/icon.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />

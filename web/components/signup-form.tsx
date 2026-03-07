@@ -126,7 +126,7 @@ export function SignupForm({
         >
             <FieldGroup>
                 <div className="flex flex-col items-center gap-3 text-center">
-                    <Image src="/logo.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
+                    <Image src="/icon.png" alt="Absense" className="w-10 h-10 rounded-md" width={100} height={100} />
                     <h1 className="text-2xl font-bold text-emerald-900">
                         Create your account
                     </h1>

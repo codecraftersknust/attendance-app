@@ -38,7 +38,7 @@ export default function AnimatedLogo() {
         <View style={styles.container}>
             <Animated.View style={animatedStyle}>
                 <Image
-                    source={require('@/assets/images/absense-logo.png')}
+                    source={require('@/assets/images/icon.png')}
                     style={styles.logoImage}
                     resizeMode="contain"
                 />

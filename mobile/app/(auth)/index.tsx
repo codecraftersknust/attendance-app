@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Emerald, Amber } from '@/constants/theme';
 
-const BG_IMAGE = require('@/assets/images/back1.jpg');
+const BG_IMAGE = require('@/assets/images/onboarding-bg.jpg');
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
@@ -35,7 +35,7 @@ export default function OnboardingScreen() {
         {/* Hero */}
         <View style={styles.hero}>
           <Image
-            source={require('@/assets/images/absense-logo.png')}
+            source={require('@/assets/images/icon.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
