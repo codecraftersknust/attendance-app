@@ -3,7 +3,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from ....schemas.auth import Token, UserCreate, UserRead, UserProfileRead, UserUpdate, PasswordChange
+from ....schemas.auth import Token, UserCreate, UserRead, UserProfileRead, UserUpdate, PasswordChange, AuthResponse
 from ....services.security import (
     get_password_hash,
     verify_password,
@@ -115,7 +115,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     return user
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=AuthResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     # Try to find user by email first, then by user_id
     user = db.query(User).filter(User.email == form_data.username).first()
@@ -124,10 +124,11 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email/user ID or password")
-    
+
     access = create_access_token(subject=str(user.id))
     refresh = create_refresh_token(subject=str(user.id))
-    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+    user_read = UserRead.from_orm(user)
+    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer", "user": user_read}
 
 
 @router.get("/me", response_model=UserRead)

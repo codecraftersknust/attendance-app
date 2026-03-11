@@ -23,6 +23,10 @@ export interface AuthTokens {
     token_type: string;
 }
 
+export interface AuthResponse extends AuthTokens {
+    user: User;
+}
+
 export interface User {
     id: number;
     email: string;

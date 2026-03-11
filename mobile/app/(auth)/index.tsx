@@ -35,7 +35,7 @@ export default function OnboardingScreen() {
         {/* Hero */}
         <View style={styles.hero}>
           <Image
-            source={require('@/assets/images/icon.png')}
+            source={require('@/assets/images/android-icon-foreground.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />

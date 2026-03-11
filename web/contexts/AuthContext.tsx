@@ -93,8 +93,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 document.cookie = `access_token=${response.access_token}; Path=/; SameSite=Lax; ${isSecure ? 'Secure;' : ''}`;
             }
 
-            // Get user data
-            const userData = await apiClient.getCurrentUser();
+            // Use user payload from login response (avoids extra /auth/me)
+            const userData = response.user;
             setUser(userData);
             // Mirror role cookie for middleware
             if (typeof document !== 'undefined') {

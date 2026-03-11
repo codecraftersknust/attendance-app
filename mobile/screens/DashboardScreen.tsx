@@ -66,29 +66,21 @@ export default function DashboardScreen() {
     }
 
     try {
-      let dashboardStats: DashboardStats | null = null;
-      try {
-        dashboardStats = await apiClientService.studentDashboard();
-      } catch (statsError: any) {
-        console.error('Failed to load dashboard stats:', statsError);
-        throw new Error(`Dashboard stats: ${statsError?.message || 'Unknown error'}`);
-      }
-
-      let enrolledCourses: Course[] = [];
-      try {
-        enrolledCourses = await apiClientService.studentGetCourses();
-      } catch (coursesError: any) {
-        console.error('Failed to load courses:', coursesError);
-        throw new Error(`Courses: ${coursesError?.message || 'Unknown error'}`);
-      }
-
-      let history: AttendanceHistoryItem[] = [];
-      try {
-        history = await apiClientService.getAttendanceHistory();
-      } catch (historyError: any) {
-        console.error('Failed to load attendance history:', historyError);
-        // Non-critical: don't throw, just show empty recent sessions
-      }
+      const [dashboardStats, enrolledCourses, history] = await Promise.all([
+        apiClientService.studentDashboard().catch((statsError: any) => {
+          console.error('Failed to load dashboard stats:', statsError);
+          throw new Error(`Dashboard stats: ${statsError?.message || 'Unknown error'}`);
+        }),
+        apiClientService.studentGetCourses().catch((coursesError: any) => {
+          console.error('Failed to load courses:', coursesError);
+          throw new Error(`Courses: ${coursesError?.message || 'Unknown error'}`);
+        }),
+        apiClientService.getAttendanceHistory().catch((historyError: any) => {
+          console.error('Failed to load attendance history:', historyError);
+          // Non-critical: don't throw, just show empty recent sessions
+          return [] as AttendanceHistoryItem[];
+        }),
+      ]);
 
       setStats(dashboardStats);
       setCourses(enrolledCourses);

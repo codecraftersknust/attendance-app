@@ -11,6 +11,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
+import { Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -86,7 +87,7 @@ export default function LoginScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Image
-            source={require('@/assets/images/icon.png')}
+            source={require('@/assets/images/animated-logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -151,6 +152,25 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={() => router.push('/(auth)/register')} disabled={isLoading} activeOpacity={0.7}>
             <Text style={styles.linkText}>Create Account</Text>
           </TouchableOpacity>
+        </View>
+        <View style={styles.legalContainer}>
+          <Text style={[styles.legalText, { color: muted }]}>
+            By signing in you agree to our{' '}
+            <Text
+              style={styles.legalLink}
+              onPress={() => Linking.openURL('https://absense.knust.edu.gh/terms')}
+            >
+              Terms of Service
+            </Text>
+            {' '}and{' '}
+            <Text
+              style={styles.legalLink}
+              onPress={() => Linking.openURL('https://absense.knust.edu.gh/privacy')}
+            >
+              Privacy Policy
+            </Text>
+            .
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -234,5 +254,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Amber[600],
+  },
+  legalContainer: {
+    marginTop: 16,
+    paddingHorizontal: 4,
+  },
+  legalText: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  legalLink: {
+    textDecorationLine: 'underline',
+    color: Amber[600],
+    fontWeight: '600',
   },
 });

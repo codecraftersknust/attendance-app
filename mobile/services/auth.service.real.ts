@@ -1,6 +1,6 @@
 import apiClient from './api';
 import StorageService from './storage.service';
-import type { LoginRequest, RegisterRequest, AuthTokens, User } from '@/types/auth.types';
+import type { LoginRequest, RegisterRequest, AuthTokens, AuthResponse, User } from '@/types/auth.types';
 
 class AuthService {
     async login(credentials: LoginRequest): Promise<{ user: User; tokens: AuthTokens }> {
@@ -9,18 +9,22 @@ class AuthService {
         formData.append('username', credentials.username);
         formData.append('password', credentials.password);
 
-        const response = await apiClient.post<AuthTokens>('/auth/login', formData.toString(), {
+        const response = await apiClient.post<AuthResponse>('/auth/login', formData.toString(), {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         });
 
-        const tokens = response.data;
+        const { access_token, refresh_token, token_type, user } = response.data;
+        const tokens: AuthTokens = { access_token, refresh_token, token_type };
         await StorageService.setAccessToken(tokens.access_token);
-        if (tokens.refresh_token) {
-            await StorageService.setRefreshToken(tokens.refresh_token);
+        if (refresh_token) {
+            await StorageService.setRefreshToken(refresh_token);
         }
 
-        const user = await this.getCurrentUser();
-        return { user, tokens };
+        // Some backends might not yet return the user in /auth/login.
+        // Fallback to /auth/me when user is missing.
+        const resolvedUser = user ?? (await this.getCurrentUser());
+        await StorageService.setUserData(resolvedUser);
+        return { user: resolvedUser, tokens };
     }
 
     async register(data: RegisterRequest): Promise<{ user: User; tokens: AuthTokens }> {

@@ -650,6 +650,9 @@ def list_active_sessions(
     write_audit(db, "student.list_active_sessions", current.id, f"count={len(result)}")
     return result
 
+MAX_HISTORY_RECORDS = 100
+
+
 @router.get("/attendance/history", response_model=List[dict])
 def get_attendance_history(
     db: Session = Depends(get_db),
@@ -742,5 +745,9 @@ def get_attendance_history(
             "record_id": record.id if record else None,
         })
 
-    write_audit(db, "student.get_attendance_history", current.id)
-    return history
+    # Apply limit so we only return the most recent N records. Frontends
+    # already display history in reverse-chronological order, so this does
+    # not change visible behaviour for typical usage.
+    limited_history = history[:MAX_HISTORY_RECORDS]
+    write_audit(db, "student.get_attendance_history", current.id, f"returned={len(limited_history)}")
+    return limited_history

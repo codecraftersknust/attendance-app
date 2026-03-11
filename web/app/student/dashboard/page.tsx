@@ -34,13 +34,12 @@ type Course = {
 
 type RecommendedCourse = { id: number; code: string; name: string; description: string | null; semester: string; level: number; programmes: string[]; lecturer_names: string[]; is_enrolled: boolean };
 
-const studentDashboardFetcher = async () => {
-    const [courses, dashboardData, historyData] = await Promise.all([
+const studentDashboardPrimaryFetcher = async () => {
+    const [courses, dashboardData] = await Promise.all([
         apiClient.studentGetCourses(),
         apiClient.studentDashboard(),
-        apiClient.studentGetAttendanceHistory(),
     ]);
-    return { enrolledCourses: courses, stats: dashboardData, history: historyData };
+    return { enrolledCourses: courses, stats: dashboardData };
 };
 
 export default function StudentDashboard() {
@@ -56,13 +55,22 @@ export default function StudentDashboard() {
     const [courseToDrop, setCourseToDrop] = useState<{ id: number; code: string; name: string } | null>(null);
     const [dropping, setDropping] = useState<boolean>(false);
 
-    const { data, error, isLoading, mutate } = useSWR('student-dashboard', studentDashboardFetcher, { dedupingInterval: 30000 });
-    const enrolledCourses = (data?.enrolledCourses ?? []) as Course[];
-    const stats = data?.stats ?? null;
-    const history = data?.history ?? [];
+    const { data: primaryData, error, isLoading, mutate } = useSWR(
+        'student-dashboard-primary',
+        studentDashboardPrimaryFetcher,
+        { dedupingInterval: 30000 }
+    );
+    const enrolledCourses = (primaryData?.enrolledCourses ?? []) as Course[];
+    const stats = primaryData?.stats ?? null;
+
+    const { data: history = [], isLoading: loadingHistory } = useSWR(
+        primaryData ? 'student-attendance-history' : null,
+        () => apiClient.studentGetAttendanceHistory(),
+        { dedupingInterval: 30000 }
+    );
 
     const { data: recommendedCourses = [], isLoading: loadingRecommended, mutate: mutateRecommended } = useSWR(
-        data ? 'student-recommended-courses' : null,
+        primaryData ? 'student-recommended-courses' : null,
         () => apiClient.studentGetRecommendedCourses(),
         { dedupingInterval: 30000 }
     );
@@ -249,7 +257,7 @@ export default function StudentDashboard() {
                         <h2 className="text-lg font-semibold text-gray-900">Recent Attendance History</h2>
                     </div>
                     <div className="p-4">
-                        {isLoading ? (
+                        {loadingHistory ? (
                             <div className="space-y-3 py-2">
                                 {[1, 2, 3].map((i) => (
                                     <Skeleton key={i} className="h-12 w-full rounded-md" />

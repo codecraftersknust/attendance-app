@@ -39,7 +39,7 @@ export function LandingPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Main content: Hero + Steps side by side - centered in viewport */}
-      <section className="relative flex-1 flex items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-emerald-100 via-teal-50/90 to-amber-100/80 pt-[env(safe-area-inset-top)] scroll-pt-16">
+      <section className="relative flex-1 flex items-start lg:items-center justify-center min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-emerald-100 via-teal-50/90 to-amber-100/80 pt-[env(safe-area-inset-top)] scroll-pt-16">
         {/* Subtle grid pattern overlay */}
         <div
           className="absolute inset-0 opacity-[0.03]"

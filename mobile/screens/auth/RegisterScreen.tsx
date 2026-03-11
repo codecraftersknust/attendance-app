@@ -13,6 +13,7 @@ import {
   FlatList,
   Image,
 } from 'react-native';
+import { Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +41,7 @@ export default function RegisterScreen() {
   const [programme, setProgramme] = useState('');
   const [programmeModalOpen, setProgrammeModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const { register } = useAuth();
   const { showToast } = useToast();
@@ -81,6 +83,11 @@ export default function RegisterScreen() {
 
     if (password !== confirmPassword) {
       showToast("Passwords don't match", 'error');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      showToast('Please accept the Terms of Service and Privacy Policy to continue', 'error');
       return;
     }
 
@@ -134,7 +141,7 @@ export default function RegisterScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Image
-            source={require('@/assets/images/icon.png')}
+            source={require('@/assets/images/animated-logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -308,10 +315,44 @@ export default function RegisterScreen() {
             />
           </View>
 
+          {/* Consent directly above button */}
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleRegister}
+            style={styles.consentRow}
+            onPress={() => setAcceptedTerms((prev) => !prev)}
+            activeOpacity={0.8}
             disabled={isLoading}
+          >
+            <View
+              style={[
+                styles.consentCheckbox,
+                { borderColor: border, backgroundColor: acceptedTerms ? Emerald[600] : 'transparent' },
+              ]}
+            >
+              {acceptedTerms && <Text style={styles.consentCheckmark}>✓</Text>}
+            </View>
+            <Text style={[styles.consentText, { color: muted }]}>
+              I agree to the{' '}
+              <Text
+                style={styles.consentLink}
+                onPress={() => Linking.openURL('https://absense.knust.edu.gh/terms')}
+              >
+                Terms of Service
+              </Text>
+              {' '}and{' '}
+              <Text
+                style={styles.consentLink}
+                onPress={() => Linking.openURL('https://absense.knust.edu.gh/privacy')}
+              >
+                Privacy Policy
+              </Text>
+              .
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, (isLoading || !acceptedTerms) && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={isLoading || !acceptedTerms}
             activeOpacity={0.85}
           >
             {isLoading ? (
@@ -465,5 +506,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Amber[600],
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 4,
+    marginBottom: 4,
+    gap: 8,
+  },
+  consentCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  consentCheckmark: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  consentText: {
+    flex: 1,
+    fontSize: 12,
+  },
+  consentLink: {
+    textDecorationLine: 'underline',
+    color: Amber[600],
+    fontWeight: '600',
   },
 });

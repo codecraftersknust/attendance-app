@@ -38,6 +38,11 @@ class UserRead(BaseModel):
         from_attributes = True
 
 
+class AuthResponse(Token):
+    """Authentication response returned by /auth/login including the user payload."""
+    user: UserRead
+
+
 class UserProfileRead(BaseModel):
     """Extended user profile with all displayable fields."""
     id: int
