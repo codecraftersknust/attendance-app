@@ -108,7 +108,7 @@ export default function SetupFaceScreen() {
         router.replace('/(tabs)');
     };
 
-    const bg = isDark ? '#0f1419' : '#ffffff';
+    const bg = isDark ? '#0f1419' : '#fcfcf7';
     const cardBg = isDark ? '#1a1f23' : '#f8fafc';
     const text = isDark ? '#f1f5f9' : '#0f172a';
     const muted = isDark ? '#94a3b8' : '#64748b';

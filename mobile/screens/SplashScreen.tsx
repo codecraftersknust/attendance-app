@@ -17,7 +17,7 @@ export default function SplashScreen() {
     const colors = Colors[colorScheme ?? 'light'];
 
     return (
-        <View style={[styles.container, { backgroundColor: '#ffffff' }]}>
+        <View style={[styles.container, { backgroundColor: '#fcfcf7' }]}>
             {/* Animated Logo with Spinning Effect */}
             <View style={styles.logoContainer}>
                 <AnimatedLogo />

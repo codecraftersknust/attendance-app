@@ -17,6 +17,7 @@ class AttendanceSession(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     qr_nonce: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     qr_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    qr_previous_nonce: Mapped[str | None] = mapped_column(String(64), nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     geofence_radius_m: Mapped[float | None] = mapped_column(Float, nullable=True)

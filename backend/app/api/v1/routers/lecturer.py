@@ -413,6 +413,7 @@ def rotate_qr(session_id: int, ttl_seconds: int = 30, db: Session = Depends(get_
     if not session.is_active:
         raise HTTPException(status_code=400, detail="Session inactive")
     
+    session.qr_previous_nonce = session.qr_nonce
     session.qr_nonce = generate_session_nonce()
     session.qr_expires_at = utcnow() + timedelta(seconds=ttl_seconds)
     db.commit()

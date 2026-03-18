@@ -65,3 +65,12 @@ class SupabaseStorage(Storage):
         resp = httpx.get(url, headers=self.headers, timeout=30)
         resp.raise_for_status()
         return resp.content
+
+    def exists(self, path: str) -> bool:
+        """Check if a file exists without downloading it."""
+        url = self._storage_url(path)
+        try:
+            resp = httpx.head(url, headers=self.headers, timeout=10)
+            return resp.status_code == 200
+        except Exception:
+            return False

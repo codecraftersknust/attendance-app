@@ -59,17 +59,24 @@ async def submit_attendance(
     if not session.qr_nonce or not session.qr_expires_at:
         logger.error(f"QR not generated for session {qr_session_id}")
         raise HTTPException(status_code=400, detail="QR code not generated for this session")
-    
-    if session.qr_expires_at < utcnow():
-        logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
-        raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
-    
+
     # Enforce session duration
     if session.ends_at and session.ends_at < utcnow():
         logger.warning(f"Session ended - session_id={qr_session_id}, ends_at={session.ends_at}")
         raise HTTPException(status_code=400, detail="Session has ended")
 
-    if qr_nonce != session.qr_nonce:
+    # Accept current nonce, or the previous nonce (grace for in-flight submissions during rotation)
+    nonce_valid = qr_nonce == session.qr_nonce
+    used_previous_nonce = False
+    if not nonce_valid and session.qr_previous_nonce and qr_nonce == session.qr_previous_nonce:
+        nonce_valid = True
+        used_previous_nonce = True
+        logger.info(f"Accepted previous nonce for session {qr_session_id} (in-flight grace)")
+
+    if not nonce_valid:
+        if session.qr_expires_at < utcnow():
+            logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
+            raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
         logger.warning(f"Invalid QR nonce - expected={session.qr_nonce}, received={qr_nonce}")
         raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
 
@@ -152,7 +159,7 @@ async def submit_attendance(
 
     # If we have a selfie and a reference, perform face verification (guarded by settings inside service)
     verification = None
-    has_reference = bool(current.face_reference_path) or face_service.has_reference_face(current.id)
+    has_reference = face_service.has_reference_face(current.id)
     if selfie_bytes and has_reference:
         verification = face_service.verify_face(current.id, selfie_bytes)
         if not verification.get("verified"):
@@ -240,10 +247,10 @@ def device_status(db: Session = Depends(get_db), current: User = Depends(get_cur
     """Return current student's bound device status (device ID hash and active flag)."""
     device = db.query(Device).filter(Device.user_id == current.id).first()
     
-    # Check if face is enrolled (DB path or remote storage)
-    has_face = bool(current.face_reference_path)
-    if not has_face:
-        has_face = face_service.has_reference_face(current.id)
+    has_face = face_service.has_reference_face(current.id)
+    if not has_face and current.face_reference_path:
+        current.face_reference_path = None
+        db.commit()
 
     return {
         "has_device": bool(device),

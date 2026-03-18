@@ -19,13 +19,16 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right',
+  'chevron.down': 'expand-more',
   'graduationcap.fill': 'school',
   'book.fill': 'menu-book',
   'book': 'book',
   'person.fill': 'person',
   'person': 'person-outline',
+  'person.text.rectangle.fill': 'badge',
   'checkmark.circle.fill': 'check-circle',
   'checkmark.circle': 'check-circle-outline',
+  'checkmark': 'check',
   'exclamationmark.triangle.fill': 'warning',
   'plus': 'add',
   'trash': 'delete',
@@ -33,6 +36,29 @@ const MAPPING = {
   'qrcode': 'qr-code-2',
   'location.fill': 'location-on',
   'face.smiling': 'face',
+  'calendar': 'event',
+  'clock.fill': 'schedule',
+  'clock': 'schedule',
+  'xmark': 'close',
+  'camera.fill': 'photo-camera',
+  'photo.fill': 'photo-library',
+  'number': 'tag',
+  'arrow.up.circle.fill': 'upload',
+  'pencil': 'edit',
+  'faceid': 'fingerprint',
+  'envelope.fill': 'email',
+  'lock.fill': 'lock',
+  'rectangle.portrait.and.arrow.right': 'logout',
+  'circle.fill': 'circle',
+  'gauge': 'speed',
+  'gauge.medium': 'speed',
+  'hand.raised.fill': 'pan-tool',
+  'bell.fill': 'notifications',
+  'gearshape.fill': 'settings',
+  'arrow.clockwise': 'refresh',
+  'info.circle.fill': 'info',
+  'map.fill': 'map',
+  'wifi.slash': 'wifi-off',
 } as IconMapping;
 
 /**
@@ -52,5 +78,6 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const mappedName = MAPPING[name] ?? 'help-outline';
+  return <MaterialIcons color={color} size={size} name={mappedName} style={style} />;
 }

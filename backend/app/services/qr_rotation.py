@@ -123,7 +123,7 @@ class QRRotationService:
     async def _rotate_session_qr(self, db: Session, session: AttendanceSession):
         """Rotate QR code for a specific session"""
         try:
-            # Generate new QR data
+            session.qr_previous_nonce = session.qr_nonce
             session.qr_nonce = generate_session_nonce()
             session.qr_expires_at = utcnow() + timedelta(seconds=30)
             
@@ -225,7 +225,7 @@ def ensure_qr_valid(session, db: Session, ttl_seconds: int = 30) -> bool:
     is_expired = session.qr_expires_at and session.qr_expires_at < now
     
     if needs_generation or is_expired:
-        # Generate or rotate QR
+        session.qr_previous_nonce = session.qr_nonce
         session.qr_nonce = generate_session_nonce()
         session.qr_expires_at = now + timedelta(seconds=ttl_seconds)
         db.commit()

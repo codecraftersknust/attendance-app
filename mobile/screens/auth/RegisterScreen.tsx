@@ -112,12 +112,14 @@ export default function RegisterScreen() {
     }
   };
 
-  const bg = isDark ? '#0f1419' : '#ffffff';
-  const cardBg = isDark ? '#1a1f23' : '#ffffff';
-  const inputBg = isDark ? '#252829' : '#f8fafc';
+  const bg = isDark ? '#0f1419' : '#fcfcf7';
+  const cardBg = isDark ? '#1a1f23' : '#fcfcf7';
+  const inputBg = isDark ? '#2a2d30' : '#f0f1f3';
   const border = isDark ? '#383b3d' : '#e2e8f0';
   const text = isDark ? '#f1f5f9' : '#0f172a';
   const muted = isDark ? '#94a3b8' : '#64748b';
+  const placeholder = isDark ? '#6b7280' : '#8a8f98';
+  const footerMuted = isDark ? '#5a6270' : '#b8bcc4';
 
   return (
     <KeyboardAvoidingView
@@ -129,15 +131,6 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <IconSymbol name="chevron.left" size={24} color={Amber[600]} />
-        </TouchableOpacity>
-
         {/* Header */}
         <View style={styles.header}>
           <Image
@@ -151,16 +144,14 @@ export default function RegisterScreen() {
           </Text>
         </View>
 
+
         {/* Form */}
         <View style={[styles.formCard, { backgroundColor: cardBg }]}>
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Full Name <Text style={styles.required}>*</Text>
-            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="Enter your full name"
-              placeholderTextColor={muted}
+              style={[styles.input, { backgroundColor: inputBg, color: text }]}
+              placeholder="Full Name"
+              placeholderTextColor={placeholder}
               value={fullName}
               onChangeText={setFullName}
               autoCapitalize="words"
@@ -169,13 +160,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Email <Text style={styles.required}>*</Text>
-            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="username@st.knust.edu.gh"
-              placeholderTextColor={muted}
+              style={[styles.input, { backgroundColor: inputBg, color: text }]}
+              placeholder="Email (username@st.knust.edu.gh)"
+              placeholderTextColor={placeholder}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -185,13 +173,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Student ID <Text style={styles.required}>*</Text>
-            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="8 digits (e.g. 12345678)"
-              placeholderTextColor={muted}
+              style={[styles.input, { backgroundColor: inputBg, color: text }]}
+              placeholder="Student ID (8 digits)"
+              placeholderTextColor={placeholder}
               value={studentId}
               onChangeText={(v) => setStudentId(v.replace(/\D/g, '').slice(0, 8))}
               keyboardType="number-pad"
@@ -200,15 +185,12 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Year <Text style={styles.required}>*</Text>
-            </Text>
             <TouchableOpacity
-              style={[styles.input, styles.dropdownTouch, { backgroundColor: inputBg, borderColor: border }]}
+              style={[styles.input, styles.dropdownTouch, { backgroundColor: inputBg }]}
               onPress={() => setYearModalOpen(true)}
               disabled={isLoading}
             >
-              <Text style={[styles.dropdownText, { color: level ? text : muted }]} numberOfLines={1}>
+              <Text style={[styles.dropdownText, { color: level ? text : placeholder }]} numberOfLines={1}>
                 {level ? levelToYearLabel(level) : 'Select year'}
               </Text>
               <IconSymbol name="chevron.down" size={18} color={muted} />
@@ -242,15 +224,12 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Programme <Text style={styles.required}>*</Text>
-            </Text>
             <TouchableOpacity
-              style={[styles.input, styles.dropdownTouch, { backgroundColor: inputBg, borderColor: border }]}
+              style={[styles.input, styles.dropdownTouch, { backgroundColor: inputBg }]}
               onPress={() => setProgrammeModalOpen(true)}
               disabled={isLoading}
             >
-              <Text style={[styles.dropdownText, { color: programme ? text : muted }]} numberOfLines={1}>
+              <Text style={[styles.dropdownText, { color: programme ? text : placeholder }]} numberOfLines={1}>
                 {programme || 'Select your programme'}
               </Text>
               <IconSymbol name="chevron.down" size={18} color={muted} />
@@ -284,13 +263,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Password <Text style={styles.required}>*</Text>
-            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="Min 8 chars, letter + number"
-              placeholderTextColor={muted}
+              style={[styles.input, { backgroundColor: inputBg, color: text }]}
+              placeholder="Password"
+              placeholderTextColor={placeholder}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -300,13 +276,10 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Confirm Password <Text style={styles.required}>*</Text>
-            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="Re-enter password"
-              placeholderTextColor={muted}
+              style={[styles.input, { backgroundColor: inputBg, color: text }]}
+              placeholder="Confirm password"
+              placeholderTextColor={placeholder}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -338,7 +311,7 @@ export default function RegisterScreen() {
               >
                 Terms of Service
               </Text>
-              {' '}and{' '}
+              {' '}&{' '}
               <Text
                 style={styles.consentLink}
                 onPress={() => Linking.openURL('https://absense.knust.edu.gh/privacy')}
@@ -365,7 +338,7 @@ export default function RegisterScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: muted }]}>Already have an account? </Text>
+          <Text style={[styles.footerText, { color: footerMuted }]}>Already have an account? </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/login')} disabled={isLoading} activeOpacity={0.7}>
             <Text style={styles.linkText}>Sign In</Text>
           </TouchableOpacity>
@@ -379,32 +352,28 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-  },
-  backBtn: {
-    alignSelf: 'flex-start',
-    marginBottom: 24,
-    padding: 4,
+    paddingHorizontal: 8,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 28,
+    alignItems: 'flex-start',
+    marginVertical: 36,
+    paddingLeft: 24,
   },
   logoImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     marginBottom: 18,
   },
   title: {
     fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    fontWeight: '500',
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 22,
   },
   formCard: {
@@ -413,39 +382,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   inputGroup: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  programmeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    maxWidth: '48%',
-  },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  required: { color: '#ef4444' },
   input: {
-    height: 52,
-    borderWidth: 1,
+    height: 56,
+    borderWidth: 0,
     borderRadius: 12,
     paddingHorizontal: 18,
     fontSize: 16,
@@ -501,15 +442,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  footerText: { fontSize: 15 },
+  footerText: { fontSize: 13 },
   linkText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: Amber[600],
   },
   consentRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 4,
     marginBottom: 4,
     gap: 8,

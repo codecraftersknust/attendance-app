@@ -30,13 +30,9 @@ class FaceVerificationService:
         return key
 
     def has_reference_face(self, user_id: int) -> bool:
-        """Check if a reference face exists in remote storage."""
+        """Check if a reference face actually exists in remote storage."""
         storage = get_storage()
-        try:
-            storage.download_bytes(self.get_reference_key(user_id))
-            return True
-        except Exception:
-            return False
+        return storage.exists(self.get_reference_key(user_id))
 
     def verify_face(self, user_id: int, live_image_bytes: bytes) -> Dict[str, Any]:
         """Compare uploaded face bytes with the stored reference.

@@ -60,6 +60,14 @@ class ApiClientService {
     }
 
     /**
+     * Permanently delete current user's account
+     */
+    async deleteAccount(): Promise<{ message: string }> {
+        const response = await apiClient.delete<{ message: string }>('/auth/me');
+        return response.data;
+    }
+
+    /**
      * Get student dashboard statistics
      */
     async studentDashboard(): Promise<DashboardStats> {

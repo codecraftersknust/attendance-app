@@ -40,13 +40,13 @@ export const Amber = {
 export const Colors = {
   light: {
     text: '#11181C',
-    background: '#fff',
+    background: '#fcfcf7',
     tint: tintColorLight,
     icon: Emerald[900],
-    tabIconDefault: '#6b7280', // Adjusted from #9ca3af for WCAG AA contrast
+    tabIconDefault: '#6b7280',
     tabIconSelected: tintColorLight,
-    card: '#ffffff',
-    surface: '#f8fafc',
+    card: '#fcfcf7',
+    surface: '#f0f1f3',
     border: '#e5e7eb',
     primary: Emerald[900],
     primaryLight: Emerald[700],

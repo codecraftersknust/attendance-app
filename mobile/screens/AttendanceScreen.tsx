@@ -154,7 +154,6 @@ export default function AttendanceScreen() {
   const presentCount = history.filter((h) => h.status === 'confirmed').length;
   const flaggedCount = history.filter((h) => h.status === 'flagged').length;
   const absentCount = history.filter((h) => h.status === 'absent').length;
-  const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -187,7 +186,7 @@ export default function AttendanceScreen() {
             style={[
               styles.segment,
               activeTab === 'checkin' && {
-                backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
+                backgroundColor: colorScheme === 'dark' ? '#252829' : '#fcfcf7',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.1,
@@ -225,7 +224,7 @@ export default function AttendanceScreen() {
             style={[
               styles.segment,
               activeTab === 'history' && {
-                backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
+                backgroundColor: colorScheme === 'dark' ? '#252829' : '#fcfcf7',
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 1 },
                 shadowOpacity: 0.1,
@@ -297,8 +296,7 @@ export default function AttendanceScreen() {
                   style={[
                     styles.sessionCard,
                     {
-                      backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                      borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                      backgroundColor: colorScheme === 'dark' ? '#252829' : '#f0f1f3',
                       borderLeftWidth: 3,
                       borderLeftColor: session.already_marked ? Emerald[500] : '#10b981',
                     },
@@ -384,61 +382,19 @@ export default function AttendanceScreen() {
           ) : (
             <>
               {/* Summary Stats */}
-              <View style={styles.statsRow}>
-                <View
-                  style={[
-                    styles.statCard,
-                    {
-                      backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                      borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
-                      borderTopWidth: 3,
-                      borderTopColor: colors.tint,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.statValue, { color: colors.tint }]}>{attendanceRate}%</Text>
-                  <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Rate</Text>
-                </View>
-                <View
-                  style={[
-                    styles.statCard,
-                    {
-                      backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                      borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
-                      borderTopWidth: 3,
-                      borderTopColor: Emerald[500],
-                    },
-                  ]}
-                >
-                  <Text style={[styles.statValue, { color: Emerald[700] }]}>{presentCount}</Text>
+              <View style={[styles.statsRow, { backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3' }]}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{presentCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Present</Text>
                 </View>
-                <View
-                  style={[
-                    styles.statCard,
-                    {
-                      backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                      borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
-                      borderTopWidth: 3,
-                      borderTopColor: '#d97706',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.statValue, { color: '#d97706' }]}>{flaggedCount}</Text>
+                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{flaggedCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Flagged</Text>
                 </View>
-                <View
-                  style={[
-                    styles.statCard,
-                    {
-                      backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                      borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
-                      borderTopWidth: 3,
-                      borderTopColor: '#dc2626',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.statValue, { color: '#dc2626' }]}>{absentCount}</Text>
+                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{absentCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Absent</Text>
                 </View>
               </View>
@@ -522,8 +478,7 @@ export default function AttendanceScreen() {
                         style={[
                           styles.historyCard,
                           {
-                            backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                            borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                            backgroundColor: colorScheme === 'dark' ? '#252829' : '#f0f1f3',
                             borderLeftWidth: 3,
                             borderLeftColor: statusStyle.color,
                           },
@@ -658,7 +613,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 0,
     marginBottom: 12,
     alignItems: 'center',
   },
@@ -729,15 +684,19 @@ const styles = StyleSheet.create({
   // --- History styles ---
   statsRow: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     marginBottom: 16,
   },
-  statCard: {
+  statItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
   },
   statValue: {
     fontSize: 20,
@@ -747,8 +706,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   filterRow: {
     marginBottom: 16,
@@ -760,7 +718,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 0,
   },
   filterChipText: {
     fontSize: 13,
@@ -769,7 +727,7 @@ const styles = StyleSheet.create({
   historyCard: {
     padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 0,
     marginBottom: 10,
   },
   historyTop: {

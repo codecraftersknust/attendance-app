@@ -103,7 +103,7 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
         style={[
           styles.navbar,
           {
-            backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
+            backgroundColor: colorScheme === 'dark' ? '#252829' : '#fcfcf7',
             shadowColor: '#000',
             outlineColor: 'transparent',
           },

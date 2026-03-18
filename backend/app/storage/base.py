@@ -14,6 +14,9 @@ class Storage(Protocol):
     def download_bytes(self, path: str) -> bytes:
         ...
 
+    def exists(self, path: str) -> bool:
+        ...
+
 
 def get_storage() -> Storage:
     from .supabase import SupabaseStorage

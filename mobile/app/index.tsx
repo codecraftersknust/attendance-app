@@ -26,9 +26,21 @@ export default function Index() {
             setNeedsFaceSetup(false);
             return;
         }
-        apiClientService.getProfile()
-            .then((profile) => setNeedsFaceSetup(!profile.has_face_enrolled))
-            .catch(() => setNeedsFaceSetup(false));
+
+        let retries = 0;
+        const checkFaceSetup = () => {
+            apiClientService.getProfile()
+                .then((profile) => setNeedsFaceSetup(!profile.has_face_enrolled))
+                .catch(() => {
+                    if (retries < 2) {
+                        retries++;
+                        setTimeout(checkFaceSetup, 1500);
+                    } else {
+                        setNeedsFaceSetup(true);
+                    }
+                });
+        };
+        checkFaceSetup();
     }, [isAuthenticated, user]);
 
     if (isLoading || showSplash) {

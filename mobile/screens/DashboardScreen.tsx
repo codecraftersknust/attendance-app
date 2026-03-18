@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -16,7 +16,6 @@ import apiClientService from '@/services/apiClient.service';
 import type { DashboardStats, Course, AttendanceHistoryItem } from '@/types/api.types';
 
 export default function DashboardScreen() {
-  const { width: screenWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { user, isAuthenticated } = useAuth();
@@ -44,8 +43,11 @@ export default function DashboardScreen() {
     return Math.round((stats.attendance_marked_count / stats.total_sessions) * 100 * 10) / 10;
   };
 
+  const noSessions = !stats || stats.total_sessions === 0;
+
   // Get status label
   const getStatusLabel = (percentage: number) => {
+    if (noSessions) return 'No Sessions';
     if (percentage >= 80) return 'Good';
     if (percentage >= 60) return 'Average';
     return 'At Risk';
@@ -53,6 +55,7 @@ export default function DashboardScreen() {
 
   // Get status color (emerald=good, amber=average, red=at risk)
   const getStatusColor = (percentage: number) => {
+    if (noSessions) return colors.tabIconDefault;
     if (percentage >= 80) return colors.tint;
     if (percentage >= 60) return colors.accent ?? colors.warning;
     return colors.error;
@@ -177,7 +180,7 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <ScreenHeader title="Home" />
       <ScrollView
-        style={[styles.scrollView, { backgroundColor: '#ffffff' }]}
+        style={[styles.scrollView, { backgroundColor: '#fcfcf7' }]}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />
@@ -195,11 +198,15 @@ export default function DashboardScreen() {
               </Text>
             )}
           </View>
-          <View style={[styles.greetingAvatar, { backgroundColor: colors.tint }]}>
-            <Text style={styles.greetingAvatarText}>
-              {getInitials(user?.full_name || user?.email)}
-            </Text>
-          </View>
+          <TouchableOpacity
+            style={[styles.greetingAvatar, { backgroundColor: colors.tint }]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(tabs)/profile')}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          >
+            <Text style={styles.greetingAvatarText}>{getInitials(user?.full_name || user?.email)}</Text>
+          </TouchableOpacity>
         </View>
 
         {loading ? (
@@ -277,29 +284,22 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Stats row - below attendance card */}
+            {/* Stats row — clean inline numbers */}
             {stats && (
-              <Animated.View entering={FadeInDown.duration(500).delay(100).springify()} style={[styles.statsRow, { width: screenWidth - 40 }]}>
-                <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: '#3b82f6' }, styles.statCardShadow]}>
-                  <View style={styles.statCardIconWrap}>
-                    <IconSymbol name="book" size={20} color="#3b82f6" />
-                  </View>
-                  <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.enrolled_courses}</Text>
-                  <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? '#60a5fa' : '#2563eb' }]}>Enrolled</Text>
+              <Animated.View entering={FadeInDown.duration(500).delay(100).springify()} style={[styles.statsRow, { backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3' }]}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{stats.enrolled_courses}</Text>
+                  <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Enrolled</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: Emerald[500] }, styles.statCardShadow]}>
-                  <View style={styles.statCardIconWrap}>
-                    <IconSymbol name="person" size={20} color={Emerald[600]} />
-                  </View>
-                  <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.attendance_marked_count}</Text>
-                  <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? Emerald[400] : Emerald[700] }]}>Marked</Text>
+                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{stats.attendance_marked_count}</Text>
+                  <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Marked</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderWidth: 1, borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderTopWidth: 3, borderTopColor: Amber[500] }, styles.statCardShadow]}>
-                  <View style={styles.statCardIconWrap}>
-                    <IconSymbol name="checkmark.circle" size={20} color={Amber[600]} />
-                  </View>
-                  <Text style={[styles.statCardValue, { color: colors.text }]}>{stats.confirmed_count}</Text>
-                  <Text style={[styles.statCardLabel, { color: colorScheme === 'dark' ? Amber[400] : Amber[700] }]}>Confirmed</Text>
+                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{stats.confirmed_count}</Text>
+                  <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Confirmed</Text>
                 </View>
               </Animated.View>
             )}
@@ -311,7 +311,7 @@ export default function DashboardScreen() {
                   Recent Sessions
                 </Text>
                 <TouchableOpacity onPress={handleViewHistory} activeOpacity={0.7}>
-                  <Text style={[styles.viewAllText, { color: colors.accent }]}>
+                    <Text style={[styles.viewAllText, { color: "#64748b" }]}>
                     View All
                   </Text>
                 </TouchableOpacity>
@@ -338,8 +338,7 @@ export default function DashboardScreen() {
                         style={[
                           styles.sessionCard,
                           {
-                            backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff',
-                            borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5',
+                            backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3',
                             borderLeftWidth: 3,
                             borderLeftColor: statusStyle.color,
                           },
@@ -386,7 +385,7 @@ export default function DashboardScreen() {
                     key={course.id}
                     style={[
                       styles.enrolledCard,
-                      { backgroundColor: colorScheme === 'dark' ? '#252829' : '#ffffff', borderColor: colorScheme === 'dark' ? '#383b3d' : '#e5e5e5', borderLeftWidth: 3, borderLeftColor: '#3b82f6' },
+                      { backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3' },
                     ]}
                   >
                     <View style={styles.enrolledInfo}>
@@ -424,7 +423,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fcfcf7',
   },
   scrollView: {
     flex: 1,
@@ -602,8 +601,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   sessionCard: {
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
     marginBottom: 12,
     flexDirection: 'row',
     overflow: 'hidden',
@@ -682,58 +680,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  // Stats row - vertical layout: icon, number, label (mobile-optimized)
   statsRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 16,
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginBottom: 24,
   },
-  statCard: {
+  statItem: {
     flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderRadius: 12,
   },
-  statCardShadow: {
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
+  statDivider: {
+    width: 1,
+    height: 32,
   },
-  statCardIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  statCardValue: {
-    fontSize: 20,
+  statValue: {
+    fontSize: 22,
     fontWeight: '800',
     marginBottom: 2,
   },
-  statCardLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   // Enrolled
   enrolledCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
     marginBottom: 10,
   },
   enrolledInfo: {

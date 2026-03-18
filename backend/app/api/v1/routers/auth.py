@@ -137,9 +137,15 @@ def read_me(current: User = Depends(get_current_user)):
 
 
 @router.get("/profile", response_model=UserProfileRead)
-def get_profile(current: User = Depends(get_current_user)):
+def get_profile(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
     """Get the full profile of the current user."""
-    has_face = bool(current.face_reference_path) or face_service.has_reference_face(current.id)
+    has_face = face_service.has_reference_face(current.id)
+    if not has_face and current.face_reference_path:
+        current.face_reference_path = None
+        db.commit()
     return UserProfileRead(
         id=current.id,
         email=current.email,
@@ -185,7 +191,11 @@ def update_profile(
     db.commit()
     db.refresh(current)
 
-    has_face = bool(current.face_reference_path) or face_service.has_reference_face(current.id)
+    has_face = face_service.has_reference_face(current.id)
+    if not has_face and current.face_reference_path:
+        current.face_reference_path = None
+        db.commit()
+        db.refresh(current)
     return UserProfileRead(
         id=current.id,
         email=current.email,

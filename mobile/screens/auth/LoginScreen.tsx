@@ -11,7 +11,6 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +25,7 @@ export default function LoginScreen() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const { login } = useAuth();
   const { showToast } = useToast();
@@ -58,12 +58,13 @@ export default function LoginScreen() {
     }
   };
 
-  const bg = isDark ? '#0f1419' : '#ffffff';
-  const cardBg = isDark ? '#1a1f23' : '#ffffff';
-  const inputBg = isDark ? '#252829' : '#f8fafc';
-  const border = isDark ? '#383b3d' : '#e2e8f0';
+  const bg = isDark ? '#0f1419' : '#fcfcf7';
+  const cardBg = isDark ? '#1a1f23' : '#fcfcf7';
+  const inputBg = isDark ? '#2a2d30' : '#f0f1f3';
   const text = isDark ? '#f1f5f9' : '#0f172a';
   const muted = isDark ? '#94a3b8' : '#64748b';
+  const placeholder = isDark ? '#6b7280' : '#8a8f98';
+  const footerMuted = isDark ? '#5a6270' : '#b8bcc4';
 
   return (
     <KeyboardAvoidingView
@@ -75,15 +76,6 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.replace('/(auth)')}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <IconSymbol name="chevron.left" size={24} color={Amber[600]} />
-        </TouchableOpacity>
-
         {/* Header */}
         <View style={styles.header}>
           <Image
@@ -93,20 +85,17 @@ export default function LoginScreen() {
           />
           <Text style={[styles.title, { color: text }]}>Welcome Back</Text>
           <Text style={[styles.subtitle, { color: muted }]}>
-            Sign in to continue to Absense
+            Sign in to continue
           </Text>
         </View>
 
         {/* Form */}
         <View style={[styles.formCard, { backgroundColor: cardBg }]}>
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Email or Student ID <Text style={styles.required}>*</Text>
-            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="username@st.knust.edu.gh or 8-digit ID"
-              placeholderTextColor={muted}
+              style={[styles.input, { backgroundColor: inputBg, color: text }]}
+              placeholder="Student Email or 8-digit ID"
+              placeholderTextColor={placeholder}
               value={identifier}
               onChangeText={setIdentifier}
               autoCapitalize="none"
@@ -117,19 +106,38 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: muted }]}>
-              Password <Text style={styles.required}>*</Text>
-            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-              placeholder="Enter your password"
-              placeholderTextColor={muted}
+              style={[styles.input, { backgroundColor: inputBg, color: text }]}
+              placeholder="Password"
+              placeholderTextColor={placeholder}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoCapitalize="none"
               editable={!isLoading}
             />
+          </View>
+
+          <View style={styles.optionsRow}>
+            <TouchableOpacity
+              style={styles.rememberRow}
+              onPress={() => setRememberMe((prev) => !prev)}
+              activeOpacity={0.7}
+              disabled={isLoading}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  { borderColor: isDark ? '#4b5563' : '#d1d5db', backgroundColor: rememberMe ? Emerald[600] : 'transparent' },
+                ]}
+              >
+                {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={[styles.rememberText, { color: muted }]}>Remember me</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.7} disabled={isLoading}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -148,29 +156,10 @@ export default function LoginScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: muted }]}>Don't have an account? </Text>
+          <Text style={[styles.footerText, { color: footerMuted }]}>Don't have an account? </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')} disabled={isLoading} activeOpacity={0.7}>
             <Text style={styles.linkText}>Create Account</Text>
           </TouchableOpacity>
-        </View>
-        <View style={styles.legalContainer}>
-          <Text style={[styles.legalText, { color: muted }]}>
-            By signing in you agree to our{' '}
-            <Text
-              style={styles.legalLink}
-              onPress={() => Linking.openURL('https://absense.knust.edu.gh/terms')}
-            >
-              Terms of Service
-            </Text>
-            {' '}and{' '}
-            <Text
-              style={styles.legalLink}
-              onPress={() => Linking.openURL('https://absense.knust.edu.gh/privacy')}
-            >
-              Privacy Policy
-            </Text>
-            .
-          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -181,32 +170,27 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-  },
-  backBtn: {
-    alignSelf: 'flex-start',
-    marginBottom: 24,
-    padding: 4,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 36,
+    alignItems: 'flex-start',
+    marginVertical: 36,
+    paddingLeft: 24,
   },
   logoImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    marginBottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    marginBottom: 18,
   },
   title: {
     fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    fontWeight: '500',
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 22,
   },
   formCard: {
@@ -215,20 +199,48 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  required: { color: '#ef4444' },
   input: {
-    height: 52,
-    borderWidth: 1,
+    height: 56,
+    borderWidth: 0,
     borderRadius: 12,
     paddingHorizontal: 18,
     fontSize: 16,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginTop: 2,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmark: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  rememberText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  forgotText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Amber[600],
   },
   button: {
     height: 52,
@@ -249,23 +261,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  footerText: { fontSize: 15 },
+  footerText: { fontSize: 13 },
   linkText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Amber[600],
-  },
-  legalContainer: {
-    marginTop: 16,
-    paddingHorizontal: 4,
-  },
-  legalText: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  legalLink: {
-    textDecorationLine: 'underline',
-    color: Amber[600],
+    fontSize: 13,
     fontWeight: '600',
+    color: Amber[600],
   },
 });

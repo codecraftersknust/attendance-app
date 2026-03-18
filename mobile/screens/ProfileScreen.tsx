@@ -53,6 +53,12 @@ export default function ProfileScreen() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [changingPassword, setChangingPassword] = useState(false);
 
+    // Delete account modal
+    const [deleteVisible, setDeleteVisible] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [deletingAccount, setDeletingAccount] = useState(false);
+    const DELETE_PHRASE = 'delete my account';
+
     const loadProfile = useCallback(async () => {
         try {
             setLoading(true);
@@ -175,7 +181,28 @@ export default function ProfileScreen() {
         ]);
     };
 
-    const cardBg = colorScheme === 'dark' ? '#252829' : '#ffffff';
+    const handleDeleteAccount = async () => {
+        if (deleteConfirmText.trim().toLowerCase() !== DELETE_PHRASE) {
+            showToast(`Type "${DELETE_PHRASE}" to confirm`, 'error');
+            return;
+        }
+
+        setDeletingAccount(true);
+        try {
+            await apiClientService.deleteAccount();
+            showToast('Your account has been deleted', 'success');
+            await logout();
+            router.replace('/(auth)/login');
+        } catch (err: any) {
+            showToast(getErrorMessage(err), 'error');
+        } finally {
+            setDeletingAccount(false);
+            setDeleteVisible(false);
+            setDeleteConfirmText('');
+        }
+    };
+
+    const cardBg = colorScheme === 'dark' ? '#252829' : '#fcfcf7';
     const cardBorder = colorScheme === 'dark' ? '#383b3d' : '#e5e5e5';
     const inputBg = colorScheme === 'dark' ? '#1a1c1d' : '#f5f5f5';
 
@@ -188,10 +215,10 @@ export default function ProfileScreen() {
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: '#ffffff' }]}>
+        <View style={[styles.container, { backgroundColor: '#fcfcf7' }]}>
             <ScreenHeader title="Profile" />
             <ScrollView
-                style={[styles.scrollView, { backgroundColor: '#ffffff' }]}
+                style={[styles.scrollView, { backgroundColor: '#fcfcf7' }]}
                 contentContainerStyle={styles.content}
             >
                 {/* Profile Card */}
@@ -332,9 +359,77 @@ export default function ProfileScreen() {
                     <Text style={[styles.logoutText, { color: colors.error }]}>Logout</Text>
                 </TouchableOpacity>
 
+                {/* Delete Account */}
+                <View style={[styles.deleteCard, { backgroundColor: colors.error + '10', borderColor: colors.error + '35' }]}>
+                    <View style={styles.deleteHeader}>
+                        <IconSymbol name="trash" size={18} color={colors.error} />
+                        <Text style={[styles.deleteTitle, { color: colors.text }]}>Delete Account</Text>
+                    </View>
+                    <Text style={[styles.deleteText, { color: colors.tabIconDefault }]}>
+                        Permanently deletes your account and all associated data. This cannot be undone.
+                    </Text>
+                    <TouchableOpacity
+                        style={[styles.deleteButton, { backgroundColor: colors.error }]}
+                        activeOpacity={0.8}
+                        onPress={() => setDeleteVisible(true)}
+                    >
+                        <Text style={styles.deleteButtonText}>Delete My Account</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <Text style={[styles.versionText, { color: colors.tabIconDefault }]}>
                     Version 1.0.0
                 </Text>
+
+                {/* ─── Delete Account Modal ─── */}
+                <Modal visible={deleteVisible} animationType="slide" transparent>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={styles.modalOverlay}
+                    >
+                        <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Delete account</Text>
+                            <Text style={[styles.modalSubtitle, { color: colors.tabIconDefault }]}>
+                                This action is permanent. Type "{DELETE_PHRASE}" to confirm.
+                            </Text>
+
+                            <TextInput
+                                style={[styles.input, { backgroundColor: inputBg, color: colors.text, borderColor: cardBorder }]}
+                                value={deleteConfirmText}
+                                onChangeText={setDeleteConfirmText}
+                                placeholder={DELETE_PHRASE}
+                                placeholderTextColor={colors.tabIconDefault}
+                                editable={!deletingAccount}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: colors.border }]}
+                                    onPress={() => {
+                                        setDeleteVisible(false);
+                                        setDeleteConfirmText('');
+                                    }}
+                                    disabled={deletingAccount}
+                                >
+                                    <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: colors.error, opacity: deletingAccount ? 0.7 : 1 }]}
+                                    onPress={handleDeleteAccount}
+                                    disabled={deletingAccount || deleteConfirmText.trim().toLowerCase() !== DELETE_PHRASE}
+                                >
+                                    {deletingAccount ? (
+                                        <ActivityIndicator size="small" color="#ffffff" />
+                                    ) : (
+                                        <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>Delete</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </KeyboardAvoidingView>
+                </Modal>
 
                 {/* ─── Edit Profile Modal ─── */}
                 <Modal visible={editVisible} animationType="slide" transparent>
@@ -652,7 +747,7 @@ const styles = StyleSheet.create({
     },
     menuCard: {
         borderRadius: 16,
-        borderWidth: 1,
+        borderWidth: 0,
         overflow: 'hidden',
         marginBottom: 20,
     },
@@ -679,7 +774,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 14,
-        borderBottomWidth: 1,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     detailRowLast: {
         borderBottomWidth: 0,
@@ -715,6 +810,41 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginBottom: 20,
         letterSpacing: 0.5,
+    },
+    deleteCard: {
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        marginTop: -4,
+        marginBottom: 20,
+    },
+    deleteHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
+    },
+    deleteTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    deleteText: {
+        fontSize: 13,
+        lineHeight: 18,
+        marginBottom: 12,
+    },
+    deleteButton: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 12,
+        paddingVertical: 12,
+    },
+    deleteButtonText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '700',
+        letterSpacing: 0.2,
+        textTransform: 'uppercase',
     },
     // Modal styles
     modalOverlay: {

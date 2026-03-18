@@ -154,6 +154,32 @@ export default function AttendanceFlowScreen() {
         }
     }, [deviceId, bindDevice, showToast]);
 
+    // Start capturing location in the background immediately on mount
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted' || cancelled) return;
+                setLocating(true);
+                const location = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.High,
+                });
+                if (!cancelled) {
+                    setCoords({
+                        lat: location.coords.latitude,
+                        lng: location.coords.longitude,
+                    });
+                }
+            } catch {
+                // Silent — user can retry manually via the Location step
+            } finally {
+                if (!cancelled) setLocating(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
     // Initialize on mount
     useEffect(() => {
         const init = async () => {
@@ -285,9 +311,19 @@ export default function AttendanceFlowScreen() {
                 }
                 router.back();
             }, 1800);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Attendance submission error:', error);
-            showToast(getErrorMessage(error), 'error');
+            const msg = getErrorMessage(error);
+            const isNonceError = msg.toLowerCase().includes('qr code') || msg.toLowerCase().includes('expired');
+            if (isNonceError) {
+                Alert.alert(
+                    'QR Code Changed',
+                    'The QR code rotated while submitting. Please re-scan the current QR code and try again.',
+                    [{ text: 'Re-scan', onPress: () => setQrPayload(null) }]
+                );
+            } else {
+                showToast(msg, 'error');
+            }
         } finally {
             setSubmitting(false);
         }
@@ -602,28 +638,32 @@ export default function AttendanceFlowScreen() {
                     )}
                 </View>
 
-                {/* Step 3: Location (was step 2) */}
+                {/* Step 3: Location (auto-captured in background) */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>Step 3: Capture Location</Text>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>Step 3: Location</Text>
                     <Text style={[styles.cardDescription, { color: colors.tabIconDefault }]}>
-                        Your location is required to verify attendance
+                        {coords ? 'Location captured automatically' : locating ? 'Capturing your location...' : 'Your location is required to verify attendance'}
                     </Text>
 
-                    <TouchableOpacity
-                        style={[styles.button, styles.buttonOutline, { borderColor: colors.tint }]}
-                        onPress={handleCaptureLocation}
-                        disabled={locating}
-                        activeOpacity={0.8}
-                    >
-                        {locating ? (
+                    {locating && !coords && (
+                        <View style={styles.locationAutoRow}>
                             <ActivityIndicator size="small" color={colors.tint} />
-                        ) : (
-                            <>
-                                <IconSymbol name="location.fill" size={20} color={colors.tint} />
-                                <Text style={[styles.buttonText, { color: colors.tint }]}>Capture Location</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+                            <Text style={[styles.locationAutoText, { color: colors.tabIconDefault }]}>
+                                Getting your location...
+                            </Text>
+                        </View>
+                    )}
+
+                    {!coords && !locating && (
+                        <TouchableOpacity
+                            style={[styles.button, styles.buttonOutline, { borderColor: colors.tint }]}
+                            onPress={handleCaptureLocation}
+                            activeOpacity={0.8}
+                        >
+                            <IconSymbol name="location.fill" size={20} color={colors.tint} />
+                            <Text style={[styles.buttonText, { color: colors.tint }]}>Capture Location</Text>
+                        </TouchableOpacity>
+                    )}
 
                     {coords && (
                         <View style={[styles.successBadge, { backgroundColor: colors.successLight }]}>
@@ -842,6 +882,15 @@ const styles = StyleSheet.create({
     },
     statusText: {
         fontSize: 14,
+    },
+    locationAutoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 12,
+    },
+    locationAutoText: {
+        fontSize: 13,
     },
     successBadge: {
         flexDirection: 'row',
