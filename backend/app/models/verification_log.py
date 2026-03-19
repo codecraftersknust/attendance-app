@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Float, Boolean
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Float, Boolean, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 from ..db.session import Base
@@ -17,4 +17,7 @@ class VerificationLog(Base):
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
-
+    __table_args__ = (
+        # Composite index for batch lookup: get all logs for a given session+student pair
+        Index("ix_verification_logs_session_user", "session_id", "user_id"),
+    )

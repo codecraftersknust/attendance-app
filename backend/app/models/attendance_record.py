@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Enum, JSON
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Enum, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 import enum
@@ -26,3 +26,11 @@ class AttendanceRecord(Base):
 
     session: Mapped["AttendanceSession"] = relationship(back_populates="records")
     student: Mapped["User"] = relationship(back_populates="attendances")
+
+    __table_args__ = (
+        # Composite index for fast per-student history ordered by date
+        Index("ix_attendance_records_student_created", "student_id", "created_at"),
+        # Composite index for fast per-session status aggregates (confirmed counts, flagged list)
+        Index("ix_attendance_records_session_status", "session_id", "status"),
+    )
+

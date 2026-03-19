@@ -22,12 +22,28 @@ def test_admin_flagged_list_set_status_and_analytics(client):
     assert r.status_code == 200
     r = client.post("/api/v1/auth/login", data={"username": "lect2@knust.edu.gh", "password": "pw123456"})
     lect_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
-    r = client.post("/api/v1/lecturer/sessions", headers=lect_headers, json={"duration_minutes": 5})
+    # Create course as admin
+    r = client.post("/api/v1/admin/courses", headers=admin_headers, params={
+        "code": "TEST101",
+        "name": "Test Course",
+        "semester": "Sem 1",
+        "level": 100,
+        "programmes": "Computer Engineering"
+    })
+    assert r.status_code == 200
+    course_id = r.json()["id"]
+
+    # Claim course as lecturer
+    r = client.post(f"/api/v1/lecturer/courses/{course_id}/claim", headers=lect_headers)
+    assert r.status_code == 200
+
+    r = client.post("/api/v1/lecturer/sessions", headers=lect_headers, params={"course_id": course_id, "duration_minutes": 5})
+    assert r.status_code == 200
     sid = r.json()["id"]
     code = r.json()["code"]
     
     # Generate QR for the session
-    r = client.post(f"/api/v1/lecturer/sessions/{sid}/qr/rotate", headers=lect_headers, json={"ttl_seconds": 60})
+    r = client.post(f"/api/v1/lecturer/sessions/{sid}/qr/rotate", headers=lect_headers, params={"ttl_seconds": 60})
     assert r.status_code == 200
     qr_data = r.json()
     qr_session_id = qr_data["session_id"]
@@ -39,13 +55,18 @@ def test_admin_flagged_list_set_status_and_analytics(client):
         "password": "pw123456",
         "full_name": "Stu Two",
         "role": "student",
-        "user_id": "87654321",
+        "user_id": "55553333",
         "level": 100,
         "programme": "Computer Engineering",
     })
     assert r.status_code == 200
     r = client.post("/api/v1/auth/login", data={"username": "stu2@st.knust.edu.gh", "password": "pw123456"})
     stu_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    
+    # Enroll student in the course before attending
+    r = client.post(f"/api/v1/student/courses/{course_id}/enroll", headers=stu_headers)
+    assert r.status_code == 200, f"Enrollment failed: {r.text}"
+    
     r = client.post(
         "/api/v1/student/attendance",
         headers=stu_headers,
@@ -56,8 +77,9 @@ def test_admin_flagged_list_set_status_and_analytics(client):
             "longitude": "-74.0060",
             "device_id": "test-device-id-12345"
         },
+        files={"selfie": ("dummy.jpg", b"fake", "image/jpeg")},
     )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     body = r.json()
     record_id = body["record_id"]
     assert body["status"] in ("flagged", "confirmed")

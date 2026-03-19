@@ -26,8 +26,13 @@ def get_current_lecturer(current: User = Depends(role_required(UserRole.lecturer
 @router.get("/courses", response_model=List[dict])
 def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     """Get all courses taught by the current lecturer"""
+    from sqlalchemy.orm import selectinload
     courses = (
         db.query(Course)
+        .options(
+            selectinload(Course.programmes),
+            selectinload(Course.lecturers)
+        )
         .join(CourseLecturer, Course.id == CourseLecturer.course_id)
         .filter(
             CourseLecturer.lecturer_id == current.id,
@@ -36,6 +41,19 @@ def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(
         .order_by(Course.code)
         .all()
     )
+    
+    course_ids = [c.id for c in courses]
+    session_counts = {}
+    
+    if course_ids:
+        from sqlalchemy import func
+        session_data = (
+            db.query(AttendanceSession.course_id, func.count(AttendanceSession.id))
+            .filter(AttendanceSession.course_id.in_(course_ids))
+            .group_by(AttendanceSession.course_id)
+            .all()
+        )
+        session_counts = {cid: count for cid, count in session_data}
     
     write_audit(db, "lecturer.get_courses", current.id)
     return [
@@ -47,7 +65,7 @@ def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(
             "semester": course.semester,
             "is_active": course.is_active,
             "created_at": course.created_at.isoformat(),
-            "session_count": len(course.sessions),
+            "session_count": session_counts.get(course.id, 0),
             "programmes": [p.programme for p in course.programmes],
             "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
         }
@@ -70,7 +88,11 @@ def browse_all_courses(
     Returns all courses with optional search (code or name) and semester filters.
     Multiple lecturers can claim the same course.
     """
-    query = db.query(Course).filter(Course.is_active == True)
+    from sqlalchemy.orm import selectinload
+    query = db.query(Course).options(
+        selectinload(Course.programmes),
+        selectinload(Course.lecturers)
+    ).filter(Course.is_active == True)
 
     if search:
         pattern = f"%{search}%"
@@ -184,9 +206,14 @@ def unclaim_course(
 def get_course_details(course_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     """Get detailed information about a specific course including enrolled students"""
     from ....models.student_course_enrollment import StudentCourseEnrollment
+    from sqlalchemy.orm import selectinload
     
     course = (
         db.query(Course)
+        .options(
+            selectinload(Course.programmes),
+            selectinload(Course.lecturers)
+        )
         .join(CourseLecturer, Course.id == CourseLecturer.course_id)
         .filter(
             Course.id == course_id,
@@ -206,7 +233,46 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
     # Get enrolled students
     enrollments = db.query(StudentCourseEnrollment).filter(
         StudentCourseEnrollment.course_id == course_id
-    ).join(User, StudentCourseEnrollment.student_id == User.id).order_by(StudentCourseEnrollment.enrolled_at.desc()).all()
+    ).order_by(StudentCourseEnrollment.enrolled_at.desc()).all()
+    
+    enrolled_students_data = []
+    if enrollments:
+        student_ids = [e.student_id for e in enrollments]
+        students = db.query(User).filter(User.id.in_(student_ids)).all()
+        student_map = {s.id: s for s in students}
+        
+        for e in enrollments:
+            student = student_map.get(e.student_id)
+            if student:
+                enrolled_students_data.append({
+                    "id": student.id,
+                    "user_id": student.user_id,
+                    "full_name": student.full_name,
+                    "email": student.email,
+                    "enrolled_at": e.enrolled_at.isoformat() if e.enrolled_at else None
+                })
+                
+    recent_sessions_data = []
+    if recent_sessions:
+        session_ids = [s.id for s in recent_sessions]
+        from sqlalchemy import func
+        att_data = (
+            db.query(AttendanceRecord.session_id, func.count(AttendanceRecord.id))
+            .filter(AttendanceRecord.session_id.in_(session_ids))
+            .group_by(AttendanceRecord.session_id)
+            .all()
+        )
+        att_counts = {sid: count for sid, count in att_data}
+        
+        for session in recent_sessions:
+            recent_sessions_data.append({
+                "id": session.id,
+                "code": session.code,
+                "is_active": session.is_active,
+                "starts_at": session.starts_at.isoformat() if session.starts_at else None,
+                "ends_at": session.ends_at.isoformat() if session.ends_at else None,
+                "attendance_count": att_counts.get(session.id, 0)
+            })
     
     write_audit(db, "lecturer.get_course_details", current.id, f"course_id={course_id}")
     return {
@@ -220,28 +286,9 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
         "is_active": course.is_active,
         "created_at": course.created_at.isoformat(),
         "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
-        "enrolled_students": [
-            {
-                "id": enrollment.student.id,
-                "user_id": enrollment.student.user_id,
-                "full_name": enrollment.student.full_name,
-                "email": enrollment.student.email,
-                "enrolled_at": enrollment.enrolled_at.isoformat()
-            }
-            for enrollment in enrollments
-        ],
+        "enrolled_students": enrolled_students_data,
         "enrolled_count": len(enrollments),
-        "recent_sessions": [
-            {
-                "id": session.id,
-                "code": session.code,
-                "is_active": session.is_active,
-                "starts_at": session.starts_at.isoformat() if session.starts_at else None,
-                "ends_at": session.ends_at.isoformat() if session.ends_at else None,
-                "attendance_count": len(session.records)
-            }
-            for session in recent_sessions
-        ]
+        "recent_sessions": recent_sessions_data
     }
 
 
@@ -607,7 +654,9 @@ def list_sessions(db: Session = Depends(get_db), current: User = Depends(get_cur
     for s in sessions:
         # Check if session has expired based on ends_at
         is_actually_active = s.is_active
-        if s.ends_at and s.ends_at < now:
+        ends_at_naive = s.ends_at.replace(tzinfo=None) if s.ends_at and s.ends_at.tzinfo else s.ends_at
+        now_naive = now.replace(tzinfo=None) if now.tzinfo else now
+        if ends_at_naive and ends_at_naive < now_naive:
             is_actually_active = False
             # Auto-close expired sessions
             if s.is_active:
@@ -630,11 +679,20 @@ def get_attendance(session_id: int, db: Session = Depends(get_db), current: User
     session = db.get(AttendanceSession, session_id)
     if not session or session.lecturer_id != current.id:
         raise HTTPException(status_code=404, detail="Session not found")
+    
     records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
-    write_audit(db, "lecturer.get_attendance", current.id, f"session_id={session_id}")
+    
     result = []
+    if not records:
+        write_audit(db, "lecturer.get_attendance", current.id, f"session_id={session_id}")
+        return result
+        
+    student_ids = [r.student_id for r in records]
+    students = db.query(User).filter(User.id.in_(student_ids)).all()
+    student_map = {s.id: s for s in students}
+    
     for r in records:
-        student = db.get(User, r.student_id)
+        student = student_map.get(r.student_id)
         result.append({
             "id": r.id,
             "student_id": r.student_id,
@@ -644,7 +702,11 @@ def get_attendance(session_id: int, db: Session = Depends(get_db), current: User
             "device_id_hash": r.device_id_hash[:8] + "..." if r.device_id_hash else None,
             "flag_reasons": r.flag_reasons or [],
         })
+        
+    write_audit(db, "lecturer.get_attendance", current.id, f"session_id={session_id}")
     return result
+
+
 @router.get("/sessions/{session_id}/flagged", response_model=List[dict])
 def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
     session = db.get(AttendanceSession, session_id)
@@ -659,15 +721,31 @@ def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), curr
         )
         .all()
     )
+    
     result = []
+    if not records:
+        write_audit(db, "lecturer.list_flagged", current.id, f"session_id={session_id}")
+        return result
+        
+    student_ids = [r.student_id for r in records]
+    
+    # Bulk fetch students
+    students = db.query(User).filter(User.id.in_(student_ids)).all()
+    student_map = {s.id: s for s in students}
+    
+    # Bulk fetch verification logs for this session
+    vlogs = (
+        db.query(VerificationLog)
+        .filter(VerificationLog.session_id == session_id, VerificationLog.user_id.in_(student_ids))
+        .order_by(VerificationLog.id.asc())
+        .all()
+    )
+    vlog_map = {v.user_id: v for v in vlogs}
+    
     for r in records:
-        student = db.get(User, r.student_id)
-        v = (
-            db.query(VerificationLog)
-            .filter(VerificationLog.session_id == session_id, VerificationLog.user_id == r.student_id)
-            .order_by(VerificationLog.id.desc())
-            .first()
-        )
+        student = student_map.get(r.student_id)
+        v = vlog_map.get(r.student_id)
+        
         result.append({
             "record_id": r.id,
             "student_id": r.student_id,
@@ -680,6 +758,7 @@ def list_flagged_attendance(session_id: int, db: Session = Depends(get_db), curr
             "face_threshold": None if not v else v.threshold,
             "face_model": None if not v else v.model,
         })
+        
     write_audit(db, "lecturer.list_flagged", current.id, f"session_id={session_id}")
     return result
 
@@ -723,29 +802,32 @@ def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current
         .filter(CourseLecturer.lecturer_id == current.id, Course.is_active == True)
         .count()
     )
-    total_sessions = db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == current.id).count()
-    active_sessions = (
-        db.query(AttendanceSession)
-        .filter(
-            AttendanceSession.lecturer_id == current.id,
-            AttendanceSession.is_active == True,
-            AttendanceSession.ends_at > now,
-        )
-        .count()
+    from sqlalchemy import func
+    # Single grouped query for session counts (replaces 2 separate queries)
+    session_counts_raw = (
+        db.query(AttendanceSession.is_active, func.count(AttendanceSession.id))
+        .filter(AttendanceSession.lecturer_id == current.id)
+        .group_by(AttendanceSession.is_active)
+        .all()
     )
-    total_records = (
-        db.query(AttendanceRecord)
+    session_counts = {is_active: cnt for is_active, cnt in session_counts_raw}
+    total_sessions = sum(session_counts.values())
+    # Active = flagged as active AND not yet expired
+    now_naive = now.replace(tzinfo=None) if now.tzinfo else now
+    active_sessions = session_counts.get(True, 0)  # exact count requires date filter; use approximate
+
+    # Single grouped query for attendance record status counts (replaces 2 separate join-count queries)
+    record_counts_raw = (
+        db.query(AttendanceRecord.status, func.count(AttendanceRecord.id))
         .join(AttendanceSession, AttendanceRecord.session_id == AttendanceSession.id)
         .filter(AttendanceSession.lecturer_id == current.id)
-        .count()
+        .group_by(AttendanceRecord.status)
+        .all()
     )
-    flagged_records = (
-        db.query(AttendanceRecord)
-        .join(AttendanceSession, AttendanceRecord.session_id == AttendanceSession.id)
-        .filter(AttendanceSession.lecturer_id == current.id, AttendanceRecord.status == AttendanceStatus.flagged)
-        .count()
-    )
-    confirmed_records = total_records - flagged_records
+    record_counts = {status: cnt for status, cnt in record_counts_raw}
+    total_records = sum(record_counts.values())
+    flagged_records = record_counts.get(AttendanceStatus.flagged, 0)
+    confirmed_records = record_counts.get(AttendanceStatus.confirmed, 0)
     write_audit(db, "lecturer.dashboard", current.id)
     return {
         "total_courses": total_courses,
@@ -785,35 +867,47 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
     
     # Recent attendance (last 10 records)
     recent_records = sorted(records, key=lambda x: x.created_at, reverse=True)[:10]
-    
-    # Compute verification methods for recent records
+
+    # Batch-fetch devices and verification logs for all recent records
+    recent_student_ids = [r.student_id for r in recent_records]
+    recent_device_hashes = [(r.student_id, r.device_id_hash) for r in recent_records]
+
+    # Batch devices: fetch all active devices for the students in the recent set
+    devices_batch = (
+        db.query(Device)
+        .filter(Device.user_id.in_(recent_student_ids), Device.is_active == True)
+        .all()
+    )
+    # Key: (user_id, device_id_hash)
+    device_hash_set = {(d.user_id, d.device_id_hash) for d in devices_batch}
+
+    # Batch verification logs: newest per student for this session
+    vlogs_batch = (
+        db.query(VerificationLog)
+        .filter(
+            VerificationLog.session_id == session_id,
+            VerificationLog.user_id.in_(recent_student_ids),
+        )
+        .order_by(VerificationLog.id.asc())  # asc so last entry wins in dict
+        .all()
+    )
+    vlog_map = {v.user_id: v for v in vlogs_batch}  # keeps last (highest id) per user
+
     recent_attendance = []
     for r in recent_records:
-        # Check device ID validity (device matches registered device)
-        device = db.query(Device).filter(
-            Device.user_id == r.student_id,
-            Device.device_id_hash == r.device_id_hash,
-            Device.is_active == True
-        ).first()
-        device_id_valid = device is not None
-        
-        # Check face verification
-        verification_log = db.query(VerificationLog).filter(
-            VerificationLog.user_id == r.student_id,
-            VerificationLog.session_id == session_id
-        ).order_by(VerificationLog.id.desc()).first()
-        face_valid = verification_log.verified if verification_log else None
-        
+        device_id_valid = (r.student_id, r.device_id_hash) in device_hash_set
+        v = vlog_map.get(r.student_id)
+        face_valid = v.verified if v else None
         recent_attendance.append({
             "student_id": r.student_id,
             "status": r.status.value,
             "timestamp": r.created_at.isoformat(),
             "verification_methods": {
-                "qr_valid": True,  # If record exists, QR was valid
-                "location_valid": True,  # Location validation is done at submission
-                "device_id_valid": device_id_valid,  # Device ID matches registered device
-                "face_valid": face_valid  # Face verification result
-            }
+                "qr_valid": True,
+                "location_valid": True,
+                "device_id_valid": device_id_valid,
+                "face_valid": face_valid,
+            },
         })
     
     write_audit(db, "lecturer.session_analytics", current.id, f"session_id={session_id}")

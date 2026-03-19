@@ -59,11 +59,18 @@ async def submit_attendance(
     if not session.qr_nonce or not session.qr_expires_at:
         logger.error(f"QR not generated for session {qr_session_id}")
         raise HTTPException(status_code=400, detail="QR code not generated for this session")
-
+    
+    if session.qr_expires_at < utcnow():
+        logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
+        raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
+    
     # Enforce session duration
-    if session.ends_at and session.ends_at < utcnow():
-        logger.warning(f"Session ended - session_id={qr_session_id}, ends_at={session.ends_at}")
-        raise HTTPException(status_code=400, detail="Session has ended")
+    if session.ends_at:
+        _ends_naive = session.ends_at.replace(tzinfo=None) if session.ends_at.tzinfo else session.ends_at
+        _now_naive = utcnow().replace(tzinfo=None)
+        if _ends_naive < _now_naive:
+            logger.warning(f"Session ended - session_id={qr_session_id}, ends_at={session.ends_at}")
+            raise HTTPException(status_code=400, detail="Session has ended")
 
     # Accept current nonce, or the previous nonce (grace for in-flight submissions during rotation)
     nonce_valid = qr_nonce == session.qr_nonce
@@ -421,59 +428,71 @@ def student_dashboard(
     current: User = Depends(get_current_student),
 ):
     """Get dashboard stats for the current student."""
-    enrolled_count = (
+    from sqlalchemy import func, case
+
+    # Single query: get all active enrollments with course info
+    enrollments = (
         db.query(StudentCourseEnrollment)
         .filter(StudentCourseEnrollment.student_id == current.id)
-        .join(Course)
+        .join(Course, StudentCourseEnrollment.course_id == Course.id)
         .filter(Course.is_active == True)
-        .count()
-    )
-
-    # Get enrolled course IDs
-    enrolled_course_ids = [
-        e.course_id
-        for e in db.query(StudentCourseEnrollment)
-        .filter(StudentCourseEnrollment.student_id == current.id)
         .all()
-    ]
+    )
+    enrolled_count = len(enrollments)
+    enrolled_course_ids = [e.course_id for e in enrollments]
 
-    # Total sessions: Past sessions for enrolled courses OR any active session the student has marked
-    now = utcnow()
     total_sessions = 0
+    confirmed_count = 0
+    attendance_marked_count = 0
+
     if enrolled_course_ids:
-        # Get all records for this student in enrolled courses
-        my_records = (
-            db.query(AttendanceRecord.session_id, AttendanceRecord.status)
+        now = utcnow()
+        now_naive = now.replace(tzinfo=None) if now.tzinfo else now
+
+        # Single aggregation query: count per status for this student in enrolled sessions
+        status_counts = (
+            db.query(
+                AttendanceRecord.status,
+                func.count(AttendanceRecord.id).label("cnt"),
+            )
             .join(AttendanceSession, AttendanceRecord.session_id == AttendanceSession.id)
             .filter(
                 AttendanceRecord.student_id == current.id,
-                AttendanceSession.course_id.in_(enrolled_course_ids)
+                AttendanceSession.course_id.in_(enrolled_course_ids),
             )
+            .group_by(AttendanceRecord.status)
             .all()
         )
-        marked_session_ids = {r.session_id for r in my_records}
+        counts_by_status = {row.status: row.cnt for row in status_counts}
+        confirmed_count = counts_by_status.get(AttendanceStatus.confirmed, 0)
+        flagged_count = counts_by_status.get(AttendanceStatus.flagged, 0)
+        marked_total = confirmed_count + flagged_count
 
-        # Count past sessions that the student didn't mark
-        past_unmarked_count = (
-            db.query(AttendanceSession)
+        # Get the set of session IDs already marked (to exclude from past-unmarked count)
+        marked_session_ids_q = (
+            db.query(AttendanceRecord.session_id)
+            .join(AttendanceSession, AttendanceRecord.session_id == AttendanceSession.id)
             .filter(
+                AttendanceRecord.student_id == current.id,
                 AttendanceSession.course_id.in_(enrolled_course_ids),
-                AttendanceSession.ends_at < now,
-                ~AttendanceSession.id.in_(marked_session_ids) if marked_session_ids else True
             )
-            .count()
+            .distinct()
+            .all()
         )
+        marked_session_ids = {row[0] for row in marked_session_ids_q}
 
-        total_sessions = len(marked_session_ids) + past_unmarked_count
+        # Count past (ended) sessions the student hasn't marked
+        past_unmarked_q = db.query(func.count(AttendanceSession.id)).filter(
+            AttendanceSession.course_id.in_(enrolled_course_ids),
+            AttendanceSession.ends_at != None,
+        )
+        if marked_session_ids:
+            past_unmarked_q = past_unmarked_q.filter(~AttendanceSession.id.in_(marked_session_ids))
+        past_unmarked_count = past_unmarked_q.scalar() or 0
 
-    # Count confirmed records for enrolled courses
-    attendance_marked_count = 0
-    confirmed_count = 0
-    if enrolled_course_ids:
-        confirmed_count = sum(1 for r in my_records if r.status == AttendanceStatus.confirmed)
-        # As per user request, only confirmed sessions count towards the overall marked/attended count
+        total_sessions = marked_total + past_unmarked_count
         attendance_marked_count = confirmed_count
-        
+
     profile_complete = bool(current.level and current.programme)
     school = get_or_create_settings(db)
     write_audit(db, "student.dashboard", current.id)
@@ -615,33 +634,51 @@ def list_active_sessions(
     if not enrolled_course_ids:
         return []
 
-    from datetime import datetime
     now = utcnow()
+    now_naive = now.replace(tzinfo=None) if now.tzinfo else now
     sessions = (
         db.query(AttendanceSession)
         .filter(
             AttendanceSession.is_active == True,
-            AttendanceSession.ends_at > now,
             AttendanceSession.course_id.in_(enrolled_course_ids),
         )
         .order_by(AttendanceSession.created_at.desc())
         .all()
     )
+    # Filter out expired sessions (naive-safe comparison)
+    sessions = [
+        s for s in sessions
+        if not s.ends_at or (
+            (s.ends_at.replace(tzinfo=None) if s.ends_at.tzinfo else s.ends_at) > now_naive
+        )
+    ]
+
+    if not sessions:
+        return []
+
+    session_ids = [s.id for s in sessions]
+    course_ids = list({s.course_id for s in sessions if s.course_id})
+
+    # Batch fetch courses
+    course_map = {
+        c.id: c for c in db.query(Course).filter(Course.id.in_(course_ids)).all()
+    } if course_ids else {}
+
+    # Batch fetch this student's attendance records for these sessions
+    record_map = {
+        r.session_id: r
+        for r in db.query(AttendanceRecord)
+        .filter(
+            AttendanceRecord.session_id.in_(session_ids),
+            AttendanceRecord.student_id == current.id,
+        )
+        .all()
+    }
 
     result = []
     for s in sessions:
-        course = db.get(Course, s.course_id) if s.course_id else None
-        # Check if student already has an attendance record for this session (confirmed or flagged)
-        existing = (
-            db.query(AttendanceRecord)
-            .filter(
-                AttendanceRecord.session_id == s.id,
-                AttendanceRecord.student_id == current.id,
-            )
-            .first()
-        )
-        already_marked = existing is not None
-        attendance_status = existing.status.value if existing else None
+        course = course_map.get(s.course_id) if s.course_id else None
+        existing = record_map.get(s.id)
         result.append({
             "id": s.id,
             "code": s.code,
@@ -650,8 +687,8 @@ def list_active_sessions(
             "course_name": course.name if course else None,
             "starts_at": s.starts_at.isoformat() if s.starts_at else None,
             "ends_at": s.ends_at.isoformat() if s.ends_at else None,
-            "already_marked": already_marked,
-            "attendance_status": attendance_status,
+            "already_marked": existing is not None,
+            "attendance_status": existing.status.value if existing else None,
         })
 
     write_audit(db, "student.list_active_sessions", current.id, f"count={len(result)}")
@@ -723,6 +760,12 @@ def get_attendance_history(
     history = []
     seen_session_ids = set()
 
+    # Batch-fetch all courses needed for these sessions
+    needed_course_ids = list({s.course_id for s in sessions_sorted if s.course_id})
+    course_map = {
+        c.id: c for c in db.query(Course).filter(Course.id.in_(needed_course_ids)).all()
+    } if needed_course_ids else {}
+
     for session in sessions_sorted:
         if session.id in seen_session_ids:
             continue
@@ -740,7 +783,7 @@ def get_attendance_history(
                 continue
             status = "absent"
 
-        course = db.get(Course, session.course_id)
+        course = course_map.get(session.course_id)
         history.append({
             "session_id": session.id,
             "session_code": session.code,
