@@ -60,7 +60,8 @@ async def submit_attendance(
         logger.error(f"QR not generated for session {qr_session_id}")
         raise HTTPException(status_code=400, detail="QR code not generated for this session")
     
-    if session.qr_expires_at < utcnow():
+    _qr_exp_naive = session.qr_expires_at.replace(tzinfo=None) if session.qr_expires_at.tzinfo else session.qr_expires_at
+    if _qr_exp_naive < utcnow().replace(tzinfo=None):
         logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
         raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
     

@@ -28,6 +28,9 @@ class _FakeStorage:
     def delete(self, key: str) -> None:
         self._store.pop(key, None)
 
+    def exists(self, key: str) -> bool:
+        return key in self._store
+
     def url_for(self, key: str) -> str:
         return f"http://fake-storage/{key}"
 
