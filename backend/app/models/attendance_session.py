@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, DateTime, ForeignKey, Boolean, Float
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Boolean, Float, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional
 from datetime import datetime
@@ -26,3 +26,11 @@ class AttendanceSession(Base):
     lecturer: Mapped["User"] = relationship(back_populates="lecturer_sessions")
     course: Mapped[Optional["Course"]] = relationship("Course", back_populates="sessions")
     records: Mapped[list["AttendanceRecord"]] = relationship(back_populates="session", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        # Speeds up dashboard/history: "past sessions for enrolled courses"
+        Index("ix_attendance_sessions_course_ends_at", "course_id", "ends_at"),
+        # Speeds up lecturer session list filtered by active state
+        Index("ix_attendance_sessions_lecturer_active", "lecturer_id", "is_active"),
+    )
+

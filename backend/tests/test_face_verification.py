@@ -10,13 +10,24 @@ def test_face_verification_disabled(monkeypatch, tmp_path):
     cfg = Settings()
     assert cfg.face_verification_enabled is False
 
-    svc = FaceVerificationService(base_dir=str(tmp_path))
-    user_id = 1
-    ref_path = svc.get_reference_path(user_id)
-    os.makedirs(os.path.dirname(ref_path), exist_ok=True)
-    with open(ref_path, "wb") as f:
-        f.write(b"fake")
+    from app.storage.base import Storage
 
+    class FakeStorage(Storage):
+        def save_bytes(self, b: bytes, key: str) -> str:
+            return key
+        def download_bytes(self, key: str) -> bytes:
+            return b"fake"
+        def delete(self, key: str) -> None:
+            pass
+
+    # Mock get_storage
+    import app.services.face_verification
+    monkeypatch.setattr(app.services.face_verification, "get_storage", lambda: FakeStorage())
+
+    svc = FaceVerificationService()
+    user_id = 1
+    
+    # Simulate a fake reference face in storage (handled by our fake mock above)
     live_path = tmp_path / "live.jpg"
     live_path.write_bytes(b"fake")
 
