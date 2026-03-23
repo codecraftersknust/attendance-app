@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,19 @@ import {
   ScrollView,
   Image,
   Platform,
+  Alert,
 } from 'react-native';
+import { Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getErrorMessage } from '@/utils/error';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Emerald, Amber } from '@/constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '@/constants/config';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getLoginIdentifierError } from '@/lib/auth-validation';
 
 export default function LoginScreen() {
@@ -49,6 +53,13 @@ export default function LoginScreen() {
 
     try {
       await login({ username: identifier.trim(), password });
+
+      if (rememberMe) {
+        await AsyncStorage.setItem(STORAGE_KEYS.REMEMBERED_IDENTIFIER, identifier.trim());
+      } else {
+        await AsyncStorage.removeItem(STORAGE_KEYS.REMEMBERED_IDENTIFIER);
+      }
+
       showToast('Welcome back!', 'success');
       router.replace('/(tabs)');
     } catch (error) {
@@ -57,6 +68,26 @@ export default function LoginScreen() {
       setIsLoading(false);
     }
   };
+
+  // Restore remembered identifier on mount
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE_KEYS.REMEMBERED_IDENTIFIER);
+        if (!mounted) return;
+        if (saved) {
+          setIdentifier(saved);
+          setRememberMe(true);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const bg = isDark ? '#0f1419' : '#fcfcf7';
   const cardBg = isDark ? '#1a1f23' : '#fcfcf7';
@@ -92,30 +123,36 @@ export default function LoginScreen() {
         {/* Form */}
         <View style={[styles.formCard, { backgroundColor: cardBg }]}>
           <View style={styles.inputGroup}>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text }]}
-              placeholder="Student Email or 8-digit ID"
-              placeholderTextColor={placeholder}
-              value={identifier}
-              onChangeText={setIdentifier}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              editable={!isLoading}
-            />
+            <View style={[styles.inputRow, { backgroundColor: inputBg }]}>
+              <IconSymbol name="envelope.fill" size={18} color={placeholder} />
+              <TextInput
+                style={[styles.inputWithIcon, { color: text }]}
+                placeholder="Student Email or 8-digit ID"
+                placeholderTextColor={placeholder}
+                value={identifier}
+                onChangeText={setIdentifier}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                editable={!isLoading}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text }]}
-              placeholder="Password"
-              placeholderTextColor={placeholder}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
+            <View style={[styles.inputRow, { backgroundColor: inputBg }]}>
+              <IconSymbol name="lock.fill" size={18} color={placeholder} />
+              <TextInput
+                style={[styles.inputWithIcon, { color: text }]}
+                placeholder="Password"
+                placeholderTextColor={placeholder}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+            </View>
           </View>
 
           <View style={styles.optionsRow}>
@@ -136,7 +173,29 @@ export default function LoginScreen() {
               <Text style={[styles.rememberText, { color: muted }]}>Remember me</Text>
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.7} disabled={isLoading}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text
+                style={styles.forgotText}
+                onPress={() =>
+                  Alert.alert(
+                    'Forgot password',
+                    'Please contact support team to reset your password.',
+                    [
+                      {
+                        text: 'Email support',
+                        onPress: () =>
+                          Linking.openURL(
+                            `mailto:codecraftersknust@gmail.com?subject=${encodeURIComponent('Password reset request')}&body=${encodeURIComponent(
+                              `Hi Absense team,\n\nPlease help me reset my password.\n\nMy username/email: ${identifier || '(not provided)'}`
+                            )}`
+                          ),
+                      },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]
+                  )
+                }
+              >
+                Forgot password?
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -152,6 +211,25 @@ export default function LoginScreen() {
               <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.consentRow}>
+          <Text style={[styles.consentText, { color: footerMuted }]}>By signing in, you agree to</Text>
+          <View style={styles.consentLinksRow}>
+            <Text
+              style={styles.consentLink}
+              onPress={() => Linking.openURL('https://absense.knust.edu.gh/terms')}
+            >
+              Terms of Service
+            </Text>
+            <Text style={[styles.consentSeparator, { color: footerMuted }]}>•</Text>
+            <Text
+              style={styles.consentLink}
+              onPress={() => Linking.openURL('https://absense.knust.edu.gh/privacy')}
+            >
+              Privacy Policy
+            </Text>
+          </View>
         </View>
 
         {/* Footer */}
@@ -200,6 +278,20 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  inputWithIcon: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+    paddingVertical: 0,
   },
   input: {
     height: 56,
@@ -255,6 +347,33 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '700',
+  },
+  consentRow: {
+    marginTop: 4,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  consentText: {
+    fontSize: 13,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  consentLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  consentSeparator: {
+    fontSize: 11,
+  },
+  consentLink: {
+    fontSize: 13,
+    textDecorationLine: 'underline',
+    color: Amber[600],
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',

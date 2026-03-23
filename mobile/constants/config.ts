@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
     ACCESS_TOKEN: '@absense/access_token',
     REFRESH_TOKEN: '@absense/refresh_token',
     USER_DATA: '@absense/user_data',
+    REMEMBERED_IDENTIFIER: '@absense/remembered_identifier',
 } as const;
 
 export const APP_CONFIG = {

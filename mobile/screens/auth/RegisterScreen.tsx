@@ -148,40 +148,49 @@ export default function RegisterScreen() {
         {/* Form */}
         <View style={[styles.formCard, { backgroundColor: cardBg }]}>
           <View style={styles.inputGroup}>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text }]}
-              placeholder="Full Name"
-              placeholderTextColor={placeholder}
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
+            <View style={[styles.inputRow, { backgroundColor: inputBg }]}>
+              <IconSymbol name="person.fill" size={18} color={placeholder} />
+              <TextInput
+                style={[styles.inputWithIcon, { color: text }]}
+                placeholder="Full Name"
+                placeholderTextColor={placeholder}
+                value={fullName}
+                onChangeText={setFullName}
+                autoCapitalize="words"
+                editable={!isLoading}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text }]}
-              placeholder="Email (username@st.knust.edu.gh)"
-              placeholderTextColor={placeholder}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              editable={!isLoading}
-            />
+            <View style={[styles.inputRow, { backgroundColor: inputBg }]}>
+              <IconSymbol name="envelope.fill" size={18} color={placeholder} />
+              <TextInput
+                style={[styles.inputWithIcon, { color: text }]}
+                placeholder="Email (username@st.knust.edu.gh)"
+                placeholderTextColor={placeholder}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!isLoading}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text }]}
-              placeholder="Student ID (8 digits)"
-              placeholderTextColor={placeholder}
-              value={studentId}
-              onChangeText={(v) => setStudentId(v.replace(/\D/g, '').slice(0, 8))}
-              keyboardType="number-pad"
-              editable={!isLoading}
-            />
+            <View style={[styles.inputRow, { backgroundColor: inputBg }]}>
+              <IconSymbol name="number" size={18} color={placeholder} />
+              <TextInput
+                style={[styles.inputWithIcon, { color: text }]}
+                placeholder="Student ID (8 digits)"
+                placeholderTextColor={placeholder}
+                value={studentId}
+                onChangeText={(v) => setStudentId(v.replace(/\D/g, '').slice(0, 8))}
+                keyboardType="number-pad"
+                editable={!isLoading}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -263,29 +272,35 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text }]}
-              placeholder="Password"
-              placeholderTextColor={placeholder}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
+            <View style={[styles.inputRow, { backgroundColor: inputBg }]}>
+              <IconSymbol name="lock.fill" size={18} color={placeholder} />
+              <TextInput
+                style={[styles.inputWithIcon, { color: text }]}
+                placeholder="Password"
+                placeholderTextColor={placeholder}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBg, color: text }]}
-              placeholder="Confirm password"
-              placeholderTextColor={placeholder}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
+            <View style={[styles.inputRow, { backgroundColor: inputBg }]}>
+              <IconSymbol name="lock.fill" size={18} color={placeholder} />
+              <TextInput
+                style={[styles.inputWithIcon, { color: text }]}
+                placeholder="Confirm password"
+                placeholderTextColor={placeholder}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+            </View>
           </View>
 
           {/* Consent directly above button */}
@@ -384,6 +399,20 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 14,
   },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  inputWithIcon: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+    paddingVertical: 0,
+  },
   input: {
     height: 56,
     borderWidth: 0,
@@ -450,11 +479,10 @@ const styles = StyleSheet.create({
   },
   consentRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
+    alignItems: 'flex-start',
+    marginTop: 8,
     marginBottom: 4,
-    gap: 8,
+    gap: 10,
   },
   consentCheckbox: {
     width: 20,
@@ -463,7 +491,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   consentCheckmark: {
     color: '#ffffff',
@@ -473,6 +501,7 @@ const styles = StyleSheet.create({
   consentText: {
     flex: 1,
     fontSize: 12,
+    lineHeight: 18,
   },
   consentLink: {
     textDecorationLine: 'underline',
