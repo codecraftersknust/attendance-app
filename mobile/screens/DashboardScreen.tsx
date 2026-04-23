@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Platform, Modal, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, Emerald, Amber } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -9,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useToast } from '@/contexts/ToastContext';
 import { getErrorMessage } from '@/utils/error';
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { Skeleton } from '@/components/Skeleton';
 import { AnimatedButton } from '@/components/AnimatedButton';
 import apiClientService from '@/services/apiClient.service';
@@ -17,19 +17,20 @@ import type { DashboardStats, Course, AttendanceHistoryItem } from '@/types/api.
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const colors = Colors[colorScheme ?? 'light'];
   const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  // State
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [recentSessions, setRecentSessions] = useState<AttendanceHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [menuCourseId, setMenuCourseId] = useState<number | null>(null);
 
-  // Get user initials
   const getInitials = (name: string | undefined) => {
     if (!name) return 'U';
     const parts = name.trim().split(' ');
@@ -37,7 +38,6 @@ export default function DashboardScreen() {
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
-  // Calculate attendance percentage (marked out of total past sessions)
   const getAttendancePercentage = () => {
     if (!stats || stats.total_sessions === 0) return 0;
     return Math.round((stats.attendance_marked_count / stats.total_sessions) * 100 * 10) / 10;
@@ -45,7 +45,6 @@ export default function DashboardScreen() {
 
   const noSessions = !stats || stats.total_sessions === 0;
 
-  // Get status label
   const getStatusLabel = (percentage: number) => {
     if (noSessions) return 'No Sessions';
     if (percentage >= 80) return 'Good';
@@ -53,15 +52,6 @@ export default function DashboardScreen() {
     return 'At Risk';
   };
 
-  // Get status color (emerald=good, amber=average, red=at risk)
-  const getStatusColor = (percentage: number) => {
-    if (noSessions) return colors.tabIconDefault;
-    if (percentage >= 80) return colors.tint;
-    if (percentage >= 60) return colors.accent ?? colors.warning;
-    return colors.error;
-  };
-
-  // Load dashboard data
   const loadDashboardData = async () => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -70,19 +60,15 @@ export default function DashboardScreen() {
 
     try {
       const [dashboardStats, enrolledCourses, history] = await Promise.all([
-        apiClientService.studentDashboard().catch((statsError: any) => {
-          console.error('Failed to load dashboard stats:', statsError);
-          throw new Error(`Dashboard stats: ${statsError?.message || 'Unknown error'}`);
+        apiClientService.studentDashboard().catch((e: any) => {
+          console.error('Failed to load dashboard stats:', e);
+          throw new Error(`Dashboard stats: ${e?.message || 'Unknown error'}`);
         }),
-        apiClientService.studentGetCourses().catch((coursesError: any) => {
-          console.error('Failed to load courses:', coursesError);
-          throw new Error(`Courses: ${coursesError?.message || 'Unknown error'}`);
+        apiClientService.studentGetCourses().catch((e: any) => {
+          console.error('Failed to load courses:', e);
+          throw new Error(`Courses: ${e?.message || 'Unknown error'}`);
         }),
-        apiClientService.getAttendanceHistory().catch((historyError: any) => {
-          console.error('Failed to load attendance history:', historyError);
-          // Non-critical: don't throw, just show empty recent sessions
-          return [] as AttendanceHistoryItem[];
-        }),
+        apiClientService.getAttendanceHistory().catch(() => [] as AttendanceHistoryItem[]),
       ]);
 
       setStats(dashboardStats);
@@ -156,14 +142,10 @@ export default function DashboardScreen() {
 
   const getStatusDisplayLabel = (status: string) => {
     switch (status) {
-      case 'confirmed':
-        return 'PRESENT';
-      case 'flagged':
-        return 'FLAGGED';
-      case 'absent':
-        return 'ABSENT';
-      default:
-        return status.toUpperCase();
+      case 'confirmed': return 'PRESENT';
+      case 'flagged': return 'FLAGGED';
+      case 'absent': return 'ABSENT';
+      default: return status.toUpperCase();
     }
   };
 
@@ -175,19 +157,19 @@ export default function DashboardScreen() {
 
   const attendancePercentage = getAttendancePercentage();
   const statusLabel = getStatusLabel(attendancePercentage);
+  const paddingTop = Math.max(insets.top, Platform.OS === 'ios' ? 8 : 12) + 8;
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Home" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
-        style={[styles.scrollView, { backgroundColor: '#fcfcf7' }]}
-        contentContainerStyle={styles.content}
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingTop }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />
         }
       >
-        {/* Greeting + Avatar */}
-        <View style={styles.greeting}>
+        {/* Custom Header: Greeting + Bell + Avatar */}
+        <View style={styles.headerRow}>
           <View style={styles.greetingText}>
             <Text style={[styles.welcomeText, { color: colors.tabIconDefault }]}>
               Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}
@@ -198,72 +180,73 @@ export default function DashboardScreen() {
               </Text>
             )}
           </View>
-          <TouchableOpacity
-            style={[styles.greetingAvatar, { backgroundColor: colors.tint }]}
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/profile')}
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-          >
-            <Text style={styles.greetingAvatarText}>{getInitials(user?.full_name || user?.email)}</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.headerIconButton, { backgroundColor: isDark ? colors.surface : '#f0f1f3' }]}
+              activeOpacity={0.7}
+              onPress={() => showToast('Notifications coming soon', 'info')}
+              accessibilityLabel="Notifications"
+            >
+              <IconSymbol name="bell.fill" size={20} color={colors.tabIconDefault} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.greetingAvatar, { backgroundColor: colors.tint }]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/profile')}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
+            >
+              <Text style={styles.greetingAvatarText}>{getInitials(user?.full_name || user?.email)}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loading ? (
           <View style={{ paddingTop: 10 }}>
-            {/* Main card skeleton */}
-            <Skeleton height={180} width="100%" borderRadius={20} style={{ marginBottom: 20 }} />
-
-            {/* Recent sessions section header skeleton */}
+            <Skeleton height={200} width="100%" borderRadius={20} style={{ marginBottom: 20 }} />
+            <Skeleton height={72} width="100%" borderRadius={16} style={{ marginBottom: 28 }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
               <Skeleton height={20} width={120} />
               <Skeleton height={20} width={60} />
             </View>
-
-            {/* Session cards skeletons */}
             <Skeleton height={80} width="100%" borderRadius={12} style={{ marginBottom: 12 }} />
             <Skeleton height={80} width="100%" borderRadius={12} style={{ marginBottom: 12 }} />
-            <Skeleton height={80} width="100%" borderRadius={12} style={{ marginBottom: 20 }} />
-
-            {/* Courses section header skeleton */}
-            <Skeleton height={20} width={150} style={{ marginBottom: 16 }} />
-            <Skeleton height={90} width="100%" borderRadius={12} style={{ marginBottom: 12 }} />
           </View>
         ) : (
           <>
-            {/* Main Attendance Card - First (precedence) */}
-            <Animated.View entering={FadeInDown.duration(500).springify()} style={[styles.attendanceCard, { backgroundColor: Emerald[900] }]}>
-              <View style={styles.attendanceCardContent}>
-                <View style={styles.attendanceInfo}>
-                  <Text style={[styles.attendanceLabel, { color: 'rgba(255,255,255,0.9)' }]}>Overall Attendance</Text>
-                  <Text style={[styles.attendancePercentage, { color: '#ffffff' }]}>{attendancePercentage}%</Text>
-                  <Text style={[styles.attendanceSubtitle, { color: 'rgba(255,255,255,0.85)' }]}>
-                    {stats?.attendance_marked_count || 0}/{stats?.total_sessions || 0} Classes Attended
-                  </Text>
+            {/* Stacked Card Container */}
+            <Animated.View entering={FadeInDown.duration(500).springify()} style={styles.stackedCardContainer}>
+              <View style={[styles.backCard2, { backgroundColor: Emerald[700] }]} />
+              <View style={[styles.backCard1, { backgroundColor: Emerald[800] }]} />
+              <View style={[styles.attendanceCard, { backgroundColor: Emerald[900] }]}>
+                <View style={styles.attendanceCardContent}>
+                  <View style={styles.attendanceInfo}>
+                    <Text style={styles.attendanceLabel}>Overall Attendance</Text>
+                    <Text style={styles.attendancePercentage}>{attendancePercentage}%</Text>
+                    <Text style={styles.attendanceSubtitle}>
+                      {stats?.attendance_marked_count || 0}/{stats?.total_sessions || 0} Classes Attended
+                    </Text>
+                  </View>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusBadgeText}>{statusLabel}</Text>
+                  </View>
                 </View>
-
-                {/* Status Badge */}
-                <View style={[styles.statusBadge, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-                  <Text style={[styles.statusBadgeText, { color: '#ffffff' }]}>{statusLabel}</Text>
+                <View style={styles.attendanceButtons}>
+                  <AnimatedButton
+                    style={styles.attendanceActionButton}
+                    onPress={handleMarkAttendance}
+                  >
+                    <IconSymbol name="qrcode" size={16} color={Emerald[900]} />
+                    <Text style={[styles.attendanceActionText, { color: Emerald[900] }]}>Check In</Text>
+                  </AnimatedButton>
+                  <AnimatedButton
+                    style={styles.attendanceActionButtonSecondary}
+                    onPress={handleViewHistory}
+                  >
+                    <IconSymbol name="clock.fill" size={16} color="rgba(255,255,255,0.9)" />
+                    <Text style={[styles.attendanceActionText, { color: 'rgba(255,255,255,0.9)' }]}>History</Text>
+                  </AnimatedButton>
                 </View>
-              </View>
-
-              {/* Quick Action Buttons */}
-              <View style={styles.attendanceButtons}>
-                <AnimatedButton
-                  style={[styles.attendanceActionButton, { backgroundColor: '#ffffff' }]}
-                  onPress={handleMarkAttendance}
-                >
-                  <IconSymbol name="qrcode" size={16} color={Emerald[900]} />
-                  <Text style={[styles.attendanceActionText, { color: Emerald[900] }]}>Check In</Text>
-                </AnimatedButton>
-                <AnimatedButton
-                  style={[styles.attendanceActionButtonReports, { backgroundColor: 'rgba(255,255,255,0.18)' }]}
-                  onPress={handleViewHistory}
-                >
-                  <IconSymbol name="clock.fill" size={16} color="rgba(255,255,255,0.9)" />
-                  <Text style={[styles.attendanceActionText, { color: 'rgba(255,255,255,0.9)' }]}>History</Text>
-                </AnimatedButton>
               </View>
             </Animated.View>
 
@@ -284,19 +267,22 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Stats row — clean inline numbers */}
+            {/* Stats row */}
             {stats && (
-              <Animated.View entering={FadeInDown.duration(500).delay(100).springify()} style={[styles.statsRow, { backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3' }]}>
+              <Animated.View
+                entering={FadeInDown.duration(500).delay(100).springify()}
+                style={[styles.statsRow, { backgroundColor: isDark ? '#1e2328' : '#f0f1f3' }]}
+              >
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.text }]}>{stats.enrolled_courses}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Enrolled</Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={[styles.statDivider, { backgroundColor: isDark ? '#383b3d' : '#d8d9dc' }]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.text }]}>{stats.attendance_marked_count}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Marked</Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={[styles.statDivider, { backgroundColor: isDark ? '#383b3d' : '#d8d9dc' }]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.text }]}>{stats.confirmed_count}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Confirmed</Text>
@@ -304,31 +290,25 @@ export default function DashboardScreen() {
               </Animated.View>
             )}
 
-            {/* Recent Sessions Section */}
+            {/* Recent Sessions */}
             <View style={styles.sessionsSection}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  Recent Sessions
-                </Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Sessions</Text>
                 <TouchableOpacity onPress={handleViewHistory} activeOpacity={0.7}>
-                    <Text style={[styles.viewAllText, { color: "#64748b" }]}>
-                    View All
-                  </Text>
+                  <Text style={[styles.viewAllText, { color: colors.tabIconDefault }]}>View All</Text>
                 </TouchableOpacity>
               </View>
 
               {recentSessions.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <IconSymbol name="calendar" size={48} color={colors.tabIconDefault} />
-                  <Text style={[styles.emptyText, { color: colors.text }]}>
-                    No recent sessions
-                  </Text>
+                  <Text style={[styles.emptyText, { color: colors.text }]}>No recent sessions</Text>
                   <Text style={[styles.emptySubtext, { color: colors.tabIconDefault }]}>
                     Your attendance history will appear here
                   </Text>
                 </View>
               ) : (
-                <>
+                <View style={styles.sessionsList}>
                   {recentSessions.map((session, index) => {
                     const statusStyle = getSessionStatusStyle(session.status);
                     return (
@@ -338,24 +318,21 @@ export default function DashboardScreen() {
                         style={[
                           styles.sessionCard,
                           {
-                            backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3',
-                            borderLeftWidth: 3,
-                            borderLeftColor: statusStyle.color,
+                            backgroundColor: isDark ? '#1e2328' : '#ffffff',
+                            borderColor: colors.border,
                           },
                         ]}
                       >
-                        <View style={styles.sessionContent}>
+                        <View style={styles.sessionRowInner}>
+                          <View style={[styles.statusDot, { backgroundColor: statusStyle.color }]} />
                           <View style={styles.sessionDetails}>
                             <Text style={[styles.sessionName, { color: colors.text }]} numberOfLines={1}>
                               {session.course_name}
                             </Text>
-                            <View style={styles.sessionMeta}>
-                              <Text style={[styles.sessionProfessor, { color: colors.tabIconDefault }]}>
-                                {session.course_code} {session.ends_at ? `· ${formatSessionTime(session.ends_at)}` : ''}
-                              </Text>
-                            </View>
+                            <Text style={[styles.sessionProfessor, { color: colors.tabIconDefault }]}>
+                              {session.course_code} {session.ends_at ? `· ${formatSessionTime(session.ends_at)}` : ''}
+                            </Text>
                           </View>
-
                           <View style={[styles.sessionStatusBadge, { backgroundColor: statusStyle.backgroundColor }]}>
                             <Text style={[styles.sessionStatusText, { color: statusStyle.color }]}>
                               {getStatusDisplayLabel(session.status)}
@@ -365,7 +342,7 @@ export default function DashboardScreen() {
                       </Animated.View>
                     );
                   })}
-                </>
+                </View>
               )}
             </View>
 
@@ -385,7 +362,11 @@ export default function DashboardScreen() {
                     key={course.id}
                     style={[
                       styles.enrolledCard,
-                      { backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3' },
+                      {
+                        backgroundColor: isDark ? '#1e2328' : '#ffffff',
+                        borderColor: colors.border,
+                        borderLeftColor: colors.tint,
+                      },
                     ]}
                   >
                     <View style={styles.enrolledInfo}>
@@ -402,17 +383,81 @@ export default function DashboardScreen() {
                       </View>
                     </View>
                     <TouchableOpacity
-                      onPress={() => confirmDropCourse({ id: course.id, code: course.code, name: course.name })}
+                      onPress={() => setMenuCourseId(course.id)}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       activeOpacity={0.7}
                     >
-                      <IconSymbol name="trash" size={20} color={colors.error} />
+                      <IconSymbol name="ellipsis.vertical" size={20} color={colors.tabIconDefault} />
                     </TouchableOpacity>
                   </Animated.View>
                 ))
               )}
-            </View>
 
+              {/* Course action menu */}
+              <Modal
+                visible={menuCourseId !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setMenuCourseId(null)}
+              >
+                <Pressable style={styles.menuOverlay} onPress={() => setMenuCourseId(null)}>
+                  <View style={[styles.menuSheet, { backgroundColor: isDark ? '#252829' : '#ffffff' }]}>
+                    {(() => {
+                      const course = courses.find((c) => c.id === menuCourseId);
+                      if (!course) return null;
+                      return (
+                        <>
+                          <Text style={[styles.menuSheetTitle, { color: colors.text }]} numberOfLines={1}>
+                            {course.code} – {course.name}
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.menuSheetItem}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              setMenuCourseId(null);
+                              router.push('/(tabs)/courses');
+                            }}
+                          >
+                            <IconSymbol name="book.fill" size={20} color={colors.tint} />
+                            <Text style={[styles.menuSheetItemText, { color: colors.text }]}>View in Courses</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.menuSheetItem}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              setMenuCourseId(null);
+                              handleViewHistory();
+                            }}
+                          >
+                            <IconSymbol name="clock.fill" size={20} color={colors.tint} />
+                            <Text style={[styles.menuSheetItemText, { color: colors.text }]}>Attendance History</Text>
+                          </TouchableOpacity>
+                          <View style={[styles.menuSheetDivider, { backgroundColor: colors.border }]} />
+                          <TouchableOpacity
+                            style={styles.menuSheetItem}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              setMenuCourseId(null);
+                              confirmDropCourse({ id: course.id, code: course.code, name: course.name });
+                            }}
+                          >
+                            <IconSymbol name="trash" size={20} color={colors.error} />
+                            <Text style={[styles.menuSheetItemText, { color: colors.error }]}>Drop Course</Text>
+                          </TouchableOpacity>
+                        </>
+                      );
+                    })()}
+                    <TouchableOpacity
+                      style={[styles.menuSheetCancel, { backgroundColor: isDark ? '#1a1c1d' : '#f5f5f5' }]}
+                      activeOpacity={0.7}
+                      onPress={() => setMenuCourseId(null)}
+                    >
+                      <Text style={[styles.menuSheetCancelText, { color: colors.text }]}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Pressable>
+              </Modal>
+            </View>
           </>
         )}
       </ScrollView>
@@ -423,63 +468,87 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fcfcf7',
   },
   scrollView: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 100,
   },
-  greeting: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 24,
+    paddingTop: 4,
   },
   greetingText: {
     flex: 1,
   },
   welcomeText: {
-    fontSize: 11,
+    fontSize: 13,
     marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   userName: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     letterSpacing: 0.2,
   },
-  greetingAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
+  },
+  greetingAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   greetingAvatarText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
+  // Stacked card effect
+  stackedCardContainer: {
+    marginBottom: 28,
+    position: 'relative',
+    paddingTop: 10,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
+  backCard2: {
+    position: 'absolute',
+    top: 0,
+    left: 14,
+    right: 14,
+    height: '100%',
+    borderRadius: 20,
+    opacity: 0.3,
   },
-  // Overall Attendance Card (main card with precedence)
+  backCard1: {
+    position: 'absolute',
+    top: 5,
+    left: 7,
+    right: 7,
+    height: '100%',
+    borderRadius: 20,
+    opacity: 0.5,
+  },
   attendanceCard: {
     borderRadius: 20,
     padding: 20,
-    marginBottom: 20,
+    position: 'relative',
+    zIndex: 1,
   },
   attendanceCardContent: {
     flexDirection: 'row',
@@ -495,26 +564,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    color: 'rgba(255,255,255,0.9)',
   },
   attendancePercentage: {
-    fontSize: 38,
-    fontWeight: 'bold',
+    fontSize: 40,
+    fontWeight: '800',
     marginBottom: 4,
     letterSpacing: -1,
+    color: '#ffffff',
   },
   attendanceSubtitle: {
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    color: 'rgba(255,255,255,0.85)',
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   statusBadgeText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#ffffff',
   },
   attendanceButtons: {
     flexDirection: 'row',
@@ -528,8 +602,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 12,
+    backgroundColor: '#ffffff',
   },
-  attendanceActionButtonReports: {
+  attendanceActionButtonSecondary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -537,35 +612,41 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   attendanceActionText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  // Quick Actions
-  quickActions: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     marginBottom: 28,
   },
-  quickActionItem: {
+  statItem: {
+    flex: 1,
     alignItems: 'center',
   },
-  quickActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 32,
   },
-  quickActionLabel: {
-    fontSize: 12,
+  statValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
     fontWeight: '500',
+    letterSpacing: 0.3,
   },
-  // Sessions Section
+  // Sections
   sessionsSection: {
-    marginBottom: 20,
+    marginBottom: 28,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -600,51 +681,37 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 20,
   },
+  sessionsList: {
+    marginTop: 4,
+  },
   sessionCard: {
     borderRadius: 14,
-    marginBottom: 12,
-    flexDirection: 'row',
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 10,
     overflow: 'hidden',
   },
-  sessionTimeBar: {
-    width: 4,
-  },
-  sessionContent: {
-    flex: 1,
+  sessionRowInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
-  sessionTime: {
-    marginRight: 16,
-    alignItems: 'center',
-  },
-  sessionTimeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sessionTimeSeparator: {
-    fontSize: 10,
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+    flexShrink: 0,
   },
   sessionDetails: {
     flex: 1,
     marginRight: 12,
+    minWidth: 0,
   },
   sessionName: {
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 4,
-  },
-  sessionMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sessionLocation: {
-    fontSize: 12,
-  },
-  sessionDot: {
-    fontSize: 10,
-    marginHorizontal: 6,
   },
   sessionProfessor: {
     fontSize: 12,
@@ -666,7 +733,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   incompleteProfileContent: {
     flex: 1,
@@ -680,32 +747,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    marginBottom: 24,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-  },
   // Enrolled
   enrolledCard: {
     flexDirection: 'row',
@@ -713,6 +754,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: 3,
+    overflow: 'hidden',
   },
   enrolledInfo: {
     flex: 1,
@@ -739,5 +783,48 @@ const styles = StyleSheet.create({
   enrolledMeta: {
     fontSize: 11,
     marginLeft: 4,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  menuSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+  },
+  menuSheetTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  menuSheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  menuSheetItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  menuSheetDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 4,
+  },
+  menuSheetCancel: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  menuSheetCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

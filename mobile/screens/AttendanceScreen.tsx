@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Emerald } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useToast } from '@/contexts/ToastContext';
@@ -155,6 +154,8 @@ export default function AttendanceScreen() {
   const flaggedCount = history.filter((h) => h.status === 'flagged').length;
   const absentCount = history.filter((h) => h.status === 'absent').length;
 
+  const isDark = colorScheme === 'dark';
+
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'confirmed':
@@ -173,6 +174,7 @@ export default function AttendanceScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
+        <Text style={[styles.screenTitle, { color: colors.text }]}>Attendance</Text>
         {/* Segmented Control */}
         <View
           style={[
@@ -296,9 +298,9 @@ export default function AttendanceScreen() {
                   style={[
                     styles.sessionCard,
                     {
-                      backgroundColor: colorScheme === 'dark' ? '#252829' : '#f0f1f3',
-                      borderLeftWidth: 3,
-                      borderLeftColor: session.already_marked ? Emerald[500] : '#10b981',
+                      backgroundColor: isDark ? '#252829' : '#ffffff',
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: colors.border,
                     },
                   ]}
                   onPress={() => !session.already_marked && handleOpenSession(session)}
@@ -381,18 +383,18 @@ export default function AttendanceScreen() {
             </View>
           ) : (
             <>
-              {/* Summary Stats */}
-              <View style={[styles.statsRow, { backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3' }]}>
+              {/* Summary stats */}
+              <View style={[styles.statsRow, { backgroundColor: isDark ? '#1e2328' : '#f0f1f3' }]}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.text }]}>{presentCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Present</Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={[styles.statDivider, { backgroundColor: isDark ? '#383b3d' : '#d8d9dc' }]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.text }]}>{flaggedCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Flagged</Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: colorScheme === 'dark' ? '#383b3d' : '#d8d9dc' }]} />
+                <View style={[styles.statDivider, { backgroundColor: isDark ? '#383b3d' : '#d8d9dc' }]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, { color: colors.text }]}>{absentCount}</Text>
                   <Text style={[styles.statLabel, { color: colors.tabIconDefault }]}>Absent</Text>
@@ -422,16 +424,12 @@ export default function AttendanceScreen() {
                       style={[
                         styles.filterChip,
                         {
-                          backgroundColor: isActive
-                            ? colors.tint
-                            : colorScheme === 'dark'
-                              ? '#252829'
-                              : '#f1f5f9',
+                          backgroundColor: isActive ? colors.tint : 'transparent',
                           borderColor: isActive
                             ? colors.tint
                             : colorScheme === 'dark'
                               ? '#383b3d'
-                              : '#e2e8f0',
+                              : '#d1d5db',
                         },
                       ]}
                       onPress={() => setStatusFilter(filter.key)}
@@ -478,9 +476,9 @@ export default function AttendanceScreen() {
                         style={[
                           styles.historyCard,
                           {
-                            backgroundColor: colorScheme === 'dark' ? '#252829' : '#f0f1f3',
-                            borderLeftWidth: 3,
-                            borderLeftColor: statusStyle.color,
+                            backgroundColor: isDark ? '#252829' : '#ffffff',
+                            borderWidth: StyleSheet.hairlineWidth,
+                            borderColor: colors.border,
                           },
                         ]}
                       >
@@ -538,8 +536,14 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 8,
+  },
+  screenTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    marginBottom: 12,
   },
   segmentedControl: {
     flexDirection: 'row',
@@ -695,7 +699,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statDivider: {
-    width: 1,
+    width: StyleSheet.hairlineWidth,
     height: 32,
   },
   statValue: {
@@ -718,7 +722,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 0,
+    borderWidth: 1,
   },
   filterChipText: {
     fontSize: 13,

@@ -216,10 +216,10 @@ export function SignupForm({
                             id="lecturer_id"
                             type="text"
                             inputMode="numeric"
-                            pattern="\d{8}"
-                            placeholder="8 digits (e.g. 12345678)"
+                            pattern="\d{7}"
+                            placeholder="7 digits (e.g. 1234567)"
                             value={lecturerId}
-                            onChange={(e) => setLecturerId(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                            onChange={(e) => setLecturerId(e.target.value.replace(/\D/g, "").slice(0, 7))}
                             required
                         />
                     </Field>

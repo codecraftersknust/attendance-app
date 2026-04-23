@@ -76,7 +76,7 @@ export function LoginForm({
                                     id="email"
                                     type="text"
                                     autoComplete="username"
-                                    placeholder="Email or 8-digit ID"
+                                    placeholder="Email or ID"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}

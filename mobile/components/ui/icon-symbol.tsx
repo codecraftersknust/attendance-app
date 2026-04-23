@@ -1,71 +1,110 @@
-// Fallback for using MaterialIcons on Android and web.
+import React, { ComponentType } from 'react';
+import { OpaqueColorValue, type StyleProp, type ViewStyle } from 'react-native';
+import type { IconProps } from 'phosphor-react-native';
+import {
+  HouseIcon,
+  PaperPlaneRightIcon,
+  CodeIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  CaretDownIcon,
+  GraduationCapIcon,
+  BookOpenIcon,
+  BookIcon,
+  UserIcon,
+  UserCircleIcon,
+  IdentificationCardIcon,
+  CheckCircleIcon,
+  CheckIcon,
+  WarningIcon,
+  WarningCircleIcon,
+  PlusIcon,
+  TrashIcon,
+  MagnifyingGlassIcon,
+  QrCodeIcon,
+  MapPinIcon,
+  SmileyIcon,
+  CalendarBlankIcon,
+  ClockIcon,
+  XIcon,
+  CameraIcon,
+  ImageIcon,
+  HashIcon,
+  ArrowCircleUpIcon,
+  PencilSimpleIcon,
+  ScanIcon,
+  EnvelopeSimpleIcon,
+  LockIcon,
+  SignOutIcon,
+  CircleIcon,
+  GaugeIcon,
+  HandIcon,
+  BellIcon,
+  GearIcon,
+  ArrowClockwiseIcon,
+  InfoIcon,
+  MapTrifoldIcon,
+  WifiSlashIcon,
+  DotsThreeVerticalIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from 'phosphor-react-native';
 
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
-import { ComponentProps } from 'react';
-import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
+const MAPPING: Record<string, ComponentType<IconProps>> = {
+  'house.fill': HouseIcon,
+  'paperplane.fill': PaperPlaneRightIcon,
+  'chevron.left.forwardslash.chevron.right': CodeIcon,
+  'chevron.left': CaretLeftIcon,
+  'chevron.right': CaretRightIcon,
+  'chevron.down': CaretDownIcon,
+  'graduationcap.fill': GraduationCapIcon,
+  'book.fill': BookOpenIcon,
+  'book': BookIcon,
+  'person.fill': UserIcon,
+  'person.circle.fill': UserCircleIcon,
+  'person': UserIcon,
+  'person.text.rectangle.fill': IdentificationCardIcon,
+  'checkmark.circle.fill': CheckCircleIcon,
+  'checkmark.circle': CheckCircleIcon,
+  'checkmark': CheckIcon,
+  'exclamationmark.triangle.fill': WarningIcon,
+  'exclamationmark.circle.fill': WarningCircleIcon,
+  'plus': PlusIcon,
+  'trash': TrashIcon,
+  'magnifyingglass': MagnifyingGlassIcon,
+  'qrcode': QrCodeIcon,
+  'location.fill': MapPinIcon,
+  'face.smiling': SmileyIcon,
+  'calendar': CalendarBlankIcon,
+  'clock.fill': ClockIcon,
+  'clock': ClockIcon,
+  'xmark': XIcon,
+  'camera.fill': CameraIcon,
+  'photo.fill': ImageIcon,
+  'number': HashIcon,
+  'arrow.up.circle.fill': ArrowCircleUpIcon,
+  'pencil': PencilSimpleIcon,
+  'faceid': ScanIcon,
+  'envelope.fill': EnvelopeSimpleIcon,
+  'lock.fill': LockIcon,
+  'rectangle.portrait.and.arrow.right': SignOutIcon,
+  'circle.fill': CircleIcon,
+  'gauge': GaugeIcon,
+  'gauge.medium': GaugeIcon,
+  'hand.raised.fill': HandIcon,
+  'bell.fill': BellIcon,
+  'gearshape.fill': GearIcon,
+  'arrow.clockwise': ArrowClockwiseIcon,
+  'info.circle.fill': InfoIcon,
+  'map.fill': MapTrifoldIcon,
+  'wifi.slash': WifiSlashIcon,
+  'ellipsis.vertical': DotsThreeVerticalIcon,
+  'eye.fill': EyeIcon,
+  'eye.slash.fill': EyeSlashIcon,
+};
 
-type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
-type IconSymbolName = keyof typeof MAPPING;
+export type IconSymbolName = keyof typeof MAPPING;
 
-/**
- * Add your SF Symbols to Material Icons mappings here.
- * - see Material Icons in the [Icons Directory](https://icons.expo.fyi).
- * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
- */
-const MAPPING = {
-  'house.fill': 'home',
-  'paperplane.fill': 'send',
-  'chevron.left.forwardslash.chevron.right': 'code',
-  'chevron.left': 'chevron-left',
-  'chevron.right': 'chevron-right',
-  'chevron.down': 'expand-more',
-  'graduationcap.fill': 'school',
-  'book.fill': 'menu-book',
-  'book': 'book',
-  'person.fill': 'person',
-  'person': 'person-outline',
-  'person.text.rectangle.fill': 'badge',
-  'checkmark.circle.fill': 'check-circle',
-  'checkmark.circle': 'check-circle-outline',
-  'checkmark': 'check',
-  'exclamationmark.triangle.fill': 'warning',
-  'plus': 'add',
-  'trash': 'delete',
-  'magnifyingglass': 'search',
-  'qrcode': 'qr-code-2',
-  'location.fill': 'location-on',
-  'face.smiling': 'face',
-  'calendar': 'event',
-  'clock.fill': 'schedule',
-  'clock': 'schedule',
-  'xmark': 'close',
-  'camera.fill': 'photo-camera',
-  'photo.fill': 'photo-library',
-  'number': 'tag',
-  'arrow.up.circle.fill': 'upload',
-  'pencil': 'edit',
-  'faceid': 'fingerprint',
-  'envelope.fill': 'email',
-  'lock.fill': 'lock',
-  'rectangle.portrait.and.arrow.right': 'logout',
-  'circle.fill': 'circle',
-  'gauge': 'speed',
-  'gauge.medium': 'speed',
-  'hand.raised.fill': 'pan-tool',
-  'bell.fill': 'notifications',
-  'gearshape.fill': 'settings',
-  'arrow.clockwise': 'refresh',
-  'info.circle.fill': 'info',
-  'map.fill': 'map',
-  'wifi.slash': 'wifi-off',
-} as IconMapping;
-
-/**
- * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
- * This ensures a consistent look across platforms, and optimal resource usage.
- * Icon `name`s are based on SF Symbols and require manual mapping to Material Icons.
- */
 export function IconSymbol({
   name,
   size = 24,
@@ -75,9 +114,16 @@ export function IconSymbol({
   name: IconSymbolName;
   size?: number;
   color: string | OpaqueColorValue;
-  style?: StyleProp<TextStyle>;
-  weight?: SymbolWeight;
+  style?: StyleProp<ViewStyle>;
+  weight?: string;
 }) {
-  const mappedName = MAPPING[name] ?? 'help-outline';
-  return <MaterialIcons color={color} size={size} name={mappedName} style={style} />;
+  const PhosphorIcon = MAPPING[name] ?? CircleIcon;
+  return (
+    <PhosphorIcon
+      size={size}
+      color={color as string}
+      weight="regular"
+      style={style}
+    />
+  );
 }

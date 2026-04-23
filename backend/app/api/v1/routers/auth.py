@@ -32,6 +32,7 @@ face_service = FaceVerificationService()
 STUDENT_EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@st\.knust\.edu\.gh$"
 LECTURER_EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@knust\.edu\.gh$"
 STUDENT_ID_PATTERN = r"^\d{8}$"
+LECTURER_ID_PATTERN = r"^\d{7}$"
 
 
 @router.post("/register", response_model=UserRead)
@@ -72,10 +73,10 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
             )
         if not user_in.full_name or not user_in.full_name.strip():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Full name is required")
-        if not user_in.user_id or not re.match(STUDENT_ID_PATTERN, user_in.user_id):
+        if not user_in.user_id or not re.match(LECTURER_ID_PATTERN, user_in.user_id):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Lecturer ID is required and must be exactly 8 digits",
+                detail="Lecturer ID is required and must be exactly 7 digits",
             )
     elif role == UserRole.admin:
         if not re.match(LECTURER_EMAIL_PATTERN, user_in.email):

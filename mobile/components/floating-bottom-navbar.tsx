@@ -1,16 +1,20 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated, LayoutChangeEvent } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { Emerald } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 
 export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomTabBarProps) {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const isDark = colorScheme === 'dark';
 
-  // Track tab layouts for the sliding highlight
+  const activeColor = isDark ? Emerald[400] : Emerald[300];
+  const inactiveColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.6)';
+  const bgColor = isDark ? '#1a2e28' : Emerald[900];
+  const highlightBg = isDark ? 'rgba(52,211,153,0.12)' : Emerald[800] + '55';
+
   const tabLayouts = useRef<{ x: number; width: number }[]>([]).current;
   const highlightX = useRef(new Animated.Value(0)).current;
   const highlightWidth = useRef(new Animated.Value(0)).current;
@@ -21,7 +25,6 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
     if (!layout) return;
 
     if (!hasInitialized.current) {
-      // First render — snap without animation
       highlightX.setValue(layout.x);
       highlightWidth.setValue(layout.width);
       hasInitialized.current = true;
@@ -46,7 +49,6 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
     ]).start();
   }, [highlightX, highlightWidth, tabLayouts]);
 
-  // Animate when the active tab changes
   useEffect(() => {
     animateHighlight(state.index);
   }, [state.index, animateHighlight]);
@@ -55,13 +57,10 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
     const { x, width } = event.nativeEvent.layout;
     tabLayouts[index] = { x, width };
 
-    // Initialize highlight position once all tabs are measured
-    if (index === state.index) {
-      if (!hasInitialized.current) {
-        highlightX.setValue(x);
-        highlightWidth.setValue(width);
-        hasInitialized.current = true;
-      }
+    if (index === state.index && !hasInitialized.current) {
+      highlightX.setValue(x);
+      highlightWidth.setValue(width);
+      hasInitialized.current = true;
     }
   };
 
@@ -74,7 +73,7 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
       case 'attendance':
         return 'checkmark.circle.fill';
       case 'profile':
-        return 'person.fill';
+        return 'person.circle.fill';
       default:
         return 'circle.fill';
     }
@@ -99,22 +98,12 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
 
   return (
     <View style={styles.container}>
-      <View
-        style={[
-          styles.navbar,
-          {
-            backgroundColor: colorScheme === 'dark' ? '#252829' : '#fcfcf7',
-            shadowColor: '#000',
-            outlineColor: 'transparent',
-          },
-        ]}
-      >
-        {/* Animated sliding highlight */}
+      <View style={[styles.navbar, { backgroundColor: bgColor }]}>
         <Animated.View
           style={[
             styles.highlight,
             {
-              backgroundColor: colors.tint + '18',
+              backgroundColor: highlightBg,
               left: highlightX,
               width: highlightWidth,
             },
@@ -158,18 +147,17 @@ export function FloatingBottomNavbar({ state, descriptors, navigation }: BottomT
               <IconSymbol
                 size={22}
                 name={getIconName(route.name)}
-                color={isFocused ? colors.tint : colors.tabIconDefault}
+                color={isFocused ? activeColor : inactiveColor}
               />
               <Text
                 style={[
                   styles.tabLabel,
                   {
-                    color: isFocused ? colors.tint : colors.tabIconDefault,
+                    color: isFocused ? activeColor : inactiveColor,
                     fontWeight: isFocused ? '700' : '500',
                   },
                 ]}
                 numberOfLines={1}
-                ellipsizeMode="tail"
               >
                 {getTabLabel(route.name)}
               </Text>
@@ -187,48 +175,45 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 12,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
   navbar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'space-around',
     paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 24,
+    paddingHorizontal: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
     flex: 1,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 12,
   },
   highlight: {
     position: 'absolute',
-    top: 8,
-    bottom: 8,
-    borderRadius: 20,
+    top: 6,
+    bottom: 6,
+    borderRadius: 999,
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    marginHorizontal: 2,
-    gap: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    gap: 4,
     minWidth: 0,
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: '600',
-    maxWidth: '100%',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
 });

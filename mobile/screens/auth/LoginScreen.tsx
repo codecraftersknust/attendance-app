@@ -28,6 +28,7 @@ import { getLoginIdentifierError } from '@/lib/auth-validation';
 export default function LoginScreen() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -127,7 +128,7 @@ export default function LoginScreen() {
               <IconSymbol name="envelope.fill" size={18} color={placeholder} />
               <TextInput
                 style={[styles.inputWithIcon, { color: text }]}
-                placeholder="Student Email or 8-digit ID"
+                placeholder="Email or ID"
                 placeholderTextColor={placeholder}
                 value={identifier}
                 onChangeText={setIdentifier}
@@ -148,10 +149,21 @@ export default function LoginScreen() {
                 placeholderTextColor={placeholder}
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 editable={!isLoading}
               />
+              <TouchableOpacity
+                onPress={() => setShowPassword((prev) => !prev)}
+                activeOpacity={0.7}
+                disabled={isLoading}
+              >
+                <IconSymbol
+                  name={showPassword ? 'eye.slash.fill' : 'eye.fill'}
+                  size={18}
+                  color={placeholder}
+                />
+              </TouchableOpacity>
             </View>
           </View>
 

@@ -14,11 +14,11 @@ import {
     FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Emerald, Amber } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { useToast } from '@/contexts/ToastContext';
 import { getErrorMessage } from '@/utils/error';
 import apiClientService, { UserProfile } from '@/services/apiClient.service';
@@ -27,10 +27,12 @@ import { PROGRAMMES } from '@/lib/programmes';
 
 export default function ProfileScreen() {
     const colorScheme = useColorScheme();
+    const isDark = colorScheme === 'dark';
     const colors = Colors[colorScheme ?? 'light'];
     const { logout, user } = useAuth();
     const { showToast } = useToast();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -202,9 +204,10 @@ export default function ProfileScreen() {
         }
     };
 
-    const cardBg = colorScheme === 'dark' ? '#252829' : '#fcfcf7';
-    const cardBorder = colorScheme === 'dark' ? '#383b3d' : '#e5e5e5';
-    const inputBg = colorScheme === 'dark' ? '#1a1c1d' : '#f5f5f5';
+    const cardBg = isDark ? '#252829' : '#ffffff';
+    const cardBorder = isDark ? '#383b3d' : '#e5e7eb';
+    const inputBg = isDark ? '#1a1c1d' : '#f5f5f5';
+    const paddingTop = Math.max(insets.top, Platform.OS === 'ios' ? 8 : 12) + 8;
 
     if (loading) {
         return (
@@ -215,28 +218,31 @@ export default function ProfileScreen() {
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: '#fcfcf7' }]}>
-            <ScreenHeader title="Profile" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <ScrollView
-                style={[styles.scrollView, { backgroundColor: '#fcfcf7' }]}
-                contentContainerStyle={styles.content}
+                style={[styles.scrollView, { backgroundColor: colors.background }]}
+                contentContainerStyle={[styles.content, { paddingTop }]}
             >
-                {/* Profile Card */}
-                <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
-                    <TouchableOpacity
-                        style={[styles.editButtonTop, { borderColor: colors.accent }]}
-                        activeOpacity={0.7}
-                        onPress={openEditModal}
-                    >
-                        <IconSymbol name="pencil" size={14} color={colors.accent} />
-                        <Text style={[styles.editButtonTopText, { color: colors.accent }]}>
-                            Edit
-                        </Text>
-                    </TouchableOpacity>
-                    <View style={[styles.avatar, { backgroundColor: colors.tint }]}>
-                        <Text style={styles.avatarText}>
-                            {getInitials(profile?.full_name || user?.email)}
-                        </Text>
+                {/* Edit button top-right */}
+                <TouchableOpacity
+                    style={[styles.editButtonTop, { borderColor: colors.accent }]}
+                    activeOpacity={0.7}
+                    onPress={openEditModal}
+                >
+                    <IconSymbol name="pencil" size={14} color={colors.accent} />
+                    <Text style={[styles.editButtonTopText, { color: colors.accent }]}>
+                        Edit
+                    </Text>
+                </TouchableOpacity>
+
+                {/* Profile area — no card background */}
+                <View style={styles.profileArea}>
+                    <View style={styles.avatarRing}>
+                        <View style={[styles.avatar, { backgroundColor: colors.tint }]}>
+                            <Text style={styles.avatarText}>
+                                {getInitials(profile?.full_name || user?.email)}
+                            </Text>
+                        </View>
                     </View>
 
                     <Text style={[styles.userName, { color: colors.text }]}>
@@ -246,31 +252,28 @@ export default function ProfileScreen() {
                         {profile?.email || user?.email}
                     </Text>
 
-                    {/* Role badge */}
-                    <View style={[styles.roleBadge, { backgroundColor: colors.tint + '15' }]}>
-                        <Text style={[styles.roleBadgeText, { color: colors.tint }]}>
-                            {getRoleLabel(profile?.role || user?.role || 'student')}
-                        </Text>
-                    </View>
-
-                    {profile?.has_face_enrolled && (
-                        <View style={[styles.faceBadge, { backgroundColor: colors.accentLight }]}>
-                            <IconSymbol name="faceid" size={14} color={colors.accent} />
-                            <Text style={[styles.faceBadgeText, { color: colors.accent }]}>
-                                Face Enrolled
+                    <View style={styles.badgeRow}>
+                        <View style={[styles.roleBadge, { backgroundColor: colors.tint + '15' }]}>
+                            <Text style={[styles.roleBadgeText, { color: colors.tint }]}>
+                                {getRoleLabel(profile?.role || user?.role || 'student')}
                             </Text>
                         </View>
-                    )}
+                        {profile?.has_face_enrolled && (
+                            <View style={[styles.faceBadge, { backgroundColor: colors.accentLight }]}>
+                                <IconSymbol name="faceid" size={14} color={colors.accent} />
+                                <Text style={[styles.faceBadgeText, { color: colors.accent }]}>
+                                    Face Enrolled
+                                </Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
 
                 {/* Account Details */}
+                <Text style={[styles.sectionTitle, { color: colors.tabIconDefault }]}>Account Details</Text>
                 <View style={[styles.menuCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Details</Text>
-
                     <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                        <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                            <IconSymbol name="envelope.fill" size={16} color={colors.tint} />
-                        </View>
+                        <IconSymbol name="envelope.fill" size={18} color={colors.tint} style={styles.rowIcon} />
                         <View style={styles.detailContent}>
                             <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Email</Text>
                             <Text style={[styles.detailValue, { color: colors.text }]}>
@@ -280,9 +283,7 @@ export default function ProfileScreen() {
                     </View>
 
                     <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                        <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                            <IconSymbol name="person.text.rectangle.fill" size={16} color={colors.tint} />
-                        </View>
+                        <IconSymbol name="person.text.rectangle.fill" size={18} color={colors.tint} style={styles.rowIcon} />
                         <View style={styles.detailContent}>
                             <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>
                                 {profile?.role === 'student' ? 'Student ID' : profile?.role === 'lecturer' ? 'Lecturer ID' : 'User ID'}
@@ -296,9 +297,7 @@ export default function ProfileScreen() {
                     {profile?.role === 'student' && (
                         <>
                             <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                                <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                                    <IconSymbol name="graduationcap.fill" size={16} color={colors.tint} />
-                                </View>
+                                <IconSymbol name="graduationcap.fill" size={18} color={colors.tint} style={styles.rowIcon} />
                                 <View style={styles.detailContent}>
                                     <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Year</Text>
                                     <Text style={[styles.detailValue, profile?.level ? { color: colors.text } : { color: Amber[600] }]}>
@@ -307,9 +306,7 @@ export default function ProfileScreen() {
                                 </View>
                             </View>
                             <View style={[styles.detailRow, { borderBottomColor: cardBorder }]}>
-                                <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                                    <IconSymbol name="book.fill" size={16} color={colors.tint} />
-                                </View>
+                                <IconSymbol name="book.fill" size={18} color={colors.tint} style={styles.rowIcon} />
                                 <View style={styles.detailContent}>
                                     <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Programme</Text>
                                     <Text style={[styles.detailValue, profile?.programme ? { color: colors.text } : { color: Amber[600] }]}>
@@ -321,9 +318,7 @@ export default function ProfileScreen() {
                     )}
 
                     <View style={[styles.detailRow, styles.detailRowLast]}>
-                        <View style={[styles.menuIconContainer, { backgroundColor: colors.tint + '15' }]}>
-                            <IconSymbol name="calendar" size={16} color={colors.tint} />
-                        </View>
+                        <IconSymbol name="calendar" size={18} color={colors.tint} style={styles.rowIcon} />
                         <View style={styles.detailContent}>
                             <Text style={[styles.detailLabel, { color: colors.tabIconDefault }]}>Member Since</Text>
                             <Text style={[styles.detailValue, { color: colors.text }]}>
@@ -334,16 +329,14 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Security */}
+                <Text style={[styles.sectionTitle, { color: colors.tabIconDefault }]}>Security</Text>
                 <View style={[styles.menuCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
                     <TouchableOpacity
                         style={styles.menuItem}
                         onPress={() => setPasswordVisible(true)}
                         activeOpacity={0.7}
                     >
-                        <View style={[styles.menuIconContainer, { backgroundColor: colors.accentLight }]}>
-                            <IconSymbol name="lock.fill" size={16} color={colors.accent} />
-                        </View>
+                        <IconSymbol name="lock.fill" size={18} color={colors.accent} style={styles.rowIcon} />
                         <Text style={[styles.menuLabel, { color: colors.text }]}>Change Password</Text>
                         <IconSymbol name="chevron.right" size={16} color={colors.tabIconDefault} />
                     </TouchableOpacity>
@@ -649,20 +642,10 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: 20,
-        paddingTop: 34,
         paddingBottom: 100,
     },
-    profileCard: {
-        borderRadius: 16,
-        padding: 24,
-        alignItems: 'center',
-        marginBottom: 20,
-        position: 'relative',
-    },
     editButtonTop: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
+        alignSelf: 'flex-end',
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
@@ -670,10 +653,25 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: 12,
         borderWidth: 1,
+        marginBottom: 8,
     },
     editButtonTopText: {
         fontSize: 13,
         fontWeight: '600',
+    },
+    profileArea: {
+        alignItems: 'center',
+        marginBottom: 28,
+    },
+    avatarRing: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        borderWidth: 2,
+        borderColor: '#34d399',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
     },
     avatar: {
         width: 80,
@@ -681,7 +679,6 @@ const styles = StyleSheet.create({
         borderRadius: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 16,
     },
     avatarText: {
         color: '#ffffff',
@@ -698,11 +695,16 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginBottom: 12,
     },
+    badgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 4,
+    },
     roleBadge: {
         paddingHorizontal: 12,
         paddingVertical: 4,
         borderRadius: 12,
-        marginBottom: 8,
     },
     roleBadgeText: {
         fontSize: 12,
@@ -717,7 +719,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 4,
         borderRadius: 12,
-        marginBottom: 16,
     },
     faceBadgeText: {
         fontSize: 12,
@@ -738,10 +739,9 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: 13,
-        fontWeight: '700',
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 8,
+        fontWeight: '600',
+        marginBottom: 8,
+        marginTop: 4,
         textTransform: 'uppercase',
         letterSpacing: 0.8,
     },
@@ -756,13 +756,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
     },
-    menuIconContainer: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
+    rowIcon: {
+        marginRight: 14,
+        width: 20,
+        textAlign: 'center',
     },
     menuLabel: {
         flex: 1,
@@ -863,6 +860,11 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         marginBottom: 20,
     },
+    modalSubtitle: {
+        fontSize: 14,
+        lineHeight: 20,
+        marginBottom: 16,
+    },
     inputLabel: {
         fontSize: 13,
         fontWeight: '600',
@@ -896,6 +898,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 12,
         marginTop: 24,
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalButtonText: {
+        fontSize: 15,
+        fontWeight: '600',
     },
     modalBtn: {
         flex: 1,

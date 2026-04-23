@@ -1,13 +1,14 @@
 /**
  * Shared auth validation for KNUST Absense app.
  * - Students: email *@st.knust.edu.gh, student ID 8 digits
- * - Lecturers: email *@knust.edu.gh
+ * - Lecturers: email *@knust.edu.gh, lecturer ID 7 digits
  * - Password: min 8 chars, at least one letter and one number
  */
 
 export const STUDENT_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@st\.knust\.edu\.gh$/;
 export const LECTURER_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@knust\.edu\.gh$/;
 export const STUDENT_ID_REGEX = /^\d{8}$/;
+export const LECTURER_ID_REGEX = /^\d{7}$/;
 
 /** Valid KNUST student email (e.g. username@st.knust.edu.gh) */
 export function isValidStudentEmail(email: string): boolean {
@@ -53,15 +54,15 @@ export function getStudentIdError(id: string): string | null {
   return null;
 }
 
-/** Valid lecturer/staff ID: exactly 8 digits (same format as student ID) */
+/** Valid lecturer/staff ID: exactly 7 digits */
 export function isValidLecturerId(id: string): boolean {
-  return STUDENT_ID_REGEX.test(id.trim());
+  return LECTURER_ID_REGEX.test(id.trim());
 }
 
 export function getLecturerIdError(id: string): string | null {
   const t = id.trim();
   if (!t) return "Lecturer ID is required";
-  if (!isValidLecturerId(id)) return "Lecturer ID must be exactly 8 digits";
+  if (!isValidLecturerId(id)) return "Lecturer ID must be exactly 7 digits";
   return null;
 }
 
@@ -73,15 +74,15 @@ export function getPasswordError(password: string): string | null {
   return null;
 }
 
-/** For login: accept any valid email or an 8-digit ID */
+/** For login: accept any valid email, student ID (8 digits), or lecturer ID (7 digits) */
 export function getLoginIdentifierError(value: string): string | null {
   const t = value.trim();
   if (!t) return "Email or ID is required";
   if (isValidStudentId(t)) return null;
+  if (isValidLecturerId(t)) return null;
 
-  // Basic email regex for login - more permissive than registration
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (emailRegex.test(t)) return null;
 
-  return "Enter a valid email or 8-digit ID";
+  return "Enter a valid email or your ID";
 }

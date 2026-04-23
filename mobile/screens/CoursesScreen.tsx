@@ -162,7 +162,11 @@ export default function CoursesScreen() {
         key={course.id}
         style={[
           styles.courseCard,
-          { backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#f0f1f3' },
+          {
+            backgroundColor: colorScheme === 'dark' ? '#1e2328' : '#ffffff',
+            borderColor: colorScheme === 'dark' ? 'rgba(71, 85, 105, 0.3)' : '#e5e7eb',
+            borderLeftColor: colors.tint,
+          },
         ]}
       >
         <View style={styles.courseHeader}>
@@ -236,10 +240,10 @@ export default function CoursesScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#fcfcf7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScreenHeader title="Courses" />
       <ScrollView
-        style={[styles.scrollView, { backgroundColor: '#fcfcf7' }]}
+        style={[styles.scrollView, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />
@@ -348,9 +352,9 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 14,
-    height: 46,
+    height: 48,
   },
   searchIcon: {
     marginRight: 10,
@@ -399,6 +403,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: 3,
+    overflow: 'hidden',
   },
   courseHeader: {
     flexDirection: 'row',
