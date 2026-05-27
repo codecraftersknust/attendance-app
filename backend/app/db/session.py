@@ -22,11 +22,11 @@ settings = Settings()
 _engine_kwargs: dict = {"future": True}
 if settings.database_url.startswith("postgresql"):
     _engine_kwargs.update(
-        pool_size=5,
-        max_overflow=10,
+        pool_size=25,
+        max_overflow=35,
         pool_timeout=30,
-        pool_recycle=300,  # recycle connections every 5 min (important for Supabase pooler)
-        pool_pre_ping=True,  # verify connections are alive before using them
+        pool_recycle=300,
+        pool_pre_ping=True,
     )
 
 engine = create_engine(settings.database_url, **_engine_kwargs)

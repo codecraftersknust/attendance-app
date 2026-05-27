@@ -72,12 +72,16 @@ export function QRDisplayDialog({ sessionId, open, onOpenChange }: QRDisplayDial
     // Session countdown
     useEffect(() => {
         if (!sessionEndsAt) return;
+        let ended = false;
 
         const updateSessionTime = () => {
+            if (ended) return;
             const now = new Date();
             const diff = sessionEndsAt.getTime() - now.getTime();
             if (diff <= 0) {
+                ended = true;
                 toast.error("Session has ended");
+                clearInterval(interval);
                 onOpenChange(false);
                 return;
             }
@@ -89,13 +93,17 @@ export function QRDisplayDialog({ sessionId, open, onOpenChange }: QRDisplayDial
 
         updateSessionTime();
         const interval = setInterval(updateSessionTime, 1000);
-        return () => clearInterval(interval);
+        return () => { ended = true; clearInterval(interval); };
     }, [sessionEndsAt, onOpenChange]);
 
     // QR Rotation Countdown timer
     useEffect(() => {
         if (!expiresAt) return;
         const interval = setInterval(() => {
+            if (sessionEndsAt && sessionEndsAt.getTime() <= Date.now()) {
+                clearInterval(interval);
+                return;
+            }
             const now = new Date();
             const diff = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / 1000));
             setTimeLeft(diff);
@@ -105,7 +113,7 @@ export function QRDisplayDialog({ sessionId, open, onOpenChange }: QRDisplayDial
             }
         }, 1000);
         return () => clearInterval(interval);
-    }, [expiresAt, loadQr]);
+    }, [expiresAt, loadQr, sessionEndsAt]);
 
     const handleRotate = async () => {
         if (!sessionId) return;

@@ -10,7 +10,8 @@ export const API_CONFIG = {
         ? 'https://absense.knust.edu.gh/api/v1'
         : 'https://absense.knust.edu.gh/api/v1',
 
-    TIMEOUT: 20000,
+    TIMEOUT: 30000,
+    ATTENDANCE_TIMEOUT: 60000,
     QR_EXPIRY_WARNING_SECONDS: 5,
     GEOFENCE_DEFAULT_RADIUS: 100,
 } as const;

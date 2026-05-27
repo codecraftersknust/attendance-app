@@ -5,6 +5,7 @@
  */
 
 import apiClient from './api';
+import { API_CONFIG } from '@/constants/config';
 import type { ActiveSession, DeviceStatus, AttendanceSubmission } from '@/types/api.types';
 
 class AttendanceService {
@@ -46,10 +47,10 @@ class AttendanceService {
     async enrollFace(imageUri: string): Promise<{ message: string; path: string }> {
         const formData = new FormData();
 
-        // Create file object from URI
         const filename = imageUri.split('/').pop() || 'reference.jpg';
         const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        const ext = match ? match[1].toLowerCase() : 'jpeg';
+        const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
         formData.append('file', {
             uri: imageUri,
@@ -86,7 +87,8 @@ class AttendanceService {
         if (data.selfie) {
             const filename = data.selfie.split('/').pop() || 'selfie.jpg';
             const match = /\.(\w+)$/.exec(filename);
-            const type = match ? `image/${match[1]}` : 'image/jpeg';
+            const ext = match ? match[1].toLowerCase() : 'jpeg';
+            const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
             formData.append('selfie', {
                 uri: data.selfie,
@@ -95,12 +97,25 @@ class AttendanceService {
             } as any);
         }
 
-        const response = await apiClient.post('/student/attendance', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
-        return response.data;
+        const maxRetries = 2;
+        let lastError: any;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await apiClient.post('/student/attendance', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    timeout: API_CONFIG.ATTENDANCE_TIMEOUT,
+                });
+                return response.data;
+            } catch (err: any) {
+                lastError = err;
+                const status = err?.status ?? err?.response?.status;
+                const isRetryable = !status || status >= 500 || err?.code === 'ECONNABORTED';
+                if (!isRetryable || attempt === maxRetries) break;
+                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            }
+        }
+        throw lastError;
     }
 }
 

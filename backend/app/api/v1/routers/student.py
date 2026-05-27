@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 
 from app.schemas.students import FaceVerificationResponse
 from app.services.face_verification import FaceVerificationService
 from ....db.deps import get_db
+from ....db.session import SessionLocal
 from ....api.deps.auth import role_required
 from ....api.deps.auth import get_current_user
 from ....models.user import UserRole, User
@@ -21,14 +25,78 @@ from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
 from typing import Optional, List
 
+logger = logging.getLogger(__name__)
 
 face_service = FaceVerificationService()
+
+# Limit concurrent heavy background work (selfie upload + face verification)
+# so 400 students don't overwhelm the CPU/network simultaneously.
+_heavy_executor = ThreadPoolExecutor(max_workers=8)
 router = APIRouter(prefix="/student", tags=["student"])
 
 
 def get_current_student(current: User = Depends(role_required(UserRole.student))) -> User:
     return current
 
+
+
+def _background_verify_and_upload(
+    record_id: int,
+    user_id: int,
+    session_id: int,
+    selfie_bytes: bytes,
+    selfie_rel: str,
+    device_matched: bool,
+    within_geofence: bool,
+    geofence_configured: bool,
+):
+    """Run selfie upload + face verification in the background.
+
+    Uses its own DB session so the request connection is already released.
+    If face verification fails, downgrades the record to flagged.
+    """
+    db = SessionLocal()
+    try:
+        storage = get_storage()
+        try:
+            storage.save_bytes(selfie_bytes, selfie_rel)
+            selfie_url = storage.url_for(selfie_rel)
+            record = db.get(AttendanceRecord, record_id)
+            if record:
+                record.selfie_image_path = selfie_url
+        except Exception:
+            logger.exception("Background selfie upload failed for record %s", record_id)
+
+        has_reference = face_service.has_reference_face(user_id)
+        if not has_reference:
+            db.commit()
+            return
+
+        verification = face_service.verify_face(user_id, selfie_bytes)
+
+        db.add(VerificationLog(
+            user_id=user_id,
+            session_id=session_id,
+            verified=bool(verification.get("verified")),
+            distance=verification.get("distance"),
+            threshold=verification.get("threshold"),
+            model=verification.get("model"),
+        ))
+
+        if not verification.get("verified"):
+            record = db.get(AttendanceRecord, record_id)
+            if record and record.status == AttendanceStatus.confirmed:
+                record.status = AttendanceStatus.flagged
+                reasons = list(record.flag_reasons or [])
+                reasons.append("face_not_verified")
+                record.flag_reasons = reasons
+
+        db.commit()
+    except Exception:
+        logger.exception("Background verification failed for record %s", record_id)
+        db.rollback()
+    finally:
+        db.close()
 
 
 @router.post("/attendance")
@@ -42,53 +110,52 @@ async def submit_attendance(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
 ):
-    """Submit attendance with QR verification, geolocation, and face verification"""
-    from datetime import datetime
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    logger.info(f"Attendance submission attempt - user_id={current.id}, qr_session_id={qr_session_id}, qr_nonce={qr_nonce}")
-    
-    # Get session directly from QR session ID (no manual code needed)
+    """Submit attendance with QR verification, geolocation, and face verification.
+
+    Heavy work (selfie upload to Supabase, face verification via DeepFace) is
+    deferred to a background thread so the response is fast even under load.
+    """
     session = db.get(AttendanceSession, qr_session_id)
     if not session or not session.is_active:
-        logger.warning(f"Invalid or inactive session - session_id={qr_session_id}")
         raise HTTPException(status_code=404, detail="Invalid or inactive session")
 
-    # Validate rotating QR nonce window
     if not session.qr_nonce or not session.qr_expires_at:
-        logger.error(f"QR not generated for session {qr_session_id}")
         raise HTTPException(status_code=400, detail="QR code not generated for this session")
-    
+
     _qr_exp_naive = session.qr_expires_at.replace(tzinfo=None) if session.qr_expires_at.tzinfo else session.qr_expires_at
     if _qr_exp_naive < utcnow().replace(tzinfo=None):
-        logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
         raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
-    
-    # Enforce session duration
+
     if session.ends_at:
         _ends_naive = session.ends_at.replace(tzinfo=None) if session.ends_at.tzinfo else session.ends_at
-        _now_naive = utcnow().replace(tzinfo=None)
-        if _ends_naive < _now_naive:
-            logger.warning(f"Session ended - session_id={qr_session_id}, ends_at={session.ends_at}")
+        if _ends_naive < utcnow().replace(tzinfo=None):
             raise HTTPException(status_code=400, detail="Session has ended")
 
-    # Accept current nonce, or the previous nonce (grace for in-flight submissions during rotation)
     nonce_valid = qr_nonce == session.qr_nonce
-    used_previous_nonce = False
     if not nonce_valid and session.qr_previous_nonce and qr_nonce == session.qr_previous_nonce:
         nonce_valid = True
-        used_previous_nonce = True
-        logger.info(f"Accepted previous nonce for session {qr_session_id} (in-flight grace)")
 
     if not nonce_valid:
         if session.qr_expires_at < utcnow():
-            logger.warning(f"QR expired for session {qr_session_id} - expires_at={session.qr_expires_at}")
             raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
-        logger.warning(f"Invalid QR nonce - expected={session.qr_nonce}, received={qr_nonce}")
         raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
 
-    # Enrollment check: student must be enrolled in the session's course
+    # Duplicate submission guard — idempotent for retries
+    existing_record = (
+        db.query(AttendanceRecord)
+        .filter(
+            AttendanceRecord.session_id == session.id,
+            AttendanceRecord.student_id == current.id,
+        )
+        .first()
+    )
+    if existing_record:
+        return {
+            "record_id": existing_record.id,
+            "status": existing_record.status.value,
+            "already_marked": True,
+        }
+
     enrollment = (
         db.query(StudentCourseEnrollment)
         .filter(
@@ -98,11 +165,9 @@ async def submit_attendance(
         .first()
     )
     if not enrollment:
-        logger.warning(f"Student {current.id} not enrolled in course {session.course_id} for session {qr_session_id}")
         raise HTTPException(status_code=403, detail="You are not enrolled in this course")
 
-    # Geofence check: student must be within radius of lecturer's set location
-    # When geofence is not configured, treat as location not verified (flag for review)
+    # ── Geofence (fast, in-memory math) ──────────────────────────
     within_geofence = True
     distance_m = None
     geofence_configured = (
@@ -111,10 +176,9 @@ async def submit_attendance(
         and session.geofence_radius_m is not None
     )
     if not geofence_configured:
-        within_geofence = False  # Location not verified when no geofence
+        within_geofence = False
     else:
         def haversine(lat1, lon1, lat2, lon2):
-            # Earth radius in meters
             R = 6371000.0
             dlat = radians(lat2 - lat1)
             dlon = radians(lon2 - lon1)
@@ -126,110 +190,81 @@ async def submit_attendance(
         if distance_m > session.geofence_radius_m:
             within_geofence = False
 
+    # ── Selfie validation (read bytes now, upload later) ─────────
     cfg = Settings()
-    max_size_bytes = cfg.upload_max_image_mb * 1024 * 1024
-    allowed_types = set(
-        [t.strip() for t in cfg.upload_allowed_image_types.split(",") if t.strip()]
-    )
-    storage = get_storage()
-
-    # Store URL for DB and raw bytes for verification
-    selfie_url = None
     selfie_bytes: bytes | None = None
+    selfie_rel: str | None = None
 
-    # Enforce selfie when face verification is enabled
     if cfg.face_verification_enabled and selfie is None:
         raise HTTPException(status_code=400, detail="Selfie is required when face verification is enabled")
 
     if selfie is not None:
+        allowed_types = set(
+            t.strip() for t in cfg.upload_allowed_image_types.split(",") if t.strip()
+        )
         if selfie.content_type not in allowed_types:
             raise HTTPException(status_code=400, detail="Invalid selfie type")
         selfie_bytes = await selfie.read()
+        max_size_bytes = cfg.upload_max_image_mb * 1024 * 1024
         if len(selfie_bytes) > max_size_bytes:
             raise HTTPException(status_code=400, detail="Selfie too large")
         selfie_rel = f"selfies/{current.id}_{session.id}_{selfie.filename}"
-        storage.save_bytes(selfie_bytes, selfie_rel)
-        selfie_url = storage.url_for(selfie_rel)
 
-    # Hash device ID for comparison
+    # ── Device check ─────────────────────────────────────────────
     device_id_hash = hash_device_id(device_id)
-    
     device = (
         db.query(Device)
         .filter(Device.user_id == current.id, Device.device_id_hash == device_id_hash, Device.is_active == True)
         .first()
     )
-    status = AttendanceStatus.confirmed if device else AttendanceStatus.flagged
+    device_matched = device is not None
+    status = AttendanceStatus.confirmed if device_matched else AttendanceStatus.flagged
 
-    # Flag if student is outside the session's geofence radius
     if not within_geofence:
         status = AttendanceStatus.flagged
 
-    # If we have a selfie and a reference, perform face verification (guarded by settings inside service)
-    verification = None
-    has_reference = face_service.has_reference_face(current.id)
-    if selfie_bytes and has_reference:
-        verification = face_service.verify_face(current.id, selfie_bytes)
-        if not verification.get("verified"):
-            # Flag but do not reject to avoid blocking legitimate attendance
-            status = AttendanceStatus.flagged
-        # Persist verification log for audit/analytics
-        try:
-            db.add(VerificationLog(
-                user_id=current.id,
-                session_id=session.id,
-                verified=bool(verification.get("verified")),
-                distance=verification.get("distance"),
-                threshold=verification.get("threshold"),
-                model=verification.get("model"),
-            ))
-            db.commit()
-        except Exception:
-            db.rollback()
-
-    # Build flag reasons for lecturer visibility (only when status is flagged)
+    # ── Build initial flag reasons (face verification added later in background)
     flag_reasons: List[str] = []
     if status == AttendanceStatus.flagged:
-        if not device:
+        if not device_matched:
             flag_reasons.append("device_mismatch")
         if not within_geofence:
-            if not geofence_configured:
-                flag_reasons.append("location_not_verified")
-            else:
-                flag_reasons.append("outside_geofence")
-        if verification is not None and not verification.get("verified"):
-            flag_reasons.append("face_not_verified")
+            flag_reasons.append("location_not_verified" if not geofence_configured else "outside_geofence")
 
+    # ── Persist record immediately — no waiting for upload/ML ────
     record = AttendanceRecord(
         session_id=session.id,
         student_id=current.id,
         device_id_hash=device_id_hash,
-        selfie_image_path=selfie_url,
-        presence_image_path=None,  # No longer required - GPS + QR is sufficient
+        selfie_image_path=None,
+        presence_image_path=None,
         status=status,
         flag_reasons=flag_reasons if flag_reasons else None,
     )
     db.add(record)
     db.commit()
     db.refresh(record)
-    write_audit(
-        db,
-        "student.submit_attendance",
-        current.id,
-        f"session_id={session.id}, status={record.status.value}",
-    )
+
+    # ── Kick off heavy work in background thread pool ────────────
+    if selfie_bytes and selfie_rel:
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(
+            _heavy_executor,
+            _background_verify_and_upload,
+            record.id,
+            current.id,
+            session.id,
+            selfie_bytes,
+            selfie_rel,
+            device_matched,
+            within_geofence,
+            geofence_configured,
+        )
 
     response = {"record_id": record.id, "status": record.status.value}
     if distance_m is not None:
         response["within_geofence"] = within_geofence
         response["distance_m"] = round(distance_m, 1)
-    if verification is not None:
-        response.update({
-            "face_verified": verification.get("verified", False),
-            "face_distance": verification.get("distance"),
-            "face_threshold": verification.get("threshold"),
-            "face_model": verification.get("model"),
-        })
     return response
 
 

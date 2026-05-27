@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     cors_allow_methods: str = "*"
     cors_allow_headers: str = "*"
     upload_max_image_mb: int = 5
-    upload_allowed_image_types: str = "image/jpeg,image/png"
+    upload_allowed_image_types: str = "image/jpeg,image/png,image/jpg"
 
     # Face verification settings
     face_verification_enabled: bool = True
