@@ -122,6 +122,8 @@ source .venv/bin/activate
 alembic upgrade head
 ```
 
+If you see **“Multiple head revisions”**, pull the latest code (includes merge migration `d1e2f3a4b5c6`), then run `alembic upgrade head` again. To inspect: `alembic heads` should show only one head.
+
 Create the first admin user (pick one):
 
 ```bash
