@@ -1,4 +1,14 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+/** Browser: same-origin /api/v1 (nginx or Next rewrite). SSR/build: env or localhost. */
+function resolveApiBaseUrl(): string {
+    const fromEnv = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+    if (fromEnv) return fromEnv;
+    if (typeof window !== 'undefined') {
+        return `${window.location.origin}/api/v1`;
+    }
+    return (process.env.API_INTERNAL_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '');
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export interface User {
     id: number;
@@ -71,13 +81,16 @@ class ApiClient {
         options: RequestInit = {}
     ): Promise<T> {
         const url = `${this.baseURL}${endpoint}`;
+        const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
+        const headers: Record<string, string> = {
+            ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+            ...(options.headers as Record<string, string> | undefined),
+        };
 
         const config: RequestInit = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
             ...options,
+            headers,
         };
 
         // Add auth token if available (localStorage first, then cookie fallback)

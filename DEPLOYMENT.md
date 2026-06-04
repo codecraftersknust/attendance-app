@@ -166,10 +166,40 @@ Update your existing `absense-backend.service` `ExecStart` to match `deploy/abse
 
 ### 7. Nginx
 
-Add the contents of `deploy/nginx-uploads-snippet.conf` inside your HTTPS `server` block for `absense.knust.edu.gh`, then:
+**Admin login HTTP 502** almost always means `/api/` is not proxied to the backend (requests hit Next.js or a dead upstream). Use the full example:
 
 ```bash
+# Compare with your live config; you must have location /api/ → 127.0.0.1:8000
+cat ~/attendance-app/deploy/nginx-absense.conf
+```
+
+Minimum required inside your HTTPS `server` block:
+
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:8000/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 120s;
+}
+```
+
+Also add uploads from `deploy/nginx-uploads-snippet.conf`, then:
+
+```bash
+curl -sf http://127.0.0.1:8000/api/v1/health
+curl -sf https://absense.knust.edu.gh/api/v1/health
 sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 8. Rebuild web (after pull)
+
+The web app calls `/api/v1` on the same host by default (no `NEXT_PUBLIC_API_URL` required). Rebuild so Next rewrites and `api.ts` changes apply:
+
+```bash
+cd ~/attendance-app/web
+npm run build
+sudo systemctl restart absense-web
 ```
 
 ---
@@ -284,6 +314,7 @@ During peak load, API stays fast; face verification queues in the worker (one at
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
+| **HTTP 502 on login** | Nginx missing `location /api/` or backend down | `curl http://127.0.0.1:8000/api/v1/health`; add `deploy/nginx-absense.conf` `/api/` block; `systemctl restart absense-backend` |
 | Login spins forever | API saturated or DB unreachable | Check `journalctl -u absense-backend`; verify `DATABASE_URL` is `127.0.0.1` |
 | “Invalid selfie type” | MIME from camera | Already fixed in app; redeploy mobile if needed |
 | Selfies 404 | Nginx `/uploads` not configured | Add nginx snippet; check `UPLOAD_PUBLIC_URL_PREFIX` |

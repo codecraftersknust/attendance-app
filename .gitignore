@@ -13,6 +13,12 @@ ENV/
 # Backend
 backend/.env
 backend/uploads/
+backend/pytest-cache-files-*/
+.pytest_cache/
+
+# Next.js
+web/.next/
+web/out/
 *.db
 *.sqlite3
 
