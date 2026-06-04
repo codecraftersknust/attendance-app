@@ -8,9 +8,8 @@ from pathlib import Path
 def utcnow() -> datetime:
     """Return the current UTC time as a timezone-aware datetime.
 
-    Supabase PostgreSQL stores timezone-aware timestamps. Using
-    ``datetime.utcnow()`` returns a naive datetime which can't be
-    compared with the DB values. This helper ensures consistency.
+    PostgreSQL stores timezone-aware timestamps. Using ``datetime.utcnow()``
+    returns a naive datetime which can't be compared with DB values.
     """
     return datetime.now(timezone.utc)
 

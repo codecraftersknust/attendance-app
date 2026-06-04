@@ -93,19 +93,15 @@ Update `mobile/constants/config.ts` with your local IP. Scan the QR code with Ex
 
 See `backend/README.md` for migrations, seeding, and production deployment.
 
-### 4. Seed development data
+### 4. Create admin (local or production)
 
 ```bash
 cd backend
-python scripts/seed.py
+python scripts/init_fresh_db.py   # first time only
+python scripts/create_admin.py
 ```
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@absense.com | admin123 |
-| Lecturer | lecturer@absense.com | lecturer123 |
-| Student | student@absense.com | student123 |
-| Student (ID) | — | STU001 / student123 |
+Edit `scripts/create_admin.py` for email/password. Other users register through the app.
 
 ## Project Structure
 
@@ -113,7 +109,7 @@ python scripts/seed.py
 attendance-app/
 ├── backend/              # FastAPI backend
 │   ├── app/              # Application code
-│   └── scripts/          # Seed, migrations, dev scripts
+│   └── scripts/          # Admin, DB init, face worker, migrations
 ├── web/                  # Next.js web application
 │   ├── app/              # App router (student, lecturer, admin routes)
 │   │   ├── admin/        # Admin dashboard & pages
@@ -138,7 +134,8 @@ attendance-app/
 | `cd backend && ./scripts/dev.sh` | Backend only (port 8000) |
 | `cd web && npm run dev` | Web only (port 3000) |
 | `cd mobile && npx expo start` | Mobile only |
-| `cd backend && python scripts/seed.py` | Seed development accounts |
+| `cd backend && python scripts/create_admin.py` | Create admin user |
+| `cd backend && ./scripts/migrate.sh` | Run Alembic migrations (existing DB) |
 
 ## Application Functionality
 

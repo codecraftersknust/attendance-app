@@ -2,7 +2,7 @@
 
 A comprehensive attendance management system with multi-layered verification including QR codes, GPS geofencing, device ID binding (hashed), and facial recognition.
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # 1. Setup environment
@@ -23,7 +23,7 @@ pip install -r requirements.txt
 # Health: GET /api/v1/health
 ```
 
-## 🏗️ Core Features
+## Core Features
 
 ### Multi-Layered Verification
 - **QR Code Rotation**: Auto-rotating QR codes every **30 seconds** (enhanced security)
@@ -37,7 +37,7 @@ pip install -r requirements.txt
 - **Lecturer**: Create sessions, manage QR codes, view reports
 - **Admin**: Approve device resets, force verify attendance
 
-## 📡 Key API Endpoints
+## Key API Endpoints
 
 ### Authentication
 - `POST /api/v1/auth/register` - Register user
@@ -81,7 +81,7 @@ pip install -r requirements.txt
 - `GET /api/v1/admin/activity` - System activity
 - `GET /api/v1/admin/dashboard` - Admin dashboard
 
-## 🗄️ Database
+## Database
 
 - **SQLite** for development (`absense_dev.db`)
 - **PostgreSQL** for production
@@ -96,7 +96,7 @@ pip install -r requirements.txt
 - `Device` - Device ID binding (hashed using SHA-256)
 - `VerificationLog` - Audit trail
 
-## 🔧 Environment
+## Environment
 
 ### Development (.env)
 ```env
@@ -116,32 +116,24 @@ CORS_ALLOW_ORIGINS=https://your-frontend-domain.com
 
 See [DEPLOYMENT.md](../DEPLOYMENT.md) for full production setup (local Postgres, face worker, Nginx).
 
-## 🧪 Testing
+## Testing
 
 ```bash
 pytest tests/
-
-# Face verification (manual, with images)
-./scripts/test_face_verification_curl.sh
-
-# End-to-end QR + attendance demo
-./scripts/qr_attendance_demo.sh  # uses test_images/verify_same.jpg as selfie
 ```
 
-**Test Coverage**: Auth, lecturer, student, admin, face verification, health checks
+**Test coverage**: Auth, lecturer, student, admin, face verification, health checks
 
-## 🚀 Deployment
+## Deployment
 
 ```bash
 # Production deployment
 cd backend
 source .venv/bin/activate
 
-# Run migrations
-alembic upgrade head
-
-# Seed data (optional)
-python scripts/seed.py
+# Fresh DB: python scripts/init_fresh_db.py
+# Existing DB: alembic upgrade head  (or ./scripts/migrate.sh)
+# Admin: python scripts/create_admin.py
 
 # Start API + face worker (see deploy/*.service)
 gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000 --timeout 120
@@ -168,7 +160,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-## 👥 Default Users (after seeding)
+## Default Users (after seeding)
 
 ### Login Options
 All users can login with either **email** or **user_id**:
@@ -176,16 +168,10 @@ All users can login with either **email** or **user_id**:
 - **Admin**: 
   - Email: `admin@absense.com` / `admin123`
   - User ID: `ADM001` / `admin123`
-- **Lecturer**: 
-  - Email: `lecturer@absense.com` / `lecturer123`
-  - User ID: `LEC001` / `lecturer123`
-- **Student**: 
-  - Email: `student@absense.com` / `student123`
-  - User ID: `STU001` / `student123`
 
-**⚠️ Change passwords in production!**
+**Change passwords in production!**
 
-## 🌐 Web & Mobile Integration
+## Web & Mobile Integration
 
 ### Web Frontend Support
 - **Lecturer Web Dashboard**: Full web interface for lecturers
@@ -214,7 +200,7 @@ All users can login with either **email** or **user_id**:
 - **Adjustable radius**: 1m to 10,000m via `PUT /lecturer/sessions/{id}/geofence`
 - **Soft enforcement**: Students outside geofence are flagged, not rejected
 
-## 🔒 Security
+## Security
 
 - JWT authentication with refresh tokens
 - Role-based access control
