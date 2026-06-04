@@ -1,0 +1,21 @@
+[Unit]
+Description=Absense FastAPI Backend
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=absense
+WorkingDirectory=/home/absense/attendance-app/backend
+Environment="PATH=/home/absense/attendance-app/backend/.venv/bin"
+EnvironmentFile=/home/absense/attendance-app/backend/.env
+ExecStart=/home/absense/attendance-app/backend/.venv/bin/gunicorn app.main:app \
+  -w 4 \
+  -k uvicorn.workers.UvicornWorker \
+  --bind 127.0.0.1:8000 \
+  --timeout 120 \
+  --graceful-timeout 30
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

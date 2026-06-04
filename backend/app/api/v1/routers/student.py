@@ -1,20 +1,18 @@
-import asyncio
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 
 from app.schemas.students import FaceVerificationResponse
 from app.services.face_verification import FaceVerificationService
+from app.services.face_verification_jobs import enqueue_face_verification
+from app.services.face_storage import has_face_enrolled
 from ....db.deps import get_db
-from ....db.session import SessionLocal
 from ....api.deps.auth import role_required
 from ....api.deps.auth import get_current_user
 from ....models.user import UserRole, User
 from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.device import Device
-from ....models.verification_log import VerificationLog
 from ....models.course import Course, CourseProgramme
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.school_settings import get_or_create_settings
@@ -28,75 +26,11 @@ from typing import Optional, List
 logger = logging.getLogger(__name__)
 
 face_service = FaceVerificationService()
-
-# Limit concurrent heavy background work (selfie upload + face verification)
-# so 400 students don't overwhelm the CPU/network simultaneously.
-_heavy_executor = ThreadPoolExecutor(max_workers=8)
 router = APIRouter(prefix="/student", tags=["student"])
 
 
 def get_current_student(current: User = Depends(role_required(UserRole.student))) -> User:
     return current
-
-
-
-def _background_verify_and_upload(
-    record_id: int,
-    user_id: int,
-    session_id: int,
-    selfie_bytes: bytes,
-    selfie_rel: str,
-    device_matched: bool,
-    within_geofence: bool,
-    geofence_configured: bool,
-):
-    """Run selfie upload + face verification in the background.
-
-    Uses its own DB session so the request connection is already released.
-    If face verification fails, downgrades the record to flagged.
-    """
-    db = SessionLocal()
-    try:
-        storage = get_storage()
-        try:
-            storage.save_bytes(selfie_bytes, selfie_rel)
-            selfie_url = storage.url_for(selfie_rel)
-            record = db.get(AttendanceRecord, record_id)
-            if record:
-                record.selfie_image_path = selfie_url
-        except Exception:
-            logger.exception("Background selfie upload failed for record %s", record_id)
-
-        has_reference = face_service.has_reference_face(user_id)
-        if not has_reference:
-            db.commit()
-            return
-
-        verification = face_service.verify_face(user_id, selfie_bytes)
-
-        db.add(VerificationLog(
-            user_id=user_id,
-            session_id=session_id,
-            verified=bool(verification.get("verified")),
-            distance=verification.get("distance"),
-            threshold=verification.get("threshold"),
-            model=verification.get("model"),
-        ))
-
-        if not verification.get("verified"):
-            record = db.get(AttendanceRecord, record_id)
-            if record and record.status == AttendanceStatus.confirmed:
-                record.status = AttendanceStatus.flagged
-                reasons = list(record.flag_reasons or [])
-                reasons.append("face_not_verified")
-                record.flag_reasons = reasons
-
-        db.commit()
-    except Exception:
-        logger.exception("Background verification failed for record %s", record_id)
-        db.rollback()
-    finally:
-        db.close()
 
 
 @router.post("/attendance")
@@ -112,8 +46,7 @@ async def submit_attendance(
 ):
     """Submit attendance with QR verification, geolocation, and face verification.
 
-    Heavy work (selfie upload to Supabase, face verification via DeepFace) is
-    deferred to a background thread so the response is fast even under load.
+    Selfies are saved to local disk immediately; DeepFace runs in absense-face-worker.
     """
     session = db.get(AttendanceSession, qr_session_id)
     if not session or not session.is_active:
@@ -190,10 +123,10 @@ async def submit_attendance(
         if distance_m > session.geofence_radius_m:
             within_geofence = False
 
-    # ── Selfie validation (read bytes now, upload later) ─────────
     cfg = Settings()
-    selfie_bytes: bytes | None = None
+    storage = get_storage()
     selfie_rel: str | None = None
+    selfie_url: str | None = None
 
     if cfg.face_verification_enabled and selfie is None:
         raise HTTPException(status_code=400, detail="Selfie is required when face verification is enabled")
@@ -209,6 +142,8 @@ async def submit_attendance(
         if len(selfie_bytes) > max_size_bytes:
             raise HTTPException(status_code=400, detail="Selfie too large")
         selfie_rel = f"selfies/{current.id}_{session.id}_{selfie.filename}"
+        storage.save_bytes(selfie_bytes, selfie_rel)
+        selfie_url = storage.url_for(selfie_rel)
 
     # ── Device check ─────────────────────────────────────────────
     device_id_hash = hash_device_id(device_id)
@@ -236,30 +171,23 @@ async def submit_attendance(
         session_id=session.id,
         student_id=current.id,
         device_id_hash=device_id_hash,
-        selfie_image_path=None,
+        selfie_image_path=selfie_url,
         presence_image_path=None,
         status=status,
         flag_reasons=flag_reasons if flag_reasons else None,
     )
     db.add(record)
+    db.flush()
+    if selfie_rel and cfg.face_verification_enabled:
+        enqueue_face_verification(
+            db,
+            record_id=record.id,
+            user_id=current.id,
+            session_id=session.id,
+            selfie_path=selfie_rel,
+        )
     db.commit()
     db.refresh(record)
-
-    # ── Kick off heavy work in background thread pool ────────────
-    if selfie_bytes and selfie_rel:
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(
-            _heavy_executor,
-            _background_verify_and_upload,
-            record.id,
-            current.id,
-            session.id,
-            selfie_bytes,
-            selfie_rel,
-            device_matched,
-            within_geofence,
-            geofence_configured,
-        )
 
     response = {"record_id": record.id, "status": record.status.value}
     if distance_m is not None:
@@ -290,7 +218,7 @@ def device_status(db: Session = Depends(get_db), current: User = Depends(get_cur
     """Return current student's bound device status (device ID hash and active flag)."""
     device = db.query(Device).filter(Device.user_id == current.id).first()
     
-    has_face = face_service.has_reference_face(current.id)
+    has_face = has_face_enrolled(current)
     if not has_face and current.face_reference_path:
         current.face_reference_path = None
         db.commit()
@@ -307,7 +235,7 @@ async def enroll_face(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Upload a selfie to store as reference face in Supabase Storage."""
+    """Upload a selfie to store as reference face on local disk."""
     image_bytes = await file.read()
     ref_key = face_service.save_reference_face(current_user.id, image_bytes)
 

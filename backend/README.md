@@ -108,10 +108,13 @@ CORS_ALLOW_ORIGINS=*
 ### Production (.env)
 ```env
 SECRET_KEY=<strong-random-secret>
-DATABASE_URL=postgresql+psycopg2://user:pass@host:5432/dbname
+DATABASE_URL=postgresql+psycopg2://absense:pass@127.0.0.1:5432/absense
+UPLOAD_DIR=/var/lib/absense/uploads
+UPLOAD_PUBLIC_URL_PREFIX=https://your-domain/uploads
 CORS_ALLOW_ORIGINS=https://your-frontend-domain.com
-# Add SUPABASE_* vars if using Supabase
 ```
+
+See [DEPLOYMENT.md](../DEPLOYMENT.md) for full production setup (local Postgres, face worker, Nginx).
 
 ## 🧪 Testing
 
@@ -140,8 +143,9 @@ alembic upgrade head
 # Seed data (optional)
 python scripts/seed.py
 
-# Start server with Gunicorn
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+# Start API + face worker (see deploy/*.service)
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000 --timeout 120
+python scripts/face_verification_worker.py
 ```
 
 For production, use a process manager like **systemd** to keep the backend running:

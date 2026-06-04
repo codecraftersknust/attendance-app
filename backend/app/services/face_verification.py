@@ -14,16 +14,16 @@ from app.storage.base import get_storage
 
 
 class FaceVerificationService:
-    """Face enrolment and verification using Supabase Storage for persistence."""
+    """Face enrolment and verification using local disk storage for persistence."""
 
     FACES_PREFIX = "faces"
 
     def get_reference_key(self, user_id: int) -> str:
-        """Return the Supabase Storage object key for a user's reference face."""
+        """Return the storage object key for a user's reference face."""
         return f"{self.FACES_PREFIX}/{user_id}_reference.jpg"
 
     def save_reference_face(self, user_id: int, image_bytes: bytes) -> str:
-        """Upload reference face bytes to Supabase Storage and return the key."""
+        """Upload reference face bytes to storage and return the key."""
         storage = get_storage()
         key = self.get_reference_key(user_id)
         storage.save_bytes(image_bytes, key)
@@ -43,7 +43,7 @@ class FaceVerificationService:
         storage = get_storage()
         ref_key = self.get_reference_key(user_id)
 
-        # Download reference from Supabase Storage
+        # Download reference image from storage
         try:
             ref_bytes = storage.download_bytes(ref_key)
         except Exception:

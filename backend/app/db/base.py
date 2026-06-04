@@ -7,6 +7,7 @@ from ..models.attendance_record import AttendanceRecord, AttendanceStatus
 from ..models.verification_log import VerificationLog
 from ..models.audit_log import AuditLog
 from ..models.student_course_enrollment import StudentCourseEnrollment
+from ..models.face_verification_job import FaceVerificationJob, FaceVerificationJobStatus
 
 __all__ = [
     "Base",
@@ -22,4 +23,6 @@ __all__ = [
     "VerificationLog",
     "AuditLog",
     "StudentCourseEnrollment",
+    "FaceVerificationJob",
+    "FaceVerificationJobStatus",
 ]

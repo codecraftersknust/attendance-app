@@ -13,7 +13,7 @@ if _backend_dir not in sys.path:
 
 
 class _FakeStorage:
-    """In-memory storage — avoids any network/Supabase calls during tests."""
+    """In-memory storage — avoids disk I/O during tests."""
 
     def __init__(self):
         self._store: dict[str, bytes] = {}
@@ -37,7 +37,7 @@ class _FakeStorage:
 
 @pytest.fixture(autouse=True)
 def _mock_storage(monkeypatch):
-    """Replace Supabase storage globally with an in-memory fake for all tests."""
+    """Replace storage globally with an in-memory fake for all tests."""
     fake = _FakeStorage()
     import app.storage.base
     import app.api.v1.routers.student

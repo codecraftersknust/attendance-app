@@ -19,6 +19,7 @@ from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.attendance_session import AttendanceSession
 from ....models.course import Course, CourseLecturer
 from ....services.face_verification import FaceVerificationService
+from ....services.face_storage import has_face_enrolled
 from ....services.audit import write_audit
 from ....storage.base import get_storage
 
@@ -143,7 +144,7 @@ def get_profile(
     current: User = Depends(get_current_user),
 ):
     """Get the full profile of the current user."""
-    has_face = face_service.has_reference_face(current.id)
+    has_face = has_face_enrolled(current)
     if not has_face and current.face_reference_path:
         current.face_reference_path = None
         db.commit()
@@ -192,7 +193,7 @@ def update_profile(
     db.commit()
     db.refresh(current)
 
-    has_face = face_service.has_reference_face(current.id)
+    has_face = has_face_enrolled(current)
     if not has_face and current.face_reference_path:
         current.face_reference_path = None
         db.commit()
@@ -265,9 +266,10 @@ def delete_account(
 
     # 1. Delete face reference from storage (if any)
     try:
-        if face_service.has_reference_face(user_id):
-            storage = get_storage()
-            storage.delete(face_service.get_reference_key(user_id))
+        if current.face_reference_path and get_storage().exists(current.face_reference_path):
+            get_storage().delete(current.face_reference_path)
+        elif face_service.has_reference_face(user_id):
+            get_storage().delete(face_service.get_reference_key(user_id))
     except Exception:
         pass  # Best-effort; continue with account deletion
 

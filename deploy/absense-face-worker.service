@@ -1,0 +1,16 @@
+[Unit]
+Description=Absense Face Verification Worker (DeepFace)
+After=network.target postgresql.service absense-backend.service
+
+[Service]
+Type=simple
+User=absense
+WorkingDirectory=/home/absense/attendance-app/backend
+Environment="PATH=/home/absense/attendance-app/backend/.venv/bin"
+EnvironmentFile=/home/absense/attendance-app/backend/.env
+ExecStart=/home/absense/attendance-app/backend/.venv/bin/python scripts/face_verification_worker.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
-"""Unified production reset: clears DB tables, empties storage, seeds admin."""
+"""Unified production reset: clears DB tables, empties local uploads, seeds admin."""
 import os
 import sys
-import httpx
-import asyncio
 import subprocess
 
-# Add backend to path
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, backend_dir)
 
 from app.core.config import Settings
 from app.db.session import engine, Base, SessionLocal
-from app.db.base import *  # Import all models to ensure metadata is populated
+from app.db.base import *  # noqa: F401,F403 — register models
 from app.models.user import User, UserRole
 from app.models.school_settings import SchoolSettings
 from app.services.security import get_password_hash
+from app.storage.base import get_storage
 
 settings = Settings()
 
@@ -37,10 +35,10 @@ def reset_db():
     print("\nStamping alembic to head...")
     try:
         result = subprocess.run(
-            [sys.executable, '-m', 'alembic', 'stamp', 'head'],
+            [sys.executable, "-m", "alembic", "stamp", "head"],
             cwd=backend_dir,
             capture_output=True,
-            text=True
+            text=True,
         )
         if result.returncode == 0:
             print("✓ Alembic stamped successfully!")
@@ -74,7 +72,7 @@ def seed_admin():
 
         db.commit()
         print(f"✓ Admin user created: {ADMIN_EMAIL}")
-        print(f"✓ School settings initialised (2025/2026, 1st Semester)")
+        print("✓ School settings initialised (2025/2026, 1st Semester)")
     except Exception as e:
         db.rollback()
         print(f"✗ Failed to seed admin: {e}")
@@ -83,71 +81,19 @@ def seed_admin():
         db.close()
 
 
-async def clear_storage():
-    print("\n--- Storage Cleanup ---")
-    bucket = settings.supabase_storage_bucket
-    url = settings.supabase_url
-    key = settings.supabase_service_role_key
-
-    if not url or not key:
-        print("⚠ Supabase credentials missing, skipping storage cleanup.")
-        return
-
-    headers = {
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json"
-    }
-
-    list_url = f"{url}/storage/v1/object/list/{bucket}"
-    delete_url = f"{url}/storage/v1/object/{bucket}"
-
-    async with httpx.AsyncClient() as client:
-        folders_to_check = ["", "face_references", "selfies"]
-
-        for folder in folders_to_check:
-            print(f"Checking folder: '{folder}'...")
-            try:
-                resp = await client.post(
-                    list_url,
-                    headers=headers,
-                    json={"prefix": folder, "limit": 1000}
-                )
-
-                if resp.status_code != 200:
-                    print(f"  ⚠ Failed to list files in '{folder}': {resp.text}")
-                    continue
-
-                files = resp.json()
-                if not files:
-                    print(f"  Empty.")
-                    continue
-
-                file_paths = [f"{folder}/{f['name']}".strip("/") for f in files if "id" in f]
-
-                if not file_paths:
-                    print(f"  No files found (only folders).")
-                    continue
-
-                print(f"  Deleting {len(file_paths)} files...")
-                del_resp = await client.request(
-                    "DELETE",
-                    delete_url,
-                    headers=headers,
-                    json={"prefixes": file_paths}
-                )
-
-                if del_resp.status_code == 200:
-                    print(f"  ✓ Deleted files in '{folder}'.")
-                else:
-                    print(f"  ⚠ Failed to delete: {del_resp.text}")
-
-            except Exception as e:
-                print(f"  ⚠ Error clearing '{folder}': {e}")
+def clear_storage():
+    print("\n--- Local Storage Cleanup ---")
+    try:
+        storage = get_storage()
+        storage.clear_all()
+        print(f"✓ Cleared upload directory: {settings.upload_dir}")
+    except AttributeError:
+        print("⚠ Storage backend has no clear_all(); remove files manually.")
 
 
-async def main():
+def main():
     reset_db()
-    await clear_storage()
+    clear_storage()
     seed_admin()
     print("\n✓ Production reset complete.")
     print(f"  Admin login: {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
@@ -159,4 +105,4 @@ if __name__ == "__main__":
         print("Run with --confirm to proceed.")
         sys.exit(1)
 
-    asyncio.run(main())
+    main()

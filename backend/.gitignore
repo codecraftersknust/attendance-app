@@ -12,6 +12,7 @@ ENV/
 # Backend
 backend/.env
 backend/uploads/
+backend/data/
 *.db
 *.sqlite3
 
