@@ -310,11 +310,44 @@ During peak load, API stays fast; face verification queues in the worker (one at
 
 ---
 
+## Backend not responding
+
+If `curl -s http://127.0.0.1:8000/api/v1/health` prints **nothing** (not `{"status":"ok"}`), Gunicorn is not running:
+
+```bash
+systemctl status absense-backend
+sudo journalctl -u absense-backend -n 50 --no-pager
+```
+
+**Common fixes:**
+
+1. **Upload directory permissions** (logs show `Permission denied: '/var/lib/absense'`):
+   ```bash
+   sudo mkdir -p /var/lib/absense/uploads
+   sudo chown -R absense:absense /var/lib/absense
+   ```
+
+2. **Pull latest code** — older builds mounted `UPLOAD_PUBLIC_URL_PREFIX` as a full URL and could prevent the app from starting. After `git pull`, restart:
+   ```bash
+   sudo systemctl restart absense-backend
+   curl -s http://127.0.0.1:8000/api/v1/health
+   # expect: {"status":"ok"}
+   ```
+
+3. **Nginx** — only after local health works:
+   ```bash
+   curl -s https://absense.knust.edu.gh/api/v1/health
+   ```
+   If local works but HTTPS is 502, add `location /api/` from `deploy/nginx-absense.conf` and `sudo nginx -t && sudo systemctl reload nginx`.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| **HTTP 502 on login** | Nginx missing `location /api/` or backend down | `curl http://127.0.0.1:8000/api/v1/health`; add `deploy/nginx-absense.conf` `/api/` block; `systemctl restart absense-backend` |
+| **HTTP 502 on login** | Backend not listening on 8000 or nginx missing `/api/` | See **Backend not responding** below |
+| Empty `curl` to `:8000/health` | Gunicorn crashed at startup | `journalctl -u absense-backend -n 40`; fix upload dir permissions and pull latest `main.py` mount fix |
 | Login spins forever | API saturated or DB unreachable | Check `journalctl -u absense-backend`; verify `DATABASE_URL` is `127.0.0.1` |
 | “Invalid selfie type” | MIME from camera | Already fixed in app; redeploy mobile if needed |
 | Selfies 404 | Nginx `/uploads` not configured | Add nginx snippet; check `UPLOAD_PUBLIC_URL_PREFIX` |

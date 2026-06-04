@@ -31,7 +31,7 @@ settings = Settings()
 upload_root = Path(settings.upload_dir).resolve()
 upload_root.mkdir(parents=True, exist_ok=True)
 app.mount(
-    settings.upload_public_url_prefix,
+    settings.upload_mount_path(),
     StaticFiles(directory=str(upload_root)),
     name="uploads",
 )

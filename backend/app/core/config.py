@@ -1,4 +1,20 @@
+from urllib.parse import urlparse
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def upload_mount_path_from_prefix(prefix: str) -> str:
+    """FastAPI mount path only (must start with /)."""
+    p = prefix.strip().rstrip("/")
+    if p.startswith("http://") or p.startswith("https://"):
+        path = urlparse(p).path.rstrip("/") or "/uploads"
+        return path if path.startswith("/") else f"/{path}"
+    return p if p.startswith("/") else f"/{p}"
+
+
+def upload_public_base_from_prefix(prefix: str) -> str:
+    """Base URL or path prefix used in stored file URLs."""
+    return prefix.strip().rstrip("/") or "/uploads"
 
 
 class Settings(BaseSettings):
@@ -32,4 +48,10 @@ class Settings(BaseSettings):
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
     db_pool_recycle: int = 300
+
+    def upload_mount_path(self) -> str:
+        return upload_mount_path_from_prefix(self.upload_public_url_prefix)
+
+    def upload_public_base(self) -> str:
+        return upload_public_base_from_prefix(self.upload_public_url_prefix)
 

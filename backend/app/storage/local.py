@@ -11,8 +11,7 @@ class LocalStorage:
         settings = Settings()
         self.root = Path(settings.upload_dir).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
-        prefix = settings.upload_public_url_prefix.rstrip("/")
-        self._url_prefix = prefix
+        self._url_prefix = settings.upload_public_base()
 
     def _full_path(self, path: str) -> Path:
         full = (self.root / path).resolve()
