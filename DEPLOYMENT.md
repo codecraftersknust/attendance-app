@@ -116,13 +116,30 @@ chmod 600 ~/attendance-app/backend/.env
 
 ### 5. Create empty database schema (fresh)
 
+**Do not use `alembic upgrade head` on a brand-new database.** The old migration chain never creates base tables (`users`, etc.) — it only runs `ALTER` steps. Use the init script instead:
+
 ```bash
 cd ~/attendance-app/backend
 source .venv/bin/activate
-alembic upgrade head
+python scripts/init_fresh_db.py
 ```
 
-If you see **“Multiple head revisions”**, pull the latest code (includes merge migration `d1e2f3a4b5c6`), then run `alembic upgrade head` again. To inspect: `alembic heads` should show only one head.
+That creates all tables from the current models and runs `alembic stamp head`.
+
+If you already ran `alembic upgrade head` and it failed partway (e.g. `relation "users" does not exist`), reset the database and start again:
+
+```bash
+sudo -u postgres psql <<'SQL'
+DROP DATABASE IF EXISTS absense;
+CREATE DATABASE absense OWNER absense;
+GRANT ALL PRIVILEGES ON DATABASE absense TO absense;
+SQL
+
+cd ~/attendance-app/backend && source .venv/bin/activate
+python scripts/init_fresh_db.py
+```
+
+If you see **“Multiple head revisions”**, pull the latest code (merge migration `d1e2f3a4b5c6`), then run `python scripts/init_fresh_db.py` again.
 
 Create the first admin user (pick one):
 
@@ -192,6 +209,7 @@ git pull
 
 cd backend
 source .venv/bin/activate
+# After schema changes in a release: only if DB already exists and was set up with init_fresh_db
 alembic upgrade head
 
 sudo systemctl restart absense-face-worker
