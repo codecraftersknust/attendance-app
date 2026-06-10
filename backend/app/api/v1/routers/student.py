@@ -17,7 +17,7 @@ from ....models.course import Course, CourseProgramme
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.school_settings import get_or_create_settings
 from ....services.audit import write_audit
-from ....services.utils import hash_device_id, utcnow
+from ....services.utils import hash_device_id, utcnow, to_utc_iso, seconds_until
 from ....storage.base import get_storage
 from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
@@ -99,6 +99,13 @@ async def submit_attendance(
     )
     if not enrollment:
         raise HTTPException(status_code=403, detail="You are not enrolled in this course")
+
+    # Programme-scoped sessions can only be marked by students of that programme
+    if session.programme and current.programme and session.programme != current.programme:
+        raise HTTPException(
+            status_code=403,
+            detail=f"This session is for {session.programme} students only",
+        )
 
     # ── Geofence (fast, in-memory math) ──────────────────────────
     within_geofence = True
@@ -446,10 +453,18 @@ def student_dashboard(
         marked_session_ids = {row[0] for row in marked_session_ids_q}
 
         # Count past (ended) sessions the student hasn't marked
+        from sqlalchemy import or_
         past_unmarked_q = db.query(func.count(AttendanceSession.id)).filter(
             AttendanceSession.course_id.in_(enrolled_course_ids),
             AttendanceSession.ends_at != None,
         )
+        if current.programme:
+            past_unmarked_q = past_unmarked_q.filter(
+                or_(
+                    AttendanceSession.programme.is_(None),
+                    AttendanceSession.programme == current.programme,
+                )
+            )
         if marked_session_ids:
             past_unmarked_q = past_unmarked_q.filter(~AttendanceSession.id.in_(marked_session_ids))
         past_unmarked_count = past_unmarked_q.scalar() or 0
@@ -600,15 +615,24 @@ def list_active_sessions(
 
     now = utcnow()
     now_naive = now.replace(tzinfo=None) if now.tzinfo else now
-    sessions = (
+    from sqlalchemy import or_
+    sessions_q = (
         db.query(AttendanceSession)
         .filter(
             AttendanceSession.is_active == True,
             AttendanceSession.course_id.in_(enrolled_course_ids),
         )
-        .order_by(AttendanceSession.created_at.desc())
-        .all()
     )
+    # Hide sessions scoped to another programme's class (same course can be
+    # taken by multiple programmes)
+    if current.programme:
+        sessions_q = sessions_q.filter(
+            or_(
+                AttendanceSession.programme.is_(None),
+                AttendanceSession.programme == current.programme,
+            )
+        )
+    sessions = sessions_q.order_by(AttendanceSession.created_at.desc()).all()
     # Filter out expired sessions (naive-safe comparison)
     sessions = [
         s for s in sessions
@@ -649,8 +673,12 @@ def list_active_sessions(
             "course_id": s.course_id,
             "course_code": course.code if course else None,
             "course_name": course.name if course else None,
-            "starts_at": s.starts_at.isoformat() if s.starts_at else None,
-            "ends_at": s.ends_at.isoformat() if s.ends_at else None,
+            "programme": s.programme,
+            "starts_at": to_utc_iso(s.starts_at),
+            "ends_at": to_utc_iso(s.ends_at),
+            # Server-computed countdown so clients don't depend on their own
+            # clock matching the server's
+            "time_remaining_seconds": seconds_until(s.ends_at),
             "already_marked": existing is not None,
             "attendance_status": existing.status.value if existing else None,
         })
@@ -691,6 +719,7 @@ def get_attendance_history(
     session_ids_to_include = set()
 
     if enrolled_course_ids:
+        from sqlalchemy import or_
         past_sessions_query = (
             db.query(AttendanceSession.id)
             .filter(
@@ -699,6 +728,14 @@ def get_attendance_history(
                 AttendanceSession.ends_at < now,
             )
         )
+        # Sessions held for another programme's class don't count as absences
+        if current.programme:
+            past_sessions_query = past_sessions_query.filter(
+                or_(
+                    AttendanceSession.programme.is_(None),
+                    AttendanceSession.programme == current.programme,
+                )
+            )
         session_ids_to_include.update(r[0] for r in past_sessions_query.all())
 
     # Always include sessions where student has a record (marked present or flagged)
@@ -745,6 +782,8 @@ def get_attendance_history(
                 continue
             if session.course_id not in enrolled_course_ids:
                 continue
+            if session.programme and current.programme and session.programme != current.programme:
+                continue
             status = "absent"
 
         course = course_map.get(session.course_id)
@@ -753,8 +792,8 @@ def get_attendance_history(
             "session_code": session.code,
             "course_code": course.code if course else "Unknown",
             "course_name": course.name if course else "Unknown",
-            "starts_at": session.starts_at.isoformat() if session.starts_at else None,
-            "ends_at": session.ends_at.isoformat() if session.ends_at else None,
+            "starts_at": to_utc_iso(session.starts_at),
+            "ends_at": to_utc_iso(session.ends_at),
             "status": status,
             "record_id": record.id if record else None,
         })

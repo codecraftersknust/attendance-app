@@ -38,9 +38,13 @@ export function QRDisplayDialog({ sessionId, open, onOpenChange }: QRDisplayDial
             const data = await apiClient.lecturerQrDisplay(sessionId);
             setQrData(data.qr_data);
             setSessionCode(data.session_code);
-            setExpiresAt(new Date(data.expires_at));
+            // Anchor countdowns to the server-computed remaining time so a
+            // skewed client clock (or timezone parsing) can't distort them
+            setExpiresAt(new Date(Date.now() + Math.max(0, data.time_remaining_seconds) * 1000));
             setTimeLeft(data.time_remaining_seconds);
-            if (data.session_ends_at) {
+            if (data.session_time_remaining_seconds != null) {
+                setSessionEndsAt(new Date(Date.now() + Math.max(0, data.session_time_remaining_seconds) * 1000));
+            } else if (data.session_ends_at) {
                 setSessionEndsAt(new Date(data.session_ends_at));
             }
 

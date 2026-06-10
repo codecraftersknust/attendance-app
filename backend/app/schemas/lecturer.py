@@ -37,4 +37,8 @@ class QRDisplayResponse(BaseModel):
     is_expired: bool
     lecturer_name: Optional[str] = None
     session_ends_at: Optional[str] = None
+    # Server-computed seconds until the session ends; clients should anchor
+    # their countdowns to this instead of comparing timestamps to their own
+    # (possibly skewed) clocks.
+    session_time_remaining_seconds: Optional[int] = None
 

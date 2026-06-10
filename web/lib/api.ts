@@ -427,10 +427,11 @@ class ApiClient {
         return this.request('/lecturer/sessions');
     }
 
-    async lecturerCreateSession(payload: { course_id: number; duration_minutes?: number; latitude?: number; longitude?: number; geofence_radius_m?: number }): Promise<{ id: number; code: string; course: { id: number; code: string; name: string }; starts_at: string; ends_at: string }> {
+    async lecturerCreateSession(payload: { course_id: number; duration_minutes?: number; programme?: string; latitude?: number; longitude?: number; geofence_radius_m?: number }): Promise<{ id: number; code: string; course: { id: number; code: string; name: string }; programme: string | null; duration_minutes: number; time_remaining_seconds: number; starts_at: string; ends_at: string }> {
         const qs = new URLSearchParams();
         qs.set('course_id', String(payload.course_id));
         if (payload.duration_minutes != null) qs.set('duration_minutes', String(payload.duration_minutes));
+        if (payload.programme) qs.set('programme', payload.programme);
         if (payload.latitude != null) qs.set('latitude', String(payload.latitude));
         if (payload.longitude != null) qs.set('longitude', String(payload.longitude));
         if (payload.geofence_radius_m != null) qs.set('geofence_radius_m', String(payload.geofence_radius_m));
@@ -500,6 +501,7 @@ class ApiClient {
         is_expired: boolean;
         lecturer_name: string;
         session_ends_at?: string;
+        session_time_remaining_seconds?: number | null;
     }> {
         return this.request(`/lecturer/qr/${sessionId}/display`);
     }
@@ -548,7 +550,7 @@ class ApiClient {
     }
 
     // Student attendance endpoints
-    async studentActiveSessions(): Promise<Array<{ id: number; code: string; course_id: number; course_code?: string; course_name?: string; starts_at?: string; ends_at?: string; already_marked?: boolean; attendance_status?: string }>> {
+    async studentActiveSessions(): Promise<Array<{ id: number; code: string; course_id: number; course_code?: string; course_name?: string; programme?: string | null; starts_at?: string; ends_at?: string; time_remaining_seconds?: number | null; already_marked?: boolean; attendance_status?: string }>> {
         return this.request('/student/sessions/active');
     }
 

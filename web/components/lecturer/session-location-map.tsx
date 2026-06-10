@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MapPin, Locate, X } from "lucide-react";
 
@@ -19,8 +19,25 @@ type SessionLocationMapProps = {
     onChange: (location: SessionLocation | null) => void;
 };
 
+const clampRadius = (n: number) => Math.min(MAX_RADIUS_M, Math.max(MIN_RADIUS_M, n));
+
 export function SessionLocationMap({ value, onChange }: SessionLocationMapProps) {
     const [center, setCenter] = useState<[number, number]>(KNUST_CENTER);
+
+    // Local text state so the radius box can be cleared while typing; the
+    // numeric value is only committed when the text parses to a number
+    const [radiusText, setRadiusText] = useState<string>(String(value?.radiusMeters ?? DEFAULT_RADIUS_M));
+    const lastCommittedRadius = useRef<number | undefined>(value?.radiusMeters);
+
+    useEffect(() => {
+        // Sync only on external changes (e.g. location cleared and re-set),
+        // not on echoes of values we just committed ourselves
+        const external = value?.radiusMeters;
+        if (external != null && external !== lastCommittedRadius.current) {
+            lastCommittedRadius.current = external;
+            setRadiusText(String(external));
+        }
+    }, [value?.radiusMeters]);
     const [zoom, setZoom] = useState(KNUST_ZOOM);
     const [locating, setLocating] = useState(false);
     const [MapContent, setMapContent] = useState<React.ComponentType<{
@@ -125,11 +142,25 @@ export function SessionLocationMap({ value, onChange }: SessionLocationMapProps)
                             min={MIN_RADIUS_M}
                             max={MAX_RADIUS_M}
                             step={10}
-                            value={value.radiusMeters ?? DEFAULT_RADIUS_M}
+                            value={radiusText}
                             onChange={(e) => {
-                                const v = e.target.value ? parseInt(e.target.value, 10) : DEFAULT_RADIUS_M;
-                                const clamped = Math.min(MAX_RADIUS_M, Math.max(MIN_RADIUS_M, isNaN(v) ? DEFAULT_RADIUS_M : v));
-                                onChange({ ...value, radiusMeters: clamped });
+                                const raw = e.target.value;
+                                setRadiusText(raw);
+                                const n = parseInt(raw, 10);
+                                if (!isNaN(n)) {
+                                    const clamped = clampRadius(n);
+                                    lastCommittedRadius.current = clamped;
+                                    onChange({ ...value, radiusMeters: clamped });
+                                }
+                            }}
+                            onBlur={() => {
+                                const n = parseInt(radiusText, 10);
+                                const final = isNaN(n)
+                                    ? (value.radiusMeters ?? DEFAULT_RADIUS_M)
+                                    : clampRadius(n);
+                                lastCommittedRadius.current = final;
+                                setRadiusText(String(final));
+                                onChange({ ...value, radiusMeters: final });
                             }}
                             className="w-24 rounded border border-gray-200 px-2 py-1 text-xs"
                         />

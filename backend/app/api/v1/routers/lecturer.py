@@ -10,7 +10,7 @@ from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.verification_log import VerificationLog
 from ....schemas.auth import UserRead
 from ....schemas.lecturer import QRStatusResponse, QRDisplayResponse, QRPayload
-from ....services.utils import generate_session_code, generate_session_nonce, utcnow
+from ....services.utils import generate_session_code, generate_session_nonce, utcnow, to_utc_iso, seconds_until
 from ....services.audit import write_audit
 from ....services.qr_rotation import add_session_to_rotation, remove_session_from_rotation, ensure_qr_valid
 from ....api.deps.auth import role_required
@@ -353,6 +353,7 @@ def update_course(
 def create_session(
     course_id: int,
     duration_minutes: int = 15,
+    programme: str | None = None,
     latitude: float | None = None,
     longitude: float | None = None,
     geofence_radius_m: float | None = None,
@@ -364,6 +365,9 @@ def create_session(
     Args:
         course_id: ID of the course
         duration_minutes: Session duration in minutes (default: 15)
+        programme: Restrict the session to one programme/class (optional).
+            When omitted, students from all programmes registered for the
+            course can see and mark the session.
         latitude: Lecturer's current latitude (optional, auto-captured from frontend)
         longitude: Lecturer's current longitude (optional, auto-captured from frontend)
         geofence_radius_m: Allowable radius in meters for student location (1-10000). Default 100 when location is set.
@@ -386,7 +390,21 @@ def create_session(
     
     if not course:
         raise HTTPException(status_code=404, detail="Course not found or not accessible")
-    
+
+    # Validate duration
+    if duration_minutes < 1 or duration_minutes > 24 * 60:
+        raise HTTPException(status_code=400, detail="Duration must be between 1 minute and 24 hours")
+
+    # Validate programme against the programmes registered for this course
+    programme = programme.strip() if programme else None
+    if programme:
+        course_programmes = [p.programme for p in course.programmes]
+        if course_programmes and programme not in course_programmes:
+            raise HTTPException(
+                status_code=400,
+                detail="Programme is not registered for this course",
+            )
+
     # Validate GPS coordinates if provided
     if latitude is not None and (latitude < -90 or latitude > 90):
         raise HTTPException(status_code=400, detail="Latitude must be between -90 and 90")
@@ -417,6 +435,7 @@ def create_session(
     session = AttendanceSession(
         lecturer_id=current.id,
         course_id=course_id,
+        programme=programme,
         code=code,
         starts_at=now,
         ends_at=now + timedelta(minutes=duration_minutes),
@@ -432,7 +451,7 @@ def create_session(
     # Auto-generate QR code when session is created
     ensure_qr_valid(session, db, ttl_seconds=30)
     
-    write_audit(db, "lecturer.create_session", current.id, f"session_id={session.id},course_id={course_id},has_location={latitude is not None}")
+    write_audit(db, "lecturer.create_session", current.id, f"session_id={session.id},course_id={course_id},programme={programme},has_location={latitude is not None}")
     return {
         "id": session.id,
         "code": session.code,
@@ -441,8 +460,11 @@ def create_session(
             "code": course.code,
             "name": course.name
         },
-        "starts_at": session.starts_at.isoformat(),
-        "ends_at": session.ends_at.isoformat(),
+        "programme": session.programme,
+        "duration_minutes": duration_minutes,
+        "time_remaining_seconds": duration_minutes * 60,
+        "starts_at": to_utc_iso(session.starts_at),
+        "ends_at": to_utc_iso(session.ends_at),
         "latitude": session.latitude,
         "longitude": session.longitude,
         "geofence_radius_m": session.geofence_radius_m,
@@ -667,8 +689,10 @@ def list_sessions(db: Session = Depends(get_db), current: User = Depends(get_cur
             "id": s.id, 
             "code": s.code, 
             "is_active": is_actually_active,
-            "starts_at": s.starts_at.isoformat() if s.starts_at else None,
-            "ends_at": s.ends_at.isoformat() if s.ends_at else None
+            "programme": s.programme,
+            "starts_at": to_utc_iso(s.starts_at),
+            "ends_at": to_utc_iso(s.ends_at),
+            "time_remaining_seconds": seconds_until(s.ends_at) if is_actually_active else None,
         })
     
     return result
@@ -947,7 +971,7 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
     db.refresh(session)
     
     # Calculate time remaining
-    time_remaining = int((session.qr_expires_at - utcnow()).total_seconds())
+    time_remaining = seconds_until(session.qr_expires_at)
     
     # QR payload for encoding
     qr_payload = QRPayload(
@@ -966,7 +990,8 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
     )
     
     # Check if session has ended
-    if session.ends_at and session.ends_at < utcnow():
+    session_time_remaining = seconds_until(session.ends_at)
+    if session_time_remaining is not None and session_time_remaining <= 0:
         raise HTTPException(status_code=400, detail="Session has ended")
 
     write_audit(db, "lecturer.qr_display", current.id, f"session_id={session_id}")
@@ -975,11 +1000,12 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
         session_code=session.code,
         qr_payload=qr_payload,
         qr_data=f"ABSENSE:{session.id}:{session.qr_nonce}",
-        expires_at=session.qr_expires_at.isoformat(),
+        expires_at=to_utc_iso(session.qr_expires_at),
         time_remaining_seconds=time_remaining,
         is_expired=time_remaining <= 0,
         lecturer_name=current.full_name or current.email,
-        session_ends_at=session.ends_at.isoformat() if session.ends_at else None,
+        session_ends_at=to_utc_iso(session.ends_at),
+        session_time_remaining_seconds=session_time_remaining,
     )
 
 
@@ -992,13 +1018,16 @@ def get_absent_students(session_id: int, db: Session = Depends(get_db), current:
     if not session or session.lecturer_id != current.id:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    # Get all enrolled students for the course
-    enrolled_students = (
+    # Get all enrolled students for the course (scoped to the session's
+    # programme when set, so other programmes aren't marked absent)
+    enrolled_q = (
         db.query(User)
         .join(StudentCourseEnrollment, User.id == StudentCourseEnrollment.student_id)
         .filter(StudentCourseEnrollment.course_id == session.course_id)
-        .all()
     )
+    if session.programme:
+        enrolled_q = enrolled_q.filter(User.programme == session.programme)
+    enrolled_students = enrolled_q.all()
     
     # Students who are present: have a record with status confirmed or flagged
     present_or_flagged_ids = {

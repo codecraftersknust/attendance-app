@@ -17,13 +17,16 @@ const SessionLocationMap = dynamic(
     { ssr: false, loading: () => <div className="h-64 rounded-lg border border-gray-200 bg-gray-50 animate-pulse" /> }
 );
 
-type Course = { id: number; code: string; name: string };
+type Course = { id: number; code: string; name: string; programmes: string[] };
+
+const ALL_PROGRAMMES = "__all__";
 
 export function CreateSessionForm(props: { onCreated?: (session: { id: number; code: string }) => void }) {
     const { onCreated } = props;
     const [creating, setCreating] = useState<boolean>(false);
     const [courseId, setCourseId] = useState<string>("");
     const [duration, setDuration] = useState<string>("15");
+    const [programme, setProgramme] = useState<string>(ALL_PROGRAMMES);
     const [location, setLocation] = useState<SessionLocation | null>(null);
 
     const { data: coursesRaw = [], error: coursesError, isLoading: loadingCourses } = useSWR(
@@ -31,7 +34,9 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
         () => apiClient.lecturerCourses(),
         { dedupingInterval: 30000 }
     );
-    const courses = (coursesRaw as any[]).map((c) => ({ id: c.id, code: c.code, name: c.name })) as Course[];
+    const courses = (coursesRaw as any[]).map((c) => ({ id: c.id, code: c.code, name: c.name, programmes: c.programmes ?? [] })) as Course[];
+    const selectedCourse = courses.find((c) => String(c.id) === courseId) ?? null;
+    const programmeOptions = selectedCourse?.programmes ?? [];
 
     useEffect(() => { if (coursesError) toast.error(coursesError?.message || "Failed to load courses"); }, [coursesError]);
 
@@ -48,6 +53,7 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
             const created = await apiClient.lecturerCreateSession({
                 course_id: Number(courseId),
                 duration_minutes: dur,
+                ...(programme !== ALL_PROGRAMMES && { programme }),
                 ...(location && {
                     latitude: location.lat,
                     longitude: location.lng,
@@ -70,7 +76,11 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                 <div className="space-y-2">
                     <Label>Course</Label>
-                    <Select value={courseId} onValueChange={setCourseId} disabled={loadingCourses}>
+                    <Select
+                        value={courseId}
+                        onValueChange={(v) => { setCourseId(v); setProgramme(ALL_PROGRAMMES); }}
+                        disabled={loadingCourses}
+                    >
                         <SelectTrigger>
                             <SelectValue placeholder={loadingCourses ? "Loading..." : "Select a course"} />
                         </SelectTrigger>
@@ -83,6 +93,22 @@ export function CreateSessionForm(props: { onCreated?: (session: { id: number; c
                         </SelectContent>
                     </Select>
                 </div>
+                {programmeOptions.length > 1 && (
+                    <div className="space-y-2">
+                        <Label>Class (programme)</Label>
+                        <Select value={programme} onValueChange={setProgramme}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a class" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={ALL_PROGRAMMES}>All programmes</SelectItem>
+                                {programmeOptions.map((p) => (
+                                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
                 <div className="space-y-2">
                     <Label>Duration (minutes)</Label>
                     <Input type="number" min={1} value={duration} onChange={(e) => setDuration(e.target.value)} />

@@ -58,7 +58,16 @@ export default function AttendanceScreen() {
   const loadActiveSessions = async () => {
     try {
       const activeSessions = await AttendanceService.getActiveSessions();
-      setSessions(activeSessions);
+      // Anchor each session's end time to this device's clock using the
+      // server-computed remaining seconds, so countdowns stay correct even
+      // if the device clock differs from the server's
+      const fetchedAt = Date.now();
+      setSessions(activeSessions.map((s) => ({
+        ...s,
+        ends_at_ms: s.time_remaining_seconds != null
+          ? fetchedAt + s.time_remaining_seconds * 1000
+          : undefined,
+      })));
     } catch (error) {
       console.error('Failed to load active sessions:', error);
       if (!sessionsRefreshing && sessions.length === 0) {

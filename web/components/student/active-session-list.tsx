@@ -10,9 +10,21 @@ import { ActiveSession } from "./types";
 export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => void }) {
     const { onOpen } = props;
 
-    const { data: sessions = [], error, isLoading: loading, mutate } = useSWR(
+    const { data: sessions = [], error, isLoading: loading, mutate } = useSWR<ActiveSession[]>(
         "student-active-sessions",
-        () => apiClient.studentActiveSessions(),
+        async () => {
+            const list = await apiClient.studentActiveSessions();
+            // Anchor the session end to this device's clock using the
+            // server-computed remaining seconds, so countdowns stay correct
+            // even if the device clock differs from the server's
+            const fetchedAt = Date.now();
+            return list.map((s) => ({
+                ...s,
+                ends_at_ms: s.time_remaining_seconds != null
+                    ? fetchedAt + s.time_remaining_seconds * 1000
+                    : undefined,
+            }));
+        },
         { dedupingInterval: 5000, refreshInterval: 30000 }
     );
 

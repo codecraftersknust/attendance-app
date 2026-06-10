@@ -9,7 +9,7 @@ from typing import Dict, Set
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
 from ..models.attendance_session import AttendanceSession
-from ..services.utils import generate_session_nonce, utcnow
+from ..services.utils import generate_session_nonce, utcnow, seconds_until
 from ..services.audit import write_audit
 
 
@@ -222,7 +222,9 @@ def ensure_qr_valid(session, db: Session, ttl_seconds: int = 30) -> bool:
     """
     now = utcnow()
     needs_generation = not session.qr_nonce or not session.qr_expires_at
-    is_expired = session.qr_expires_at and session.qr_expires_at < now
+    # seconds_until is naive-safe (SQLite returns naive datetimes)
+    remaining = seconds_until(session.qr_expires_at)
+    is_expired = remaining is not None and remaining <= 0
     
     if needs_generation or is_expired:
         session.qr_previous_nonce = session.qr_nonce

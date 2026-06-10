@@ -11,6 +11,9 @@ class AttendanceSession(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     lecturer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
     course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"), index=True, nullable=True)
+    # Programme/class this session is for. NULL means the session is open to
+    # all programmes registered for the course.
+    programme: Mapped[str | None] = mapped_column(String(100), nullable=True)
     code: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)

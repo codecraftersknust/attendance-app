@@ -71,12 +71,12 @@ export default function AttendanceFlowScreen() {
 
     // Session countdown timer
     useEffect(() => {
-        if (!session?.ends_at) return;
+        // Prefer the server-anchored end time (immune to device clock skew)
+        const endMs = session?.ends_at_ms ?? (session?.ends_at ? new Date(session.ends_at).getTime() : null);
+        if (endMs == null || Number.isNaN(endMs)) return;
 
         const updateCountdown = () => {
-            const now = new Date();
-            const end = new Date(session.ends_at!);
-            const diffMs = end.getTime() - now.getTime();
+            const diffMs = endMs - Date.now();
 
             if (diffMs <= 0) {
                 setTimeLeft(null);
@@ -99,7 +99,7 @@ export default function AttendanceFlowScreen() {
         updateCountdown();
         const interval = setInterval(updateCountdown, 1000);
         return () => clearInterval(interval);
-    }, [session?.ends_at]);
+    }, [session?.ends_at, session?.ends_at_ms]);
 
     // Get or create device ID
     const initializeDeviceId = useCallback(async () => {

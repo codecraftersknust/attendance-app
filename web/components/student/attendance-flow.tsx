@@ -19,12 +19,12 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
     const [timeLeftSeconds, setTimeLeftSeconds] = useState<number | null>(null);
 
     useEffect(() => {
-        if (!session.ends_at) return;
+        // Prefer the server-anchored end time (immune to client clock skew)
+        const endMs = session.ends_at_ms ?? (session.ends_at ? new Date(session.ends_at).getTime() : null);
+        if (endMs == null || Number.isNaN(endMs)) return;
 
         const updateCountdown = () => {
-            const now = new Date();
-            const end = new Date(session.ends_at!);
-            const diffMs = end.getTime() - now.getTime();
+            const diffMs = endMs - Date.now();
 
             if (diffMs <= 0) {
                 toast.error("Session has ended");
@@ -47,7 +47,7 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
         updateCountdown();
         const interval = setInterval(updateCountdown, 1000);
         return () => clearInterval(interval);
-    }, [session.ends_at, onDone]);
+    }, [session.ends_at, session.ends_at_ms, onDone]);
 
     const [deviceId, setDeviceId] = useState<string>("");
     const [checkingDevice, setCheckingDevice] = useState<boolean>(false);
