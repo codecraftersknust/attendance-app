@@ -77,34 +77,17 @@ class FaceVerificationService:
         """Run face comparison using DeepFace or lightweight fallback."""
 
         if not _DEEPFACE_AVAILABLE:
-            try:
-                from PIL import Image
-                import numpy as np
-            except Exception:
-                return {
-                    "verified": False,
-                    "error": "Face engine unavailable (DeepFace import failed)",
-                }
-
-            try:
-                img1 = Image.open(live_path).convert("L").resize((160, 160))
-                img2 = Image.open(ref_path).convert("L").resize((160, 160))
-                v1 = np.asarray(img1, dtype=np.float32).flatten()
-                v2 = np.asarray(img2, dtype=np.float32).flatten()
-                v1 = (v1 - v1.mean()) / (v1.std() + 1e-6)
-                v2 = (v2 - v2.mean()) / (v2.std() + 1e-6)
-                sim = float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6))
-                sim01 = (sim + 1.0) / 2.0
-                distance = 1.0 - sim01
-                verified = sim01 >= 0.60
-                return {
-                    "verified": verified,
-                    "distance": distance,
-                    "threshold": 1.0 - 0.60,
-                    "model": "fallback-cosine",
-                }
-            except Exception as e:
-                return {"verified": False, "error": f"Fallback error: {str(e)}"}
+            # Pixel-level similarity is NOT face recognition — two photos taken in
+            # similar lighting will score similarly regardless of identity.
+            # Without a real face-embedding model we cannot make a trustworthy
+            # decision, so we reject rather than risk false positives.
+            return {
+                "verified": False,
+                "error": (
+                    "Face verification engine (DeepFace) is not installed on this "
+                    "server. Please install DeepFace to enable face verification."
+                ),
+            }
 
         try:
             result = DeepFace.verify(
