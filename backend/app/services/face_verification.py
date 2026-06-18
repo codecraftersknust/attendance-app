@@ -90,12 +90,30 @@ class FaceVerificationService:
             }
 
         try:
+            # Step 1: explicitly validate that BOTH images contain a detectable face
+            # before attempting embedding comparison. This prevents non-face images
+            # (blank walls, objects, poor lighting) from ever reaching the comparator.
+            for img_path, label in ((live_path, "selfie"), (ref_path, "reference")):
+                faces = DeepFace.extract_faces(
+                    img_path=img_path,
+                    detector_backend=getattr(cfg, "face_detector_backend", "retinaface"),
+                    enforce_detection=True,
+                    align=True,
+                )
+                if not faces:
+                    return {
+                        "verified": False,
+                        "error": f"No face detected in the {label} image.",
+                    }
+
+            # Step 2: compare embeddings
             result = DeepFace.verify(
                 img1_path=live_path,
                 img2_path=ref_path,
                 model_name=cfg.face_model,
                 detector_backend=getattr(cfg, "face_detector_backend", "retinaface"),
                 enforce_detection=True,
+                align=True,
             )
 
             verified = bool(result.get("verified"))
@@ -113,5 +131,8 @@ class FaceVerificationService:
                 "threshold": threshold,
                 "model": model,
             }
+        except ValueError as e:
+            # DeepFace raises ValueError when no face is detected
+            return {"verified": False, "error": f"face_not_detected: {str(e)}"}
         except Exception as e:  # pragma: no cover
-            return {"verified": False, "error": str(e)}
+            return {"verified": False, "error": f"verification_error: {str(e)}"}

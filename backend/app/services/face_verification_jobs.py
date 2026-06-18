@@ -61,6 +61,16 @@ def process_one_job(db: Session) -> bool:
             record.selfie_image_path = storage.url_for(job.selfie_path)
 
         if not face_service.has_reference_face(job.user_id):
+            # No reference face enrolled → flag the record.
+            # Silently completing here would let students bypass face verification
+            # entirely by never enrolling a reference photo.
+            record = db.get(AttendanceRecord, job.record_id)
+            if record and record.status == AttendanceStatus.confirmed:
+                record.status = AttendanceStatus.flagged
+                reasons = list(record.flag_reasons or [])
+                if "no_reference_face" not in reasons:
+                    reasons.append("no_reference_face")
+                record.flag_reasons = reasons
             job.status = FaceVerificationJobStatus.done
             job.processed_at = datetime.now(timezone.utc)
             db.commit()
