@@ -39,7 +39,11 @@ class Settings(BaseSettings):
     # Face verification settings
     face_verification_enabled: bool = True
     face_model: str = "Facenet512"
-    face_threshold: float | None = 0.6
+    # None = use DeepFace's own per-model default (Facenet512 ≈ 0.30 cosine).
+    # Do NOT set this to a high value like 0.6 — DeepFace distance is in [0,1]
+    # where 0 = identical and 1 = completely different, so 0.6 accepts nearly
+    # any two faces. Leave as None unless you have a specific tuned value.
+    face_threshold: float | None = None
     face_detector_backend: str = "retinaface"
     face_worker_poll_seconds: float = 1.0
 
