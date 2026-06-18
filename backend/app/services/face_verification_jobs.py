@@ -36,6 +36,42 @@ def enqueue_face_verification(
     )
 
 
+def _append_flag_reason(record: AttendanceRecord, reason: str) -> None:
+    reasons = list(record.flag_reasons or [])
+    if reason not in reasons:
+        reasons.append(reason)
+    record.flag_reasons = reasons
+
+
+def _apply_verification_result(record: AttendanceRecord | None, verification: dict) -> None:
+    """Update attendance record based on face verification outcome."""
+    if not record:
+        return
+
+    verified = bool(verification.get("verified"))
+    if verified:
+        if record.status == AttendanceStatus.pending_verification:
+            record.status = AttendanceStatus.confirmed
+        return
+
+    model = verification.get("model")
+    if model == "unavailable":
+        _append_flag_reason(record, "face_verification_unavailable")
+    else:
+        _append_flag_reason(record, "face_not_verified")
+
+    if record.status in (AttendanceStatus.pending_verification, AttendanceStatus.confirmed):
+        record.status = AttendanceStatus.flagged
+
+
+def _flag_job_failure(record: AttendanceRecord | None) -> None:
+    if not record:
+        return
+    if record.status in (AttendanceStatus.pending_verification, AttendanceStatus.confirmed):
+        record.status = AttendanceStatus.flagged
+    _append_flag_reason(record, "face_verification_failed")
+
+
 def process_one_job(db: Session) -> bool:
     """Claim and process one pending job. Returns True if a job was processed."""
     q = (
@@ -61,12 +97,14 @@ def process_one_job(db: Session) -> bool:
             record.selfie_image_path = storage.url_for(job.selfie_path)
 
         if not face_service.has_reference_face(job.user_id):
-            job.status = FaceVerificationJobStatus.done
-            job.processed_at = datetime.now(timezone.utc)
-            db.commit()
-            return True
+            verification = {
+                "verified": False,
+                "error": "No reference face enrolled",
+                "model": "none",
+            }
+        else:
+            verification = face_service.verify_face(job.user_id, selfie_bytes)
 
-        verification = face_service.verify_face(job.user_id, selfie_bytes)
         db.add(
             VerificationLog(
                 user_id=job.user_id,
@@ -78,14 +116,7 @@ def process_one_job(db: Session) -> bool:
             )
         )
 
-        if not verification.get("verified"):
-            record = db.get(AttendanceRecord, job.record_id)
-            if record and record.status == AttendanceStatus.confirmed:
-                record.status = AttendanceStatus.flagged
-                reasons = list(record.flag_reasons or [])
-                if "face_not_verified" not in reasons:
-                    reasons.append("face_not_verified")
-                record.flag_reasons = reasons
+        _apply_verification_result(record, verification)
 
         job.status = FaceVerificationJobStatus.done
         job.processed_at = datetime.now(timezone.utc)
@@ -95,6 +126,8 @@ def process_one_job(db: Session) -> bool:
         db.rollback()
         job = db.get(FaceVerificationJob, job.id)
         if job:
+            record = db.get(AttendanceRecord, job.record_id)
+            _flag_job_failure(record)
             job.status = FaceVerificationJobStatus.failed
             job.processed_at = datetime.now(timezone.utc)
             db.commit()

@@ -58,6 +58,12 @@ def _set_env(tmp_path, monkeypatch):
     from app.db.base import Base
     from app.db.deps import get_db
     from app.main import app
+    from app.services.rate_limit import rate_limiter
+
+    # Rate limiting off by default (tests hammer auth endpoints);
+    # individual tests can re-enable it via monkeypatch.
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "false")
+    rate_limiter.reset()
 
     db_path = str(tmp_path / "test.db")
     db_url = f"sqlite:///{db_path}"

@@ -5,7 +5,7 @@ def test_regenerate_and_expire(client):
         "password": "pw123456",
         "full_name": "Lect One",
         "role": "lecturer",
-        "user_id": "88887777",
+        "user_id": "8888777",
     })
     assert r.status_code == 200
 
@@ -24,16 +24,17 @@ def test_regenerate_and_expire(client):
     assert r.status_code == 200, r.text
     admin_token = r.json()["access_token"]
     
-    r = client.post("/api/v1/admin/courses", headers={"Authorization": f"Bearer {admin_token}"}, params={
-        "code": "TEST111", "name": "Test", "semester": "Sem 1", "level": 100, "programmes": "Computer Engineering"
+    r = client.post("/api/v1/admin/courses", headers={"Authorization": f"Bearer {admin_token}"}, json={
+        "code": "TEST111", "name": "Test", "semester": "Sem 1", "level": 100, "programmes": ["Computer Engineering"]
     })
+    assert r.status_code == 200, r.text
     course_id = r.json()["id"]
     
     # Claim course
     client.post(f"/api/v1/lecturer/courses/{course_id}/claim", headers=headers)
 
     # Create session
-    r = client.post("/api/v1/lecturer/sessions", headers=headers, params={"course_id": course_id, "duration_minutes": 5})
+    r = client.post("/api/v1/lecturer/sessions", headers=headers, json={"course_id": course_id, "duration_minutes": 5})
     assert r.status_code == 200
     sid = r.json()["id"]
     first_code = r.json()["code"]

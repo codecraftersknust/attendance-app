@@ -28,7 +28,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
-    devices: Mapped[list["Device"]] = relationship(back_populates="user")
-    lecturer_sessions: Mapped[list["AttendanceSession"]] = relationship(back_populates="lecturer")
-    attendances: Mapped[list["AttendanceRecord"]] = relationship(back_populates="student")
+    devices: Mapped[list["Device"]] = relationship(back_populates="user", passive_deletes=True)
+    lecturer_sessions: Mapped[list["AttendanceSession"]] = relationship(back_populates="lecturer", passive_deletes=True)
+    attendances: Mapped[list["AttendanceRecord"]] = relationship(back_populates="student", passive_deletes=True)
     courses: Mapped[list["Course"]] = relationship("Course", secondary="course_lecturers", back_populates="lecturers")

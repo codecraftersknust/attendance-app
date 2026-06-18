@@ -28,9 +28,10 @@ import {
   getPasswordError,
 } from '@/lib/auth-validation';
 import { LEVELS, levelToYearLabel } from '@/lib/level-utils';
-import { PROGRAMMES } from '@/lib/programmes';
+import { useProgrammes } from '@/hooks/useProgrammes';
 
 export default function RegisterScreen() {
+  const PROGRAMMES = useProgrammes();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

@@ -31,7 +31,7 @@ import {
     getPasswordError,
 } from "@/lib/auth-validation";
 import { LEVELS, levelToYearLabel } from "@/lib/level-utils";
-import { PROGRAMMES } from "@/lib/programmes";
+import { useProgrammes } from "@/lib/use-programmes";
 
 type Role = "student" | "lecturer";
 
@@ -52,6 +52,7 @@ export function SignupForm({
     const { register } = useAuth();
     const router = useRouter();
     const { start } = useTopLoader();
+    const programmes = useProgrammes();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -261,7 +262,7 @@ export function SignupForm({
                                     <SelectValue placeholder="Select your programme" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {PROGRAMMES.map((prog) => (
+                                    {programmes.map((prog) => (
                                         <SelectItem key={prog} value={prog}>
                                             {prog}
                                         </SelectItem>

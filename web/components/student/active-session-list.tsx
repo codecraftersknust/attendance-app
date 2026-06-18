@@ -51,7 +51,16 @@ export function ActiveSessionList(props: { onOpen: (session: ActiveSession) => v
                                 <div className="font-medium">{s.course_code} — {s.course_name}</div>
                                 <div className="text-xs text-gray-500">Session #{s.id} • Code {s.code}</div>
                                 {s.already_marked && (
-                                    <div className="text-xs text-emerald-600 mt-1 font-medium">Already marked {s.attendance_status === "confirmed" ? "✓" : "(pending review)"}</div>
+                                    <div className={`text-xs mt-1 font-medium ${
+                                        s.attendance_status === "confirmed" ? "text-emerald-600" :
+                                        s.attendance_status === "pending_verification" ? "text-blue-600" :
+                                        s.attendance_status === "flagged" ? "text-amber-600" : "text-gray-600"
+                                    }`}>
+                                        {s.attendance_status === "confirmed" ? "Present ✓" :
+                                         s.attendance_status === "pending_verification" ? "Verifying face…" :
+                                         s.attendance_status === "flagged" ? "Flagged for review" :
+                                         "Marked"}
+                                    </div>
                                 )}
                             </div>
                             {s.already_marked ? (

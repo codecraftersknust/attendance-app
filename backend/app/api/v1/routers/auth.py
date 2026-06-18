@@ -17,16 +17,17 @@ from ....api.deps.auth import get_current_user
 from ....models.user import User, UserRole
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.attendance_session import AttendanceSession
+from ....models.device import Device
 from ....models.course import Course, CourseLecturer
-from ....services.face_verification import FaceVerificationService
 from ....services.face_storage import has_face_enrolled
 from ....services.audit import write_audit
-from ....storage.base import get_storage
+from ....services.rate_limit import rate_limit
+from ....services.programmes import is_valid_programme, list_programme_names
+from ....services.user_deletion import delete_user_uploads
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-face_service = FaceVerificationService()
 
 
 # KNUST validation patterns
@@ -36,8 +37,18 @@ STUDENT_ID_PATTERN = r"^\d{8}$"
 LECTURER_ID_PATTERN = r"^\d{7}$"
 
 
+@router.get("/programmes", response_model=list)
+def list_programmes(db: Session = Depends(get_db)):
+    """Public list of valid programme names (for registration/profile forms)."""
+    return list_programme_names(db)
+
+
 @router.post("/register", response_model=UserRead)
-def register(user_in: UserCreate, db: Session = Depends(get_db)):
+def register(
+    user_in: UserCreate,
+    db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit("register", limit=10, window_seconds=60)),
+):
     # Check if email already exists
     existing_email = db.query(User).filter(User.email == user_in.email).first()
     if existing_email:
@@ -66,6 +77,11 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Level is required")
         if not user_in.programme or not user_in.programme.strip():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Programme is required")
+        if not is_valid_programme(db, user_in.programme):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Unknown programme. Please select a programme from the official list.",
+            )
     elif role == UserRole.lecturer:
         if not re.match(LECTURER_EMAIL_PATTERN, user_in.email):
             raise HTTPException(
@@ -80,6 +96,14 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
                 detail="Lecturer ID is required and must be exactly 7 digits",
             )
     elif role == UserRole.admin:
+        # Admin self-registration is bootstrap-only: allowed while no admin
+        # exists. After that, new admins are created by an existing admin
+        # (e.g. scripts/create_admin.py on the server).
+        if db.query(User.id).filter(User.role == UserRole.admin).first() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin registration is disabled. Ask an existing administrator to create your account.",
+            )
         if not re.match(LECTURER_EMAIL_PATTERN, user_in.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -109,7 +133,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         full_name=user_in.full_name,
         role=role,
         level=user_in.level,
-        programme=user_in.programme,
+        programme=user_in.programme.strip() if user_in.programme else None,
     )
     db.add(user)
     db.commit()
@@ -118,7 +142,11 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+    _rl: None = Depends(rate_limit("login", limit=10, window_seconds=60)),
+):
     # Try to find user by email first, then by user_id
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user:
@@ -188,7 +216,12 @@ def update_profile(
     if updates.level is not None:
         current.level = updates.level
     if updates.programme is not None:
-        current.programme = updates.programme
+        if not is_valid_programme(db, updates.programme):
+            raise HTTPException(
+                status_code=400,
+                detail="Unknown programme. Please select a programme from the official list.",
+            )
+        current.programme = updates.programme.strip()
 
     db.commit()
     db.refresh(current)
@@ -263,22 +296,14 @@ def delete_account(
     """
     user_id = current.id
     role = current.role
+    email = current.email
 
-    # 1. Delete face reference from storage (if any)
-    try:
-        if current.face_reference_path and get_storage().exists(current.face_reference_path):
-            get_storage().delete(current.face_reference_path)
-        elif face_service.has_reference_face(user_id):
-            get_storage().delete(face_service.get_reference_key(user_id))
-    except Exception:
-        pass  # Best-effort; continue with account deletion
+    delete_user_uploads(db, current)
 
-    # 2. Delete student course enrollments
     db.query(StudentCourseEnrollment).filter(StudentCourseEnrollment.student_id == user_id).delete(
         synchronize_session=False
     )
 
-    # 3. If lecturer: remove course-lecturer links and delete their sessions
     if role == UserRole.lecturer:
         db.query(CourseLecturer).filter(CourseLecturer.lecturer_id == user_id).delete(
             synchronize_session=False
@@ -287,8 +312,9 @@ def delete_account(
             synchronize_session=False
         )
 
-    # 4. Audit and delete user (Device, AttendanceRecord, VerificationLog cascade via FK)
-    write_audit(db, "auth.delete_account", user_id, f"email={current.email}")
+    db.query(Device).filter(Device.user_id == user_id).delete(synchronize_session=False)
+
+    write_audit(db, "auth.delete_account", user_id, f"email={email}", auto_commit=False)
     db.delete(current)
     db.commit()
 

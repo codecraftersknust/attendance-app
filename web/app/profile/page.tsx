@@ -44,11 +44,12 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { levelToYearLabel, LEVELS } from '@/lib/level-utils';
-import { PROGRAMMES } from '@/lib/programmes';
+import { useProgrammes } from '@/lib/use-programmes';
 
 export default function ProfilePage() {
     const { user, refreshAuth } = useAuth();
     const router = useRouter();
+    const programmes = useProgrammes();
 
     const { data: profile, error, isLoading: loading, mutate } = useSWR(
         'profile',
@@ -526,7 +527,7 @@ export default function ProfilePage() {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="__none__">None</SelectItem>
-                                                {PROGRAMMES.map((p) => (
+                                                {programmes.map((p) => (
                                                     <SelectItem key={p} value={p}>{p}</SelectItem>
                                                 ))}
                                             </SelectContent>

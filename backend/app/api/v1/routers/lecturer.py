@@ -9,7 +9,7 @@ from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.verification_log import VerificationLog
 from ....schemas.auth import UserRead
-from ....schemas.lecturer import QRStatusResponse, QRDisplayResponse, QRPayload
+from ....schemas.lecturer import QRStatusResponse, QRDisplayResponse, QRPayload, SessionCreate
 from ....services.utils import generate_session_code, generate_session_nonce, utcnow, to_utc_iso, seconds_until
 from ....services.audit import write_audit
 from ....services.qr_rotation import add_session_to_rotation, remove_session_from_rotation, ensure_qr_valid
@@ -64,7 +64,7 @@ def get_lecturer_courses(db: Session = Depends(get_db), current: User = Depends(
             "description": course.description,
             "semester": course.semester,
             "is_active": course.is_active,
-            "created_at": course.created_at.isoformat(),
+            "created_at": to_utc_iso(course.created_at),
             "session_count": session_counts.get(course.id, 0),
             "programmes": [p.programme for p in course.programmes],
             "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
@@ -118,7 +118,7 @@ def browse_all_courses(
             "is_claimed": len(c.lecturers) > 0,
             "is_mine": any(l.id == current.id for l in c.lecturers),
             "programmes": [p.programme for p in c.programmes],
-            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "created_at": to_utc_iso(c.created_at),
         }
         for c in courses
     ]
@@ -249,7 +249,7 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
                     "user_id": student.user_id,
                     "full_name": student.full_name,
                     "email": student.email,
-                    "enrolled_at": e.enrolled_at.isoformat() if e.enrolled_at else None
+                    "enrolled_at": to_utc_iso(e.enrolled_at)
                 })
                 
     recent_sessions_data = []
@@ -269,8 +269,8 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
                 "id": session.id,
                 "code": session.code,
                 "is_active": session.is_active,
-                "starts_at": session.starts_at.isoformat() if session.starts_at else None,
-                "ends_at": session.ends_at.isoformat() if session.ends_at else None,
+                "starts_at": to_utc_iso(session.starts_at),
+                "ends_at": to_utc_iso(session.ends_at),
                 "attendance_count": att_counts.get(session.id, 0)
             })
     
@@ -284,7 +284,7 @@ def get_course_details(course_id: int, db: Session = Depends(get_db), current: U
         "level": course.level,
         "programmes": [p.programme for p in course.programmes],
         "is_active": course.is_active,
-        "created_at": course.created_at.isoformat(),
+        "created_at": to_utc_iso(course.created_at),
         "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
         "enrolled_students": enrolled_students_data,
         "enrolled_count": len(enrollments),
@@ -351,31 +351,28 @@ def update_course(
 
 @router.post("/sessions", response_model=dict)
 def create_session(
-    course_id: int,
-    duration_minutes: int = 15,
-    programme: str | None = None,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    geofence_radius_m: float | None = None,
+    payload: SessionCreate,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_lecturer)
 ):
-    """Create a new attendance session for a specific course
-    
-    Args:
+    """Create a new attendance session for a specific course.
+
+    Body fields:
         course_id: ID of the course
         duration_minutes: Session duration in minutes (default: 15)
         programme: Restrict the session to one programme/class (optional).
             When omitted, students from all programmes registered for the
             course can see and mark the session.
-        latitude: Lecturer's current latitude (optional, auto-captured from frontend)
-        longitude: Lecturer's current longitude (optional, auto-captured from frontend)
-        geofence_radius_m: Allowable radius in meters for student location (1-10000). Default 100 when location is set.
-    
-    Note:
-        If latitude and longitude are provided, a default geofence radius of 100 meters is set unless geofence_radius_m is given.
-        The radius can be adjusted later using the geofence endpoint.
+        latitude/longitude: Class location (optional)
+        geofence_radius_m: Allowable radius in meters (1-10000). Default 100 when location is set.
     """
+    course_id = payload.course_id
+    duration_minutes = payload.duration_minutes
+    programme = payload.programme
+    latitude = payload.latitude
+    longitude = payload.longitude
+    geofence_radius_m = payload.geofence_radius_m
+
     # Verify the lecturer is assigned to this course
     course = (
         db.query(Course)
@@ -391,9 +388,7 @@ def create_session(
     if not course:
         raise HTTPException(status_code=404, detail="Course not found or not accessible")
 
-    # Validate duration
-    if duration_minutes < 1 or duration_minutes > 24 * 60:
-        raise HTTPException(status_code=400, detail="Duration must be between 1 minute and 24 hours")
+    # Duration bounds (1 min – 24 h) are enforced by the SessionCreate schema.
 
     # Validate programme against the programmes registered for this course
     programme = programme.strip() if programme else None
@@ -496,7 +491,7 @@ def rotate_qr(session_id: int, ttl_seconds: int = 30, db: Session = Depends(get_
     qr_payload = {
         "session_id": session.id,
         "nonce": session.qr_nonce,
-        "expires_at": session.qr_expires_at.isoformat(),
+        "expires_at": to_utc_iso(session.qr_expires_at),
         "lecturer_name": current.full_name or current.email,
         "course_code": session.course.code if session.course else None,
         "course_name": session.course.name if session.course else "General Session",
@@ -511,7 +506,7 @@ def rotate_qr(session_id: int, ttl_seconds: int = 30, db: Session = Depends(get_
     return {
         "session_id": session.id,
         "nonce": session.qr_nonce,
-        "expires_at": session.qr_expires_at.isoformat(),
+        "expires_at": to_utc_iso(session.qr_expires_at),
         "qr_payload": qr_payload  # This is what gets encoded in QR
     }
 
@@ -543,7 +538,7 @@ def get_qr_status(session_id: int, db: Session = Depends(get_db), current: User 
     
     return QRStatusResponse(
         has_qr=True,
-        expires_at=session.qr_expires_at.isoformat(),
+        expires_at=to_utc_iso(session.qr_expires_at),
         seconds_remaining=seconds_remaining,
         is_expired=is_expired,
         next_rotation_in=max(0, seconds_remaining - 10),
@@ -667,34 +662,76 @@ def get_geofence(
 
 @router.get("/sessions", response_model=List[dict])
 def list_sessions(db: Session = Depends(get_db), current: User = Depends(get_current_lecturer)):
-    from datetime import datetime
-    sessions = db.query(AttendanceSession).filter(AttendanceSession.lecturer_id == current.id).order_by(AttendanceSession.id.desc()).all()
+    from sqlalchemy import func
+
+    sessions = (
+        db.query(AttendanceSession)
+        .filter(AttendanceSession.lecturer_id == current.id)
+        .order_by(AttendanceSession.id.desc())
+        .all()
+    )
     write_audit(db, "lecturer.list_sessions", current.id)
-    
+
+    if not sessions:
+        return []
+
+    session_ids = [s.id for s in sessions]
+    course_ids = list({s.course_id for s in sessions if s.course_id})
+
+    course_map = {
+        c.id: c for c in db.query(Course).filter(Course.id.in_(course_ids)).all()
+    } if course_ids else {}
+
+    count_rows = (
+        db.query(AttendanceRecord.session_id, AttendanceRecord.status, func.count(AttendanceRecord.id))
+        .filter(AttendanceRecord.session_id.in_(session_ids))
+        .group_by(AttendanceRecord.session_id, AttendanceRecord.status)
+        .all()
+    )
+    counts: dict[int, dict[str, int]] = {}
+    for sid, status, cnt in count_rows:
+        counts.setdefault(sid, {})[status.value] = cnt
+
     now = utcnow()
     result = []
     for s in sessions:
-        # Check if session has expired based on ends_at
         is_actually_active = s.is_active
         ends_at_naive = s.ends_at.replace(tzinfo=None) if s.ends_at and s.ends_at.tzinfo else s.ends_at
         now_naive = now.replace(tzinfo=None) if now.tzinfo else now
         if ends_at_naive and ends_at_naive < now_naive:
             is_actually_active = False
-            # Auto-close expired sessions
             if s.is_active:
                 s.is_active = False
                 db.commit()
-        
+
+        course = course_map.get(s.course_id) if s.course_id else None
+        session_counts = counts.get(s.id, {})
+        present = session_counts.get(AttendanceStatus.confirmed.value, 0)
+        flagged = session_counts.get(AttendanceStatus.flagged.value, 0)
+        pending = session_counts.get(AttendanceStatus.pending_verification.value, 0)
+        absent = session_counts.get(AttendanceStatus.absent.value, 0)
+        submitted = present + flagged + pending + absent
+
         result.append({
-            "id": s.id, 
-            "code": s.code, 
+            "id": s.id,
+            "code": s.code,
             "is_active": is_actually_active,
             "programme": s.programme,
+            "course_id": s.course_id,
+            "course_code": course.code if course else None,
+            "course_name": course.name if course else None,
             "starts_at": to_utc_iso(s.starts_at),
             "ends_at": to_utc_iso(s.ends_at),
             "time_remaining_seconds": seconds_until(s.ends_at) if is_actually_active else None,
+            "attendance_summary": {
+                "submitted": submitted,
+                "present": present,
+                "flagged": flagged,
+                "pending": pending,
+                "absent": absent,
+            },
         })
-    
+
     return result
 
 
@@ -837,7 +874,6 @@ def dashboard(db: Session = Depends(get_db), current: User = Depends(get_current
     session_counts = {is_active: cnt for is_active, cnt in session_counts_raw}
     total_sessions = sum(session_counts.values())
     # Active = flagged as active AND not yet expired
-    now_naive = now.replace(tzinfo=None) if now.tzinfo else now
     active_sessions = session_counts.get(True, 0)  # exact count requires date filter; use approximate
 
     # Single grouped query for attendance record status counts (replaces 2 separate join-count queries)
@@ -884,7 +920,8 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
     records = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == session_id).all()
     present_count = len([r for r in records if r.status == AttendanceStatus.confirmed])
     flagged_count = len([r for r in records if r.status == AttendanceStatus.flagged])
-    absent_count = max(0, total_students - present_count - flagged_count)  # no record + status=absent (rejected)
+    pending_count = len([r for r in records if r.status == AttendanceStatus.pending_verification])
+    absent_count = max(0, total_students - present_count - flagged_count - pending_count)
     
     # Attendance rate = present / total enrolled
     attendance_rate = (present_count / total_students * 100) if total_students > 0 else 0
@@ -925,7 +962,7 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
         recent_attendance.append({
             "student_id": r.student_id,
             "status": r.status.value,
-            "timestamp": r.created_at.isoformat(),
+            "timestamp": to_utc_iso(r.created_at),
             "verification_methods": {
                 "qr_valid": True,
                 "location_valid": True,
@@ -940,8 +977,8 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
             "id": session.id,
             "code": session.code,
             "is_active": session.is_active,
-            "starts_at": session.starts_at.isoformat(),
-            "ends_at": session.ends_at.isoformat(),
+            "starts_at": to_utc_iso(session.starts_at),
+            "ends_at": to_utc_iso(session.ends_at),
         },
         "analytics": {
             "total_students": total_students,
@@ -949,6 +986,7 @@ def get_session_analytics(session_id: int, db: Session = Depends(get_db), curren
             "late_count": 0,
             "absent_count": absent_count,
             "flagged_count": flagged_count,
+            "pending_count": pending_count,
             "attendance_rate": round(attendance_rate, 2)
         },
         "recent_attendance": recent_attendance
@@ -977,7 +1015,7 @@ def get_qr_display_data(session_id: int, db: Session = Depends(get_db), current:
     qr_payload = QRPayload(
         session_id=session.id,
         nonce=session.qr_nonce,
-        expires_at=session.qr_expires_at.isoformat(),
+        expires_at=to_utc_iso(session.qr_expires_at),
         lecturer_name=current.full_name or current.email,
         course_code=session.course.code if session.course else None,
         course_name=session.course.name if session.course else "General Session",
@@ -1029,13 +1067,17 @@ def get_absent_students(session_id: int, db: Session = Depends(get_db), current:
         enrolled_q = enrolled_q.filter(User.programme == session.programme)
     enrolled_students = enrolled_q.all()
     
-    # Students who are present: have a record with status confirmed or flagged
+    # Students who submitted: confirmed, flagged, or awaiting face verification
     present_or_flagged_ids = {
         r.student_id
         for r in db.query(AttendanceRecord)
         .filter(
             AttendanceRecord.session_id == session_id,
-            AttendanceRecord.status.in_([AttendanceStatus.confirmed, AttendanceStatus.flagged]),
+            AttendanceRecord.status.in_([
+                AttendanceStatus.confirmed,
+                AttendanceStatus.flagged,
+                AttendanceStatus.pending_verification,
+            ]),
         )
         .all()
     }

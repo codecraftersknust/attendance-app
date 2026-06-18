@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Search, Trash2, Eye, Pencil, BookOpen, Users, Filter } from 'lucide-react';
 import { levelToYearLabel } from '@/lib/level-utils';
-import { PROGRAMMES } from '@/lib/programmes';
+import { useProgrammes } from '@/lib/use-programmes';
 
 type Course = {
     id: number;
@@ -108,6 +108,7 @@ const YEAR_COLORS: Record<number, { bg: string; text: string }> = {
 };
 
 export default function AdminCoursesPage() {
+    const PROGRAMMES = useProgrammes();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [yearFilter, setYearFilter] = useState<string>('all');
@@ -160,7 +161,7 @@ export default function AdminCoursesPage() {
                 description: createForm.description?.trim() || undefined,
                 semester: createForm.semester?.trim() || undefined,
                 level: createForm.level,
-                programmes: createForm.programmes.length > 0 ? createForm.programmes.join(',') : undefined,
+                programmes: createForm.programmes.length > 0 ? createForm.programmes : undefined,
             });
             toast.success('Course created');
             setShowCreate(false);
@@ -226,7 +227,7 @@ export default function AdminCoursesPage() {
                 description: editForm.description.trim() || undefined,
                 semester: editForm.semester.trim() || undefined,
                 level: editForm.level,
-                programmes: editForm.programmes.length > 0 ? editForm.programmes.join(',') : undefined,
+                programmes: editForm.programmes.length > 0 ? editForm.programmes : undefined,
             });
             toast.success('Course updated');
             setShowEdit(false);

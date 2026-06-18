@@ -108,6 +108,14 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, [isAuthenticated]);
 
+  const hasPendingVerification = recentSessions.some((s) => s.status === 'pending_verification');
+
+  useEffect(() => {
+    if (!hasPendingVerification || !isAuthenticated) return;
+    const interval = setInterval(() => loadDashboardData(), 3000);
+    return () => clearInterval(interval);
+  }, [hasPendingVerification, isAuthenticated]);
+
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
@@ -131,6 +139,8 @@ export default function DashboardScreen() {
     switch (status) {
       case 'confirmed':
         return { backgroundColor: Emerald[100], color: Emerald[700] };
+      case 'pending_verification':
+        return { backgroundColor: '#dbeafe', color: '#1d4ed8' };
       case 'flagged':
         return { backgroundColor: Amber[100], color: Amber[700] };
       case 'absent':
@@ -143,6 +153,7 @@ export default function DashboardScreen() {
   const getStatusDisplayLabel = (status: string) => {
     switch (status) {
       case 'confirmed': return 'PRESENT';
+      case 'pending_verification': return 'VERIFYING';
       case 'flagged': return 'FLAGGED';
       case 'absent': return 'ABSENT';
       default: return status.toUpperCase();

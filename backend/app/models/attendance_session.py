@@ -1,7 +1,7 @@
 from sqlalchemy import String, Integer, DateTime, ForeignKey, Boolean, Float, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from ..db.session import Base
 
 
@@ -24,7 +24,7 @@ class AttendanceSession(Base):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     geofence_radius_m: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     lecturer: Mapped["User"] = relationship(back_populates="lecturer_sessions")
     course: Mapped[Optional["Course"]] = relationship("Course", back_populates="sessions")

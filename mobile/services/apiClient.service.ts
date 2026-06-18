@@ -117,6 +117,16 @@ class ApiClientService {
         return response.data;
     }
 
+    async getAttendanceRecord(recordId: number): Promise<{
+        record_id: number;
+        status: string;
+        flag_reasons?: string[] | null;
+        face_verification_pending: boolean;
+    }> {
+        const response = await apiClient.get(`/student/attendance/records/${recordId}`);
+        return response.data;
+    }
+
     /**
      * Get recommended courses for current semester (based on programme and level)
      */

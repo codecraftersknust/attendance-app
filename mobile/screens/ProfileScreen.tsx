@@ -23,9 +23,10 @@ import { useToast } from '@/contexts/ToastContext';
 import { getErrorMessage } from '@/utils/error';
 import apiClientService, { UserProfile } from '@/services/apiClient.service';
 import { LEVELS, levelToYearLabel } from '@/lib/level-utils';
-import { PROGRAMMES } from '@/lib/programmes';
+import { useProgrammes } from '@/hooks/useProgrammes';
 
 export default function ProfileScreen() {
+    const PROGRAMMES = useProgrammes();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
     const colors = Colors[colorScheme ?? 'light'];

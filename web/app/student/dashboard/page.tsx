@@ -63,11 +63,21 @@ export default function StudentDashboard() {
     const enrolledCourses = (primaryData?.enrolledCourses ?? []) as Course[];
     const stats = primaryData?.stats ?? null;
 
-    const { data: history = [], isLoading: loadingHistory } = useSWR(
+    const { data: history = [], isLoading: loadingHistory, mutate: mutateHistory } = useSWR(
         primaryData ? 'student-attendance-history' : null,
         () => apiClient.studentGetAttendanceHistory(),
         { dedupingInterval: 30000 }
     );
+
+    const hasPendingVerification = history.some((r) => r.status === 'pending_verification');
+
+    useEffect(() => {
+        if (!hasPendingVerification) return;
+        const interval = setInterval(() => {
+            mutateHistory();
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [hasPendingVerification, mutateHistory]);
 
     const { data: recommendedCourses = [], isLoading: loadingRecommended, mutate: mutateRecommended } = useSWR(
         primaryData ? 'student-recommended-courses' : null,
@@ -288,9 +298,11 @@ export default function StudentDashboard() {
                                                 <td className="px-3 py-2 whitespace-nowrap">
                                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                                                     ${record.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
+                                                            record.status === 'pending_verification' ? 'bg-blue-100 text-blue-800' :
                                                             record.status === 'flagged' ? 'bg-amber-100 text-amber-700' :
                                                                 'bg-red-100 text-red-800'}`}>
                                                         {record.status === 'confirmed' ? 'Present' :
+                                                            record.status === 'pending_verification' ? 'Verifying…' :
                                                             record.status === 'flagged' ? 'Flagged' : 'Absent'}
                                                     </span>
                                                 </td>

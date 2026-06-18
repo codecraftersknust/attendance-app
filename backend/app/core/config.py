@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     upload_max_image_mb: int = 5
     upload_allowed_image_types: str = "image/jpeg,image/png,image/jpg"
 
+    # Rate limiting (in-memory, per worker process)
+    rate_limit_enabled: bool = True
+
     # Face verification settings
     face_verification_enabled: bool = True
     face_model: str = "Facenet512"

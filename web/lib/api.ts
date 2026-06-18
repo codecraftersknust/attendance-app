@@ -210,8 +210,10 @@ class ApiClient {
     }
 
     async adminApproveDeviceReset(userId: number, newDeviceId: string): Promise<{ user_id: number; device_id: string }> {
-        const qs = new URLSearchParams({ user_id: String(userId), new_device_id: newDeviceId }).toString();
-        return this.request(`/admin/device/approve-reset?${qs}`, { method: 'POST' });
+        return this.request('/admin/device/approve-reset', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, new_device_id: newDeviceId }),
+        });
     }
 
     async adminDashboard(): Promise<any> {
@@ -319,16 +321,12 @@ class ApiClient {
         description?: string;
         semester?: string;
         level?: number;
-        programmes?: string;
+        programmes?: string[];
     }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programmes: string[]; is_active: boolean }> {
-        const qs = new URLSearchParams();
-        qs.set('code', payload.code);
-        qs.set('name', payload.name);
-        if (payload.semester) qs.set('semester', payload.semester);
-        if (payload.description) qs.set('description', payload.description);
-        if (payload.level != null) qs.set('level', String(payload.level));
-        if (payload.programmes) qs.set('programmes', payload.programmes);
-        return this.request(`/admin/courses?${qs.toString()}`, { method: 'POST' });
+        return this.request('/admin/courses', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
     }
 
     async adminUpdateCourse(courseId: number, payload: {
@@ -337,18 +335,13 @@ class ApiClient {
         description?: string;
         semester?: string;
         level?: number;
-        programmes?: string;
+        programmes?: string[];
         is_active?: boolean;
     }): Promise<{ id: number; code: string; name: string; description: string | null; semester: string; level: number; programmes: string[]; is_active: boolean }> {
-        const qs = new URLSearchParams();
-        if (payload.code) qs.set('code', payload.code);
-        if (payload.name) qs.set('name', payload.name);
-        if (payload.description) qs.set('description', payload.description);
-        if (payload.semester) qs.set('semester', payload.semester);
-        if (payload.level != null) qs.set('level', String(payload.level));
-        if (payload.programmes) qs.set('programmes', payload.programmes);
-        if (payload.is_active != null) qs.set('is_active', String(payload.is_active));
-        return this.request(`/admin/courses/${courseId}?${qs.toString()}`, { method: 'PUT' });
+        return this.request(`/admin/courses/${courseId}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
     }
 
     async adminDeleteCourse(courseId: number): Promise<{ deleted: boolean; course_id: number }> {
@@ -423,19 +416,33 @@ class ApiClient {
         return this.request('/lecturer/dashboard');
     }
 
-    async lecturerSessions(): Promise<Array<{ id: number; code: string; is_active: boolean; ends_at?: string | null }>> {
+    async lecturerSessions(): Promise<Array<{
+        id: number;
+        code: string;
+        is_active: boolean;
+        programme?: string | null;
+        course_id?: number | null;
+        course_code?: string | null;
+        course_name?: string | null;
+        starts_at?: string | null;
+        ends_at?: string | null;
+        time_remaining_seconds?: number | null;
+        attendance_summary?: {
+            submitted: number;
+            present: number;
+            flagged: number;
+            pending: number;
+            absent: number;
+        };
+    }>> {
         return this.request('/lecturer/sessions');
     }
 
     async lecturerCreateSession(payload: { course_id: number; duration_minutes?: number; programme?: string; latitude?: number; longitude?: number; geofence_radius_m?: number }): Promise<{ id: number; code: string; course: { id: number; code: string; name: string }; programme: string | null; duration_minutes: number; time_remaining_seconds: number; starts_at: string; ends_at: string }> {
-        const qs = new URLSearchParams();
-        qs.set('course_id', String(payload.course_id));
-        if (payload.duration_minutes != null) qs.set('duration_minutes', String(payload.duration_minutes));
-        if (payload.programme) qs.set('programme', payload.programme);
-        if (payload.latitude != null) qs.set('latitude', String(payload.latitude));
-        if (payload.longitude != null) qs.set('longitude', String(payload.longitude));
-        if (payload.geofence_radius_m != null) qs.set('geofence_radius_m', String(payload.geofence_radius_m));
-        return this.request(`/lecturer/sessions?${qs.toString()}`, { method: 'POST' });
+        return this.request('/lecturer/sessions', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
     }
 
     async lecturerCloseSession(sessionId: number): Promise<{ id: number; is_active: boolean }> {
@@ -508,6 +515,11 @@ class ApiClient {
 
 
 
+    // Programmes (public canonical list)
+    async listProgrammes(): Promise<string[]> {
+        return this.request('/auth/programmes');
+    }
+
     // Student course endpoints
     async studentSearchCourses(query?: string): Promise<Array<{ id: number; code: string; name: string; description: string | null; semester: string; lecturer_names: string[]; is_enrolled: boolean }>> {
         const qs = new URLSearchParams();
@@ -532,6 +544,7 @@ class ApiClient {
         total_sessions: number;
         attendance_marked_count: number;
         confirmed_count: number;
+        pending_count?: number;
         profile_complete: boolean;
         enrollment_open: boolean;
         current_semester: string;
@@ -559,8 +572,10 @@ class ApiClient {
     }
 
     async studentBindDevice(deviceId: string): Promise<{ status: string }> {
-        const qs = new URLSearchParams({ device_id: deviceId });
-        return this.request(`/student/device/bind?${qs.toString()}`, { method: 'POST' });
+        return this.request('/student/device/bind', {
+            method: 'POST',
+            body: JSON.stringify({ device_id: deviceId }),
+        });
     }
 
     async studentEnrollFace(file: File): Promise<{ message: string; path: string }> {
@@ -598,6 +613,15 @@ class ApiClient {
             headers: {},
             body: form,
         });
+    }
+
+    async studentGetAttendanceRecord(recordId: number): Promise<{
+        record_id: number;
+        status: string;
+        flag_reasons?: string[] | null;
+        face_verification_pending: boolean;
+    }> {
+        return this.request(`/student/attendance/records/${recordId}`);
     }
 
     async lecturerGetAbsentStudents(sessionId: number): Promise<Array<{

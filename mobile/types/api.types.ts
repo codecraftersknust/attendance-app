@@ -28,6 +28,7 @@ export interface DashboardStats {
     total_sessions: number;
     attendance_marked_count: number;
     confirmed_count: number;
+    pending_count?: number;
     profile_complete?: boolean;
     enrollment_open?: boolean;
     current_semester?: string;
@@ -97,6 +98,6 @@ export interface AttendanceHistoryItem {
     course_name: string;
     starts_at: string | null;
     ends_at: string | null;
-    status: 'confirmed' | 'flagged' | 'absent';
+    status: 'confirmed' | 'flagged' | 'absent' | 'pending_verification';
     record_id: number | null;
 }

@@ -8,6 +8,7 @@ from ..models.verification_log import VerificationLog
 from ..models.audit_log import AuditLog
 from ..models.student_course_enrollment import StudentCourseEnrollment
 from ..models.face_verification_job import FaceVerificationJob, FaceVerificationJobStatus
+from ..models.programme import Programme
 
 __all__ = [
     "Base",

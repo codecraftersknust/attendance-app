@@ -1,5 +1,14 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
+
+
+class SessionCreate(BaseModel):
+    course_id: int
+    duration_minutes: int = Field(default=15, ge=1, le=24 * 60)
+    programme: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    geofence_radius_m: Optional[float] = None
 
 
 class QRLocation(BaseModel):

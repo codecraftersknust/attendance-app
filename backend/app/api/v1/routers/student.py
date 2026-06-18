@@ -1,5 +1,6 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.schemas.students import FaceVerificationResponse
@@ -13,11 +14,13 @@ from ....models.user import UserRole, User
 from ....models.attendance_session import AttendanceSession
 from ....models.attendance_record import AttendanceRecord, AttendanceStatus
 from ....models.device import Device
+from ....models.face_verification_job import FaceVerificationJob, FaceVerificationJobStatus
 from ....models.course import Course, CourseProgramme
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.school_settings import get_or_create_settings
 from ....services.audit import write_audit
 from ....services.utils import hash_device_id, utcnow, to_utc_iso, seconds_until
+from ....services.rate_limit import rate_limit
 from ....storage.base import get_storage
 from ....core.config import Settings
 from math import radians, cos, sin, asin, sqrt
@@ -43,6 +46,7 @@ async def submit_attendance(
     selfie: UploadFile = File(None),
     db: Session = Depends(get_db),
     current: User = Depends(get_current_student),
+    _rl: None = Depends(rate_limit("attendance", limit=15, window_seconds=60)),
 ):
     """Submit attendance with QR verification, geolocation, and face verification.
 
@@ -55,22 +59,19 @@ async def submit_attendance(
     if not session.qr_nonce or not session.qr_expires_at:
         raise HTTPException(status_code=400, detail="QR code not generated for this session")
 
-    _qr_exp_naive = session.qr_expires_at.replace(tzinfo=None) if session.qr_expires_at.tzinfo else session.qr_expires_at
-    if _qr_exp_naive < utcnow().replace(tzinfo=None):
+    qr_remaining = seconds_until(session.qr_expires_at)
+    if qr_remaining is not None and qr_remaining < 0:
         raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
 
-    if session.ends_at:
-        _ends_naive = session.ends_at.replace(tzinfo=None) if session.ends_at.tzinfo else session.ends_at
-        if _ends_naive < utcnow().replace(tzinfo=None):
-            raise HTTPException(status_code=400, detail="Session has ended")
+    session_remaining = seconds_until(session.ends_at)
+    if session_remaining is not None and session_remaining < 0:
+        raise HTTPException(status_code=400, detail="Session has ended")
 
     nonce_valid = qr_nonce == session.qr_nonce
     if not nonce_valid and session.qr_previous_nonce and qr_nonce == session.qr_previous_nonce:
         nonce_valid = True
 
     if not nonce_valid:
-        if session.qr_expires_at < utcnow():
-            raise HTTPException(status_code=400, detail="QR code has expired. Please scan the latest QR code.")
         raise HTTPException(status_code=400, detail="Invalid QR code. Please scan the current QR code displayed in class.")
 
     # Duplicate submission guard — idempotent for retries
@@ -165,6 +166,10 @@ async def submit_attendance(
     if not within_geofence:
         status = AttendanceStatus.flagged
 
+    face_check_pending = bool(selfie_rel and cfg.face_verification_enabled)
+    if face_check_pending and status == AttendanceStatus.confirmed:
+        status = AttendanceStatus.pending_verification
+
     # ── Build initial flag reasons (face verification added later in background)
     flag_reasons: List[str] = []
     if status == AttendanceStatus.flagged:
@@ -197,17 +202,66 @@ async def submit_attendance(
     db.refresh(record)
 
     response = {"record_id": record.id, "status": record.status.value}
+    if face_check_pending:
+        response["face_verification_pending"] = True
     if distance_m is not None:
         response["within_geofence"] = within_geofence
         response["distance_m"] = round(distance_m, 1)
     return response
 
 
+@router.get("/attendance/records/{record_id}")
+def get_attendance_record_status(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Poll attendance record status after submission (face verification runs async)."""
+    record = db.get(AttendanceRecord, record_id)
+    if not record or record.student_id != current.id:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
+
+    job_pending = (
+        db.query(FaceVerificationJob)
+        .filter(
+            FaceVerificationJob.record_id == record_id,
+            FaceVerificationJob.status.in_(
+                [FaceVerificationJobStatus.pending, FaceVerificationJobStatus.processing]
+            ),
+        )
+        .first()
+        is not None
+    )
+
+    return {
+        "record_id": record.id,
+        "status": record.status.value,
+        "flag_reasons": record.flag_reasons,
+        "face_verification_pending": job_pending
+        or record.status == AttendanceStatus.pending_verification,
+    }
+
+
+class DeviceBindRequest(BaseModel):
+    device_id: str
+
+
 @router.post("/device/bind")
-def bind_device(device_id: str, db: Session = Depends(get_db), current: User = Depends(get_current_student)):
-    """Bind device ID to student - device ID is hashed before storage"""
-    # Hash device ID before storing
-    device_id_hash = hash_device_id(device_id)
+def bind_device(
+    device_id: str | None = None,
+    payload: DeviceBindRequest | None = None,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_student),
+):
+    """Bind device ID to student - device ID is hashed before storage.
+
+    Prefers a JSON body (keeps the device ID out of access logs); the query
+    parameter is still accepted for older mobile builds.
+    """
+    raw_device_id = (payload.device_id if payload else None) or device_id
+    if not raw_device_id or not raw_device_id.strip():
+        raise HTTPException(status_code=422, detail="device_id is required")
+    device_id_hash = hash_device_id(raw_device_id.strip())
     
     existing = db.query(Device).filter(Device.user_id == current.id).first()
     if existing:
@@ -414,12 +468,10 @@ def student_dashboard(
 
     total_sessions = 0
     confirmed_count = 0
+    pending_count = 0
     attendance_marked_count = 0
 
     if enrolled_course_ids:
-        now = utcnow()
-        now_naive = now.replace(tzinfo=None) if now.tzinfo else now
-
         # Single aggregation query: count per status for this student in enrolled sessions
         status_counts = (
             db.query(
@@ -437,7 +489,8 @@ def student_dashboard(
         counts_by_status = {row.status: row.cnt for row in status_counts}
         confirmed_count = counts_by_status.get(AttendanceStatus.confirmed, 0)
         flagged_count = counts_by_status.get(AttendanceStatus.flagged, 0)
-        marked_total = confirmed_count + flagged_count
+        pending_count = counts_by_status.get(AttendanceStatus.pending_verification, 0)
+        marked_total = confirmed_count + flagged_count + pending_count
 
         # Get the set of session IDs already marked (to exclude from past-unmarked count)
         marked_session_ids_q = (
@@ -470,7 +523,7 @@ def student_dashboard(
         past_unmarked_count = past_unmarked_q.scalar() or 0
 
         total_sessions = marked_total + past_unmarked_count
-        attendance_marked_count = confirmed_count
+        attendance_marked_count = confirmed_count + pending_count
 
     profile_complete = bool(current.level and current.programme)
     school = get_or_create_settings(db)
@@ -480,6 +533,7 @@ def student_dashboard(
         "total_sessions": total_sessions,
         "attendance_marked_count": attendance_marked_count,
         "confirmed_count": confirmed_count,
+        "pending_count": pending_count if enrolled_course_ids else 0,
         "profile_complete": profile_complete,
         "enrollment_open": school.enrollment_open,
         "current_semester": school.current_semester,
@@ -512,7 +566,7 @@ def get_enrolled_courses(
             "description": e.course.description,
             "semester": e.course.semester,
             "lecturer_names": [l.full_name for l in e.course.lecturers if l.full_name],
-            "enrolled_at": e.enrolled_at.isoformat(),
+            "enrolled_at": to_utc_iso(e.enrolled_at),
         }
         for e in enrollments
     ]
@@ -573,7 +627,7 @@ def enroll_in_course(
         "course_id": course.id,
         "code": course.code,
         "name": course.name,
-        "enrolled_at": enrollment.enrolled_at.isoformat(),
+        "enrolled_at": to_utc_iso(enrollment.enrolled_at),
     }
 
 
@@ -613,8 +667,6 @@ def list_active_sessions(
     if not enrolled_course_ids:
         return []
 
-    now = utcnow()
-    now_naive = now.replace(tzinfo=None) if now.tzinfo else now
     from sqlalchemy import or_
     sessions_q = (
         db.query(AttendanceSession)
@@ -633,12 +685,10 @@ def list_active_sessions(
             )
         )
     sessions = sessions_q.order_by(AttendanceSession.created_at.desc()).all()
-    # Filter out expired sessions (naive-safe comparison)
+    # Filter out expired sessions (timezone-safe comparison)
     sessions = [
         s for s in sessions
-        if not s.ends_at or (
-            (s.ends_at.replace(tzinfo=None) if s.ends_at.tzinfo else s.ends_at) > now_naive
-        )
+        if not s.ends_at or (seconds_until(s.ends_at) or 0) > 0
     ]
 
     if not sessions:
@@ -778,7 +828,8 @@ def get_attendance_history(
             status = record.status.value
         else:
             # No record - only count as absent if session has ended and student is enrolled
-            if session.ends_at is None or session.ends_at >= now:
+            remaining = seconds_until(session.ends_at)
+            if remaining is None or remaining >= 0:
                 continue
             if session.course_id not in enrolled_course_ids:
                 continue

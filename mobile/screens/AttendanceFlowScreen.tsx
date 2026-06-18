@@ -299,15 +299,18 @@ export default function AttendanceFlowScreen() {
 
             const withinGeofence = result.within_geofence !== false;
             const distanceM = result.distance_m;
+            const pending = result.face_verification_pending || result.status === 'pending_verification';
 
-            // Show success animation
             playSuccessAnimation();
 
-            // Navigate back after animation
             setTimeout(() => {
-                if (!withinGeofence) {
+                if (pending) {
+                    showToast('Submitted — face verification in progress', 'info');
+                } else if (!withinGeofence) {
                     const distText = distanceM != null ? ` (${Math.round(distanceM)} m away)` : '';
                     showToast(`You were outside the class location${distText}. Your attendance may be flagged for review.`, 'info');
+                } else if (result.status === 'confirmed') {
+                    showToast('Attendance confirmed', 'success');
                 }
                 router.back();
             }, 1800);

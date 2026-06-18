@@ -41,17 +41,17 @@ def _setup_shared_course(client):
     )
     telecom = _register_and_login(
         client, "tele@st.knust.edu.gh", "student",
-        user_id="20890002", level=300, programme="Telecommunication Engineering",
+        user_id="20890002", level=300, programme="Telecommunications Engineering",
     )
 
     r = client.post(
         "/api/v1/admin/courses",
-        params={
+        json={
             "code": "EE301",
             "name": "EM Fields",
             "semester": "1st Semester",
             "level": 300,
-            "programmes": "Computer Engineering,Telecommunication Engineering",
+            "programmes": ["Computer Engineering", "Telecommunications Engineering"],
         },
         headers=admin,
     )
@@ -73,7 +73,7 @@ def test_session_duration_and_time_remaining(client):
 
     r = client.post(
         "/api/v1/lecturer/sessions",
-        params={"course_id": course_id, "duration_minutes": 5},
+        json={"course_id": course_id, "duration_minutes": 5},
         headers=lecturer,
     )
     assert r.status_code == 200, r.text
@@ -109,10 +109,11 @@ def test_invalid_duration_rejected(client):
     course_id, lecturer, _, _ = _setup_shared_course(client)
     r = client.post(
         "/api/v1/lecturer/sessions",
-        params={"course_id": course_id, "duration_minutes": 0},
+        json={"course_id": course_id, "duration_minutes": 0},
         headers=lecturer,
     )
-    assert r.status_code == 400
+    # Schema validation rejects out-of-range durations
+    assert r.status_code == 422
 
 
 def test_programme_scoped_session_visibility(client):
@@ -121,7 +122,7 @@ def test_programme_scoped_session_visibility(client):
     # Session for the Computer Engineering class only
     r = client.post(
         "/api/v1/lecturer/sessions",
-        params={
+        json={
             "course_id": course_id,
             "duration_minutes": 10,
             "programme": "Computer Engineering",
@@ -143,7 +144,7 @@ def test_programme_scoped_session_visibility(client):
     # An open session (no programme) is visible to both
     r = client.post(
         "/api/v1/lecturer/sessions",
-        params={"course_id": course_id, "duration_minutes": 10},
+        json={"course_id": course_id, "duration_minutes": 10},
         headers=lecturer,
     )
     assert r.status_code == 200, r.text
@@ -155,7 +156,7 @@ def test_programme_must_belong_to_course(client):
     course_id, lecturer, _, _ = _setup_shared_course(client)
     r = client.post(
         "/api/v1/lecturer/sessions",
-        params={
+        json={
             "course_id": course_id,
             "duration_minutes": 10,
             "programme": "Mechanical Engineering",

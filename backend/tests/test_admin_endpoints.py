@@ -17,27 +17,27 @@ def test_admin_flagged_list_set_status_and_analytics(client):
         "password": "pw123456",
         "full_name": "Lect Two",
         "role": "lecturer",
-        "user_id": "87654321",
+        "user_id": "8765432",
     })
     assert r.status_code == 200
     r = client.post("/api/v1/auth/login", data={"username": "lect2@knust.edu.gh", "password": "pw123456"})
     lect_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
     # Create course as admin
-    r = client.post("/api/v1/admin/courses", headers=admin_headers, params={
+    r = client.post("/api/v1/admin/courses", headers=admin_headers, json={
         "code": "TEST101",
         "name": "Test Course",
         "semester": "Sem 1",
         "level": 100,
-        "programmes": "Computer Engineering"
+        "programmes": ["Computer Engineering"]
     })
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     course_id = r.json()["id"]
 
     # Claim course as lecturer
     r = client.post(f"/api/v1/lecturer/courses/{course_id}/claim", headers=lect_headers)
     assert r.status_code == 200
 
-    r = client.post("/api/v1/lecturer/sessions", headers=lect_headers, params={"course_id": course_id, "duration_minutes": 5})
+    r = client.post("/api/v1/lecturer/sessions", headers=lect_headers, json={"course_id": course_id, "duration_minutes": 5})
     assert r.status_code == 200
     sid = r.json()["id"]
     code = r.json()["code"]

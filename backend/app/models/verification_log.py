@@ -1,6 +1,6 @@
 from sqlalchemy import String, Integer, DateTime, ForeignKey, Float, Boolean, Index
 from sqlalchemy.orm import Mapped, mapped_column
-from datetime import datetime
+from datetime import datetime, timezone
 from ..db.session import Base
 
 
@@ -15,7 +15,7 @@ class VerificationLog(Base):
     threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
     model: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         # Composite index for batch lookup: get all logs for a given session+student pair

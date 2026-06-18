@@ -254,7 +254,15 @@ export function AttendanceFlow(props: { session: ActiveSession; onDone: () => vo
                 device_id: value,
                 selfie: selfieFile,
             });
-            toast.success(`Attendance marked (${res.status})`);
+
+            const pending = res.face_verification_pending || res.status === "pending_verification";
+            if (pending) {
+                toast.success("Submitted — face verification in progress", { duration: 5000 });
+            } else if (res.status === "confirmed") {
+                toast.success("Attendance confirmed");
+            } else {
+                toast.success(`Attendance submitted (${res.status})`);
+            }
             if (res.within_geofence === false) {
                 const dist = res.distance_m != null ? ` (${Math.round(res.distance_m)} m away)` : "";
                 toast.error(`You were outside the class location${dist}. Your attendance may be flagged for review.`, { duration: 6000 });

@@ -13,10 +13,13 @@ from ....models.audit_log import AuditLog
 from ....models.course import Course, CourseLecturer, CourseProgramme
 from ....models.student_course_enrollment import StudentCourseEnrollment
 from ....models.school_settings import SchoolSettings, get_or_create_settings
+from ....models.programme import Programme
+from ....schemas.admin import CourseCreate, CourseUpdate, DeviceResetApprove, ProgrammeCreate
 from ....services.audit import write_audit
 from ....api.deps.auth import role_required
 from ....services.face_verification import FaceVerificationService
-from ....services.utils import hash_device_id, utcnow
+from ....services.utils import hash_device_id, utcnow, to_utc_iso
+from ....services.programmes import ensure_programmes_seeded, is_valid_programme
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -97,7 +100,7 @@ def get_all_courses(
             "is_active": c.is_active,
             "enrolled_count": enrolled_counts.get(c.id, 0),
             "session_count": session_counts.get(c.id, 0),
-            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "created_at": to_utc_iso(c.created_at),
         })
     return result
 
@@ -139,7 +142,7 @@ def get_course_details(
                     "user_id": student.user_id,
                     "full_name": student.full_name,
                     "email": student.email,
-                    "enrolled_at": e.enrolled_at.isoformat() if e.enrolled_at else None,
+                    "enrolled_at": to_utc_iso(e.enrolled_at),
                 })
 
     sessions = (
@@ -168,8 +171,8 @@ def get_course_details(
                 "id": s.id,
                 "code": s.code,
                 "is_active": s.is_active,
-                "starts_at": s.starts_at.isoformat() if s.starts_at else None,
-                "ends_at": s.ends_at.isoformat() if s.ends_at else None,
+                "starts_at": to_utc_iso(s.starts_at),
+                "ends_at": to_utc_iso(s.ends_at),
                 "attendance_count": att_counts.get(s.id, 0),
             })
 
@@ -185,7 +188,7 @@ def get_course_details(
         "is_active": course.is_active,
         "lecturer_ids": [l.id for l in course.lecturers],
         "lecturer_names": [l.full_name for l in course.lecturers if l.full_name],
-        "created_at": course.created_at.isoformat() if course.created_at else None,
+        "created_at": to_utc_iso(course.created_at),
         "enrolled_students": enrolled_students,
         "enrolled_count": len(enrolled_students),
         "recent_sessions": recent_sessions,
@@ -194,39 +197,35 @@ def get_course_details(
 
 @router.post("/courses", response_model=dict)
 def create_course(
-    code: str,
-    name: str,
-    semester: str,
-    description: Optional[str] = None,
-    level: int = 100,
-    programmes: str = "General",
+    payload: CourseCreate,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_admin),
 ):
-    """Create a new course (no lecturer assigned).
-    
-    programmes: Comma-separated list of programme names, e.g.
-    "Computer Engineering,Biomedical Engineering"
-    """
-    existing = db.query(Course).filter(Course.code == code).first()
+    """Create a new course (no lecturer assigned)."""
+    existing = db.query(Course).filter(Course.code == payload.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="Course code already exists")
 
-    if level not in (100, 200, 300, 400):
+    if payload.level not in (100, 200, 300, 400):
         raise HTTPException(status_code=400, detail="Level must be 100, 200, 300, or 400")
 
+    programme_list = [p.strip() for p in payload.programmes if p.strip()]
+    if not programme_list:
+        raise HTTPException(status_code=400, detail="At least one programme is required")
+    for prog in programme_list:
+        if not is_valid_programme(db, prog):
+            raise HTTPException(status_code=400, detail=f"Unknown programme: {prog}")
+
     course = Course(
-        code=code,
-        name=name,
-        description=description,
-        semester=semester,
-        level=level,
+        code=payload.code,
+        name=payload.name,
+        description=payload.description,
+        semester=payload.semester,
+        level=payload.level,
     )
     db.add(course)
     db.flush()  # get course.id
 
-    # Add programme entries
-    programme_list = [p.strip() for p in programmes.split(",") if p.strip()]
     for prog in programme_list:
         db.add(CourseProgramme(course_id=course.id, programme=prog))
 
@@ -251,49 +250,48 @@ def create_course(
 @router.put("/courses/{course_id}", response_model=dict)
 def update_course(
     course_id: int,
-    code: Optional[str] = None,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    semester: Optional[str] = None,
-    level: Optional[int] = None,
-    programmes: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    payload: CourseUpdate,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_admin),
 ):
-    """Update any course.
-    
-    programmes: Comma-separated list of programme names. Replaces existing programmes.
-    """
+    """Update any course. ``programmes`` replaces the existing programme list."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
 
-    if code and code != course.code:
-        if db.query(Course).filter(Course.code == code).first():
+    if payload.code and payload.code != course.code:
+        if db.query(Course).filter(Course.code == payload.code).first():
             raise HTTPException(status_code=400, detail="Course code already exists")
 
-    if level is not None and level not in (100, 200, 300, 400):
+    if payload.level is not None and payload.level not in (100, 200, 300, 400):
         raise HTTPException(status_code=400, detail="Level must be 100, 200, 300, or 400")
 
-    if code is not None:
-        course.code = code
-    if name is not None:
-        course.name = name
-    if description is not None:
-        course.description = description
-    if semester is not None:
-        course.semester = semester
-    if level is not None:
-        course.level = level
-    if programmes is not None:
+    programme_list: Optional[list[str]] = None
+    if payload.programmes is not None:
+        programme_list = [p.strip() for p in payload.programmes if p.strip()]
+        if not programme_list:
+            raise HTTPException(status_code=400, detail="At least one programme is required")
+        for prog in programme_list:
+            if not is_valid_programme(db, prog):
+                raise HTTPException(status_code=400, detail=f"Unknown programme: {prog}")
+
+    if payload.code is not None:
+        course.code = payload.code
+    if payload.name is not None:
+        course.name = payload.name
+    if payload.description is not None:
+        course.description = payload.description
+    if payload.semester is not None:
+        course.semester = payload.semester
+    if payload.level is not None:
+        course.level = payload.level
+    if programme_list is not None:
         # Replace existing programmes
         db.query(CourseProgramme).filter(CourseProgramme.course_id == course_id).delete()
-        programme_list = [p.strip() for p in programmes.split(",") if p.strip()]
         for prog in programme_list:
             db.add(CourseProgramme(course_id=course_id, programme=prog))
-    if is_active is not None:
-        course.is_active = is_active
+    if payload.is_active is not None:
+        course.is_active = payload.is_active
 
     db.commit()
     db.refresh(course)
@@ -335,21 +333,102 @@ def delete_course(
 
 
 @router.post("/device/approve-reset")
-def approve_device_reset(user_id: int, new_device_id: str, db: Session = Depends(get_db), current: User = Depends(get_current_admin)):
+def approve_device_reset(
+    payload: DeviceResetApprove,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_admin),
+):
     """Approve device ID reset - device ID is hashed before storage"""
-    # Hash device ID before storing
-    device_id_hash = hash_device_id(new_device_id)
-    
-    device = db.query(Device).filter(Device.user_id == user_id).first()
+    # JSON body keeps the raw device ID out of access logs
+    device_id_hash = hash_device_id(payload.new_device_id)
+
+    device = db.query(Device).filter(Device.user_id == payload.user_id).first()
     if not device:
-        device = Device(user_id=user_id, device_id_hash=device_id_hash, is_active=True)
+        device = Device(user_id=payload.user_id, device_id_hash=device_id_hash, is_active=True)
         db.add(device)
     else:
         device.device_id_hash = device_id_hash
         device.is_active = True
     db.commit()
-    write_audit(db, "admin.approve_device_reset", current.id, f"user_id={user_id}")
-    return {"user_id": user_id, "device_id": "***"}  # Don't return device ID for security
+    write_audit(db, "admin.approve_device_reset", current.id, f"user_id={payload.user_id}")
+    return {"user_id": payload.user_id, "device_id": "***"}  # Don't return device ID for security
+
+
+# ── Programme Management ───────────────────────────────────────────
+
+
+@router.get("/programmes", response_model=List[dict])
+def list_programmes(db: Session = Depends(get_db), current: User = Depends(get_current_admin)):
+    """List all canonical programmes with usage counts."""
+    ensure_programmes_seeded(db)
+    programmes = db.query(Programme).order_by(Programme.name).all()
+    student_counts = dict(
+        db.query(User.programme, func.count(User.id))
+        .filter(User.programme != None)
+        .group_by(User.programme)
+        .all()
+    )
+    course_counts = dict(
+        db.query(CourseProgramme.programme, func.count(CourseProgramme.id))
+        .group_by(CourseProgramme.programme)
+        .all()
+    )
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "student_count": student_counts.get(p.name, 0),
+            "course_count": course_counts.get(p.name, 0),
+        }
+        for p in programmes
+    ]
+
+
+@router.post("/programmes", response_model=dict)
+def create_programme(
+    payload: ProgrammeCreate,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_admin),
+):
+    """Add a programme to the canonical list."""
+    ensure_programmes_seeded(db)
+    name = payload.name.strip()
+    if db.query(Programme).filter(Programme.name == name).first():
+        raise HTTPException(status_code=400, detail="Programme already exists")
+    programme = Programme(name=name)
+    db.add(programme)
+    db.commit()
+    db.refresh(programme)
+    write_audit(db, "admin.create_programme", current.id, f"name={name}")
+    return {"id": programme.id, "name": programme.name}
+
+
+@router.delete("/programmes/{programme_id}", response_model=dict)
+def delete_programme(
+    programme_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_admin),
+):
+    """Remove a programme from the canonical list (only if unused)."""
+    programme = db.get(Programme, programme_id)
+    if not programme:
+        raise HTTPException(status_code=404, detail="Programme not found")
+
+    in_use = (
+        db.query(User.id).filter(User.programme == programme.name).first() is not None
+        or db.query(CourseProgramme.id).filter(CourseProgramme.programme == programme.name).first() is not None
+        or db.query(AttendanceSession.id).filter(AttendanceSession.programme == programme.name).first() is not None
+    )
+    if in_use:
+        raise HTTPException(
+            status_code=400,
+            detail="Programme is in use by students, courses or sessions and cannot be deleted",
+        )
+
+    db.delete(programme)
+    db.commit()
+    write_audit(db, "admin.delete_programme", current.id, f"name={programme.name}")
+    return {"deleted": True, "id": programme_id}
 
 
 @router.get("/flagged", response_model=list[dict])
@@ -411,7 +490,7 @@ def set_attendance_status(
     try:
         new_status = AttendanceStatus(status)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid status '{status}'. Must be one of: confirmed, flagged, absent")
+        raise HTTPException(status_code=400, detail=f"Invalid status '{status}'. Must be one of: confirmed, flagged, absent, pending_verification")
     record.status = new_status
     db.commit()
     db.refresh(record)
@@ -460,12 +539,12 @@ def get_all_sessions(
                 "lecturer_name": lecturer.full_name if lecturer else None,
                 "lecturer_email": lecturer.email if lecturer else None,
                 "is_active": session.is_active,
-                "starts_at": session.starts_at.isoformat() if session.starts_at else None,
-                "ends_at": session.ends_at.isoformat() if session.ends_at else None,
-                "created_at": session.created_at.isoformat(),
+                "starts_at": to_utc_iso(session.starts_at),
+                "ends_at": to_utc_iso(session.ends_at),
+                "created_at": to_utc_iso(session.created_at),
                 "attendance_count": att_counts.get(session.id, 0),
                 "qr_nonce": session.qr_nonce,
-                "qr_expires_at": session.qr_expires_at.isoformat() if session.qr_expires_at else None,
+                "qr_expires_at": to_utc_iso(session.qr_expires_at),
                 "latitude": session.latitude,
                 "longitude": session.longitude,
                 "geofence_radius_m": session.geofence_radius_m
@@ -522,7 +601,7 @@ def get_session_attendance(
             "device_id_hash": record.device_id_hash[:8] + "..." if record.device_id_hash else None,  # Show partial hash for debugging
             "selfie_image_path": record.selfie_image_path,
             "presence_image_path": record.presence_image_path,
-            "created_at": record.created_at.isoformat(),
+            "created_at": to_utc_iso(record.created_at),
             "face_verified": verification_log.verified if verification_log else None,
             "face_distance": verification_log.distance if verification_log else None,
             "face_threshold": verification_log.threshold if verification_log else None,
@@ -589,7 +668,7 @@ def get_all_users(
             "role": user.role.value,
             "user_id": user.user_id,
             "is_active": user.is_active,
-            "created_at": user.created_at.isoformat(),
+            "created_at": to_utc_iso(user.created_at),
             "device_id_hash": device.device_id_hash[:8] + "..." if device and device.device_id_hash else None,  # Show partial hash for debugging
             "device_active": device.is_active if device else None,
             "attendance_count": attendance_count
@@ -723,7 +802,7 @@ def manual_mark_attendance(
         "status": record.status.value,
         "reason": reason,
         "marked_by": current.email,
-        "marked_at": record.created_at.isoformat()
+        "marked_at": to_utc_iso(record.created_at)
     }
 
 
@@ -795,8 +874,8 @@ def get_system_activity(
             "code": session.code,
             "lecturer_name": lecturer.full_name if lecturer else None,
             "is_active": session.is_active,
-            "created_at": session.created_at.isoformat(),
-            "starts_at": session.starts_at.isoformat() if session.starts_at else None
+            "created_at": to_utc_iso(session.created_at),
+            "starts_at": to_utc_iso(session.starts_at)
         })
     
     # Format attendance records
@@ -811,7 +890,7 @@ def get_system_activity(
             "student_name": student.full_name if student else None,
             "lecturer_name": lecturer.full_name if lecturer else None,
             "status": record.status.value,
-            "created_at": record.created_at.isoformat(),
+            "created_at": to_utc_iso(record.created_at),
             "session_id": record.session_id
         })
     
@@ -824,7 +903,7 @@ def get_system_activity(
             "action": log.action,
             "user_email": user.email if user else None,
             "details": log.detail,
-            "timestamp": log.created_at.isoformat() if log.created_at else None
+            "timestamp": to_utc_iso(log.created_at)
         })
 
     
@@ -954,7 +1033,7 @@ def get_school_settings(
         "is_on_break": settings.is_on_break,
         "enrollment_open": settings.enrollment_open,
         "academic_year": settings.academic_year,
-        "updated_at": settings.updated_at.isoformat() if settings.updated_at else None,
+        "updated_at": to_utc_iso(settings.updated_at),
     }
 
 
@@ -991,7 +1070,7 @@ def update_school_settings(
         "is_on_break": settings.is_on_break,
         "enrollment_open": settings.enrollment_open,
         "academic_year": settings.academic_year,
-        "updated_at": settings.updated_at.isoformat() if settings.updated_at else None,
+        "updated_at": to_utc_iso(settings.updated_at),
     }
 
 
