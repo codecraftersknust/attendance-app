@@ -105,9 +105,9 @@ export default function AdminUsersPage() {
                                                 <TableCell>{u.full_name || '-'}</TableCell>
                                                 <TableCell>
                                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                        u.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                                                        u.role === 'lecturer' ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-gray-100 text-gray-800'
+                                                        u.role === 'admin' ? 'bg-gray-200 text-gray-800' :
+                                                        u.role === 'lecturer' ? 'bg-gray-100 text-gray-700' :
+                                                        'bg-gray-50 text-gray-600 border border-gray-200'
                                                     }`}>
                                                         {u.role}
                                                     </span>

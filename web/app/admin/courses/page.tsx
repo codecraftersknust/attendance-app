@@ -101,10 +101,10 @@ const LEVEL_OPTIONS = [100, 200, 300, 400] as const;
 const NONE_VALUE = '__none__';
 
 const YEAR_COLORS: Record<number, { bg: string; text: string }> = {
-    100: { bg: 'bg-blue-50', text: 'text-blue-700' },
-    200: { bg: 'bg-purple-50', text: 'text-purple-700' },
-    300: { bg: 'bg-amber-50', text: 'text-amber-700' },
-    400: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+    100: { bg: 'bg-gray-50', text: 'text-gray-700' },
+    200: { bg: 'bg-gray-100', text: 'text-gray-700' },
+    300: { bg: 'bg-gray-100', text: 'text-gray-800' },
+    400: { bg: 'bg-gray-200', text: 'text-gray-800' },
 };
 
 export default function AdminCoursesPage() {
@@ -362,7 +362,7 @@ export default function AdminCoursesPage() {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-8 w-8 text-gray-400 hover:text-blue-600"
+                                                                className="h-8 w-8 text-gray-400 hover:text-gray-700"
                                                                 onClick={() => openEdit(course)}
                                                                 aria-label="Edit course"
                                                             >

@@ -52,8 +52,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <div className="flex items-center gap-3">
                         <Image src="/icon-2.png" alt="Absense" className="h-10 w-10 rounded-xl object-cover" width={40} height={40} />
                         <div>
-                            <p className="font-semibold text-emerald-900">Admin</p>
-                            <p className="text-xs text-emerald-700">School Administration</p>
+                            <p className="font-semibold text-gray-900">Admin</p>
+                            <p className="text-xs text-gray-500">School Administration</p>
                         </div>
                     </div>
                 </SidebarHeader>

@@ -52,11 +52,11 @@ export default function AdminFlaggedPage() {
                     </Button>
                 </div>
 
-                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
+                <Card className="border-gray-200 bg-white shadow-sm overflow-hidden">
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
-                                <Flag className="h-4 w-4 text-amber-600" />
+                        <CardTitle className="text-base font-medium text-gray-700 flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                                <Flag className="h-4 w-4 text-gray-600" />
                             </div>
                             Flagged Records
                             {!isLoading && <span className="text-sm font-normal text-gray-400">({flagged.length})</span>}
@@ -92,9 +92,9 @@ export default function AdminFlaggedPage() {
                                                     {f.face_verified === null ? (
                                                         <span className="text-gray-400">-</span>
                                                     ) : f.face_verified ? (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Verified</span>
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">Verified</span>
                                                     ) : (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Failed</span>
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Failed</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-gray-500">

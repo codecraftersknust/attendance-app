@@ -62,11 +62,11 @@ export default function AdminSessionsPage() {
                     </Button>
                 </div>
 
-                <Card className="border-gray-200/80 bg-white shadow-md overflow-hidden">
+                <Card className="border-gray-200 bg-white shadow-sm overflow-hidden">
                     <CardHeader className="pb-3">
-                        <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
-                                <CalendarClock className="h-4 w-4 text-emerald-600" />
+                        <CardTitle className="text-base font-medium text-gray-700 flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                                <CalendarClock className="h-4 w-4 text-gray-600" />
                             </div>
                             Sessions
                             {!isLoading && <span className="text-sm font-normal text-gray-400">({sessions.length})</span>}

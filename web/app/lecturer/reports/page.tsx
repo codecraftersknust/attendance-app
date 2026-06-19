@@ -160,9 +160,9 @@ function SessionReportPanel({
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                     <MiniStat label="Enrolled" value={analytics.total_students} icon={Users} tone="gray" />
                     <MiniStat label="Present" value={analytics.present_count} icon={UserCheck} tone="emerald" sub={`${Number(analytics.attendance_rate).toFixed(0)}% rate`} />
-                    <MiniStat label="Verifying" value={analytics.pending_count ?? 0} icon={Clock} tone="blue" />
-                    <MiniStat label="Flagged" value={analytics.flagged_count} icon={AlertTriangle} tone="amber" />
-                    <MiniStat label="Absent" value={analytics.absent_count} icon={UserX} tone="red" />
+                    <MiniStat label="Verifying" value={analytics.pending_count ?? 0} icon={Clock} tone="gray" />
+                    <MiniStat label="Flagged" value={analytics.flagged_count} icon={AlertTriangle} tone="gray" />
+                    <MiniStat label="Absent" value={analytics.absent_count} icon={UserX} tone="gray" />
                 </div>
             )}
 
@@ -206,9 +206,9 @@ function SessionReportPanel({
                                                 ))}
                                             </ul>
                                         ) : record.status === 'absent' ? (
-                                            <span className="text-red-600">Rejected by lecturer</span>
+                                            <span className="text-gray-600">Rejected by lecturer</span>
                                         ) : record.status === 'pending_verification' ? (
-                                            <span className="text-blue-600">Face check in progress</span>
+                                            <span className="text-gray-600">Face check in progress</span>
                                         ) : (
                                             <span className="text-gray-400">—</span>
                                         )}
@@ -261,15 +261,12 @@ function MiniStat({
     label: string;
     value: number;
     icon: React.ComponentType<{ className?: string }>;
-    tone: 'gray' | 'emerald' | 'amber' | 'red' | 'blue';
+    tone: 'gray' | 'emerald';
     sub?: string;
 }) {
     const tones = {
         gray: 'text-gray-600 bg-gray-100',
-        emerald: 'text-emerald-600 bg-emerald-100',
-        amber: 'text-amber-600 bg-amber-100',
-        red: 'text-red-600 bg-red-100',
-        blue: 'text-blue-600 bg-blue-100',
+        emerald: 'text-emerald-600 bg-emerald-50',
     };
     return (
         <Card className="border-gray-200/80 shadow-sm">
@@ -289,10 +286,10 @@ function MiniStat({
 
 function StatusBadge({ status }: { status: string }) {
     const styles: Record<string, string> = {
-        confirmed: 'bg-emerald-100 text-emerald-800',
-        flagged: 'bg-amber-100 text-amber-800',
-        absent: 'bg-red-100 text-red-800',
-        pending_verification: 'bg-blue-100 text-blue-800',
+        confirmed: 'bg-emerald-50 text-emerald-700',
+        flagged: 'bg-gray-100 text-gray-700',
+        absent: 'bg-gray-100 text-gray-600',
+        pending_verification: 'bg-gray-100 text-gray-600',
     };
     const labels: Record<string, string> = {
         confirmed: 'Present',
@@ -383,7 +380,7 @@ export default function ReportsPage() {
                             return (
                                 <Card
                                     key={session.id}
-                                    className={`border-gray-200/80 shadow-sm overflow-hidden transition-shadow ${expanded ? 'ring-2 ring-emerald-500/20 shadow-md' : 'hover:shadow-md'}`}
+                                    className={`border-gray-200 shadow-sm overflow-hidden transition-shadow ${expanded ? 'ring-1 ring-emerald-600/30 shadow-md' : 'hover:shadow-md'}`}
                                 >
                                     <button
                                         type="button"
@@ -409,23 +406,23 @@ export default function ReportsPage() {
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
                                                     {session.is_active && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
                                                             <Radio className="h-3 w-3" /> Live
                                                         </span>
                                                     )}
                                                     {summary && summary.flagged > 0 && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                                                             <AlertTriangle className="h-3 w-3" /> {summary.flagged} flagged
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
                                             {summary && (
-                                                <div className="flex flex-wrap gap-4 mt-4 ml-8 text-sm">
-                                                    <span className="text-emerald-700"><strong>{summary.present}</strong> present</span>
-                                                    <span className="text-blue-600"><strong>{summary.pending}</strong> verifying</span>
-                                                    <span className="text-amber-600"><strong>{summary.flagged}</strong> flagged</span>
-                                                    <span className="text-gray-500"><strong>{summary.submitted}</strong> submitted</span>
+                                                <div className="flex flex-wrap gap-4 mt-4 ml-8 text-sm text-gray-600">
+                                                    <span><strong className="text-gray-900">{summary.present}</strong> present</span>
+                                                    <span><strong className="text-gray-900">{summary.pending}</strong> verifying</span>
+                                                    <span><strong className="text-gray-900">{summary.flagged}</strong> flagged</span>
+                                                    <span><strong className="text-gray-900">{summary.submitted}</strong> submitted</span>
                                                 </div>
                                             )}
                                         </CardHeader>

@@ -47,40 +47,37 @@ export default function AdminActivityPage() {
                 ) : (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
-                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
-                                    <CardTitle className="text-sm font-semibold text-gray-600">Sessions (24h)</CardTitle>
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                            <Card className="border-gray-200 bg-white shadow-sm">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium text-gray-600">Sessions (24h)</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
                                         <CalendarClock className="h-4 w-4" />
                                     </div>
                                 </CardHeader>
-                                <CardContent className="pl-5">
-                                    <div className="text-2xl font-bold text-gray-900">{activity.summary?.sessions_count ?? 0}</div>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold text-gray-900">{activity.summary?.sessions_count ?? 0}</div>
                                 </CardContent>
                             </Card>
-                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
-                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
-                                    <CardTitle className="text-sm font-semibold text-gray-600">Attendance (24h)</CardTitle>
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                            <Card className="border-gray-200 bg-white shadow-sm">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium text-gray-600">Attendance (24h)</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
                                         <UserCheck className="h-4 w-4" />
                                     </div>
                                 </CardHeader>
-                                <CardContent className="pl-5">
-                                    <div className="text-2xl font-bold text-gray-900">{activity.summary?.attendance_count ?? 0}</div>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold text-gray-900">{activity.summary?.attendance_count ?? 0}</div>
                                 </CardContent>
                             </Card>
-                            <Card className="group relative border-gray-200/80 bg-white shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
-                                <div className="absolute left-0 top-0 h-full w-1 bg-emerald-600" />
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
-                                    <CardTitle className="text-sm font-semibold text-gray-600">Audit Logs (24h)</CardTitle>
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                            <Card className="border-gray-200 bg-white shadow-sm">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium text-gray-600">Audit Logs (24h)</CardTitle>
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
                                         <FileText className="h-4 w-4" />
                                     </div>
                                 </CardHeader>
-                                <CardContent className="pl-5">
-                                    <div className="text-2xl font-bold text-gray-900">{activity.summary?.audit_logs_count ?? 0}</div>
+                                <CardContent>
+                                    <div className="text-2xl font-semibold text-gray-900">{activity.summary?.audit_logs_count ?? 0}</div>
                                 </CardContent>
                             </Card>
                         </div>

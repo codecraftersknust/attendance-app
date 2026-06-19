@@ -170,7 +170,11 @@
   background: #f3f4f6 !important;
   color: #111827 !important;
   font-weight: 600;
-  border-left: 3px solid #059669;
+}
+
+.lecturer-layout [data-sidebar="menu-button"][data-active="true"] svg,
+.admin-layout [data-sidebar="menu-button"][data-active="true"] svg {
+  color: #059669;
 }
 
 .lecturer-layout [data-sidebar="menu-button"]:hover,
